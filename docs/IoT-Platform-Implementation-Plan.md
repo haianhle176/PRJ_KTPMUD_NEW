@@ -10,7 +10,17 @@ Xay dung nen tang IoT da nguoi dung gom:
 - **WPF App:** quan ly thiet bi, theo doi du lieu, dieu khien actuator va tao luat If-Then.
 - **MVP:** thiet bi dang ky -> nguoi dung claim -> telemetry hien thi -> gui lenh -> nhan ACK -> automation tu kich hoat.
 
-Kien truc uu tien hoan thien luong nghiep vu va backend truoc UI.
+### Nguyen tac trien khai: tinh nang truoc, giao dien sau
+
+Du an bat buoc di theo huong **backend-first, UI-last**. Trong cac phase P0-P5, nhom tap trung hoan thien va kiem thu toan bo tinh nang cot loi ma chua phu thuoc vao WPF:
+
+- DeviceApp ket noi HiveMQ, gui manifest, presence va telemetry.
+- Backend xu ly tai khoan, claim thiet bi, ownership va luu tru du lieu.
+- API va MQTT Worker thuc hien dieu khien actuator, ACK va automation.
+- Moi use case duoc kiem thu truoc bang DeviceApp, Swagger/Postman va automated tests.
+- Chua dau tu theme, animation, dashboard phuc tap hoac bieu do trong giai doan nay.
+
+Chi bat dau P6 - WPF App khi luong end-to-end `DeviceApp -> HiveMQ -> Worker -> SQL -> API` va luong command nguoc lai da hoat dong on dinh. WPF khi do chi dong vai tro trinh bay va goi cac API da duoc xac minh, khong chua business rule cot loi.
 
 ## 2. Kien truc va giao tiep
 
@@ -133,6 +143,17 @@ Rang buoc quan trong:
 
 ## 4. Cac giai doan trien khai
 
+### Thu tu uu tien phat trien
+
+| Nhom uu tien | Phase | Trong tam |
+| --- | --- | --- |
+| Tinh nang cot loi | P0-P2 | Contract, database, device identity, capability dong, tai khoan va claim |
+| Xu ly nghiep vu | P3-P5 | Telemetry, command/ACK va automation engine |
+| Giao dien | P6 | WPF tich hop cac API va use case da hoan chinh |
+| Hoan thien | P7-P8 | Cloud, kiem thu, bao cao va tinh nang mo rong |
+
+Khong chuyen sang P6 neu cac tieu chi nghiem thu cua P1-P5 chua dat. Neu thieu thoi gian, uu tien cat giam do hoa, animation, SignalR va dashboard nang cao; khong cat giam capability dong, telemetry, command/ACK, ownership hoac automation.
+
 ### P0 - Dac ta va nen mong
 
 - Chot glossary, trang thai thiet bi/lenh, JSON schema va topic MQTT.
@@ -194,6 +215,7 @@ Rang buoc quan trong:
 
 ### P6 - WPF App
 
+- Khong trien khai business rule moi tai WPF; moi thao tac nghiep vu phai di qua Web API.
 - MVVM, DI, typed API client va secure token storage.
 - Man hinh dang nhap/dang ky.
 - Danh sach thiet bi online/offline, claim, doi ten va loc.
