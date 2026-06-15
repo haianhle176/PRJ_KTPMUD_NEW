@@ -1,0 +1,38 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iot-platform.local/schemas/mqtt/manifest.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["messageId", "serial", "timestampUtc", "schemaVersion", "manifestVersion", "capabilities"],
+  "properties": {
+    "messageId": { "$ref": "common.schema.json#/$defs/messageId" },
+    "serial": { "$ref": "common.schema.json#/$defs/serial" },
+    "timestampUtc": { "$ref": "common.schema.json#/$defs/timestampUtc" },
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "manifestVersion": { "type": "integer", "minimum": 1 },
+    "capabilities": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["key", "displayName", "kind", "dataType", "isWritable", "supportedCommands"],
+        "properties": {
+          "key": { "$ref": "common.schema.json#/$defs/capabilityKey" },
+          "displayName": { "type": "string", "minLength": 1, "maxLength": 100 },
+          "kind": { "enum": ["sensor", "actuator"] },
+          "dataType": { "enum": ["number", "boolean", "string"] },
+          "unit": { "type": ["string", "null"], "maxLength": 32 },
+          "minValue": { "type": ["number", "null"] },
+          "maxValue": { "type": ["number", "null"] },
+          "isWritable": { "type": "boolean" },
+          "supportedCommands": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,31}$" }
+          }
+        }
+      }
+    }
+  }
+}

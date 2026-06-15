@@ -1,0 +1,15 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iot-platform.local/schemas/mqtt/presence.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["messageId", "serial", "timestampUtc", "schemaVersion", "status"],
+  "properties": {
+    "messageId": { "$ref": "common.schema.json#/$defs/messageId" },
+    "serial": { "$ref": "common.schema.json#/$defs/serial" },
+    "timestampUtc": { "$ref": "common.schema.json#/$defs/timestampUtc" },
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "status": { "enum": ["online", "offline"] },
+    "sessionId": { "type": "string", "format": "uuid" }
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iot-platform.local/schemas/mqtt/command.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["messageId", "serial", "timestampUtc", "schemaVersion", "commandId", "capabilityKey", "commandName", "desiredValue"],
+  "properties": {
+    "messageId": { "$ref": "common.schema.json#/$defs/messageId" },
+    "serial": { "$ref": "common.schema.json#/$defs/serial" },
+    "timestampUtc": { "$ref": "common.schema.json#/$defs/timestampUtc" },
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "commandId": { "type": "string", "format": "uuid" },
+    "capabilityKey": { "$ref": "common.schema.json#/$defs/capabilityKey" },
+    "commandName": { "type": "string", "pattern": "^[A-Z][A-Z0-9_]{1,31}$" },
+    "desiredValue": { "$ref": "common.schema.json#/$defs/dynamicValue" },
+    "expiresAtUtc": { "$ref": "common.schema.json#/$defs/timestampUtc" }
+  }
+}

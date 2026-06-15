@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iot-platform.local/schemas/mqtt/common.schema.json",
+  "$defs": {
+    "messageId": { "type": "string", "format": "uuid" },
+    "serial": { "type": "string", "pattern": "^[A-Z0-9][A-Z0-9-]{7,63}$" },
+    "timestampUtc": { "type": "string", "format": "date-time", "pattern": "Z$" },
+    "schemaVersion": { "const": "1.0" },
+    "capabilityKey": { "type": "string", "pattern": "^[a-z][a-z0-9_]{1,63}$" },
+    "dynamicValue": { "type": ["number", "boolean", "string"] }
+  }
+}

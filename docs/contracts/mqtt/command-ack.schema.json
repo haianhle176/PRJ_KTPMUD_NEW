@@ -1,0 +1,18 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://iot-platform.local/schemas/mqtt/command-ack.schema.json",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["messageId", "serial", "timestampUtc", "schemaVersion", "commandId", "status"],
+  "properties": {
+    "messageId": { "$ref": "common.schema.json#/$defs/messageId" },
+    "serial": { "$ref": "common.schema.json#/$defs/serial" },
+    "timestampUtc": { "$ref": "common.schema.json#/$defs/timestampUtc" },
+    "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
+    "commandId": { "type": "string", "format": "uuid" },
+    "status": { "enum": ["accepted", "completed", "failed"] },
+    "reportedValue": { "$ref": "common.schema.json#/$defs/dynamicValue" },
+    "errorCode": { "type": ["string", "null"], "maxLength": 64 },
+    "errorMessage": { "type": ["string", "null"], "maxLength": 500 }
+  }
+}

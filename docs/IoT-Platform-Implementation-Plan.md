@@ -37,6 +37,20 @@ Chi bat dau P6 - WPF App khi luong end-to-end `DeviceApp -> HiveMQ -> Worker -> 
 
 API va Worker tach process nhung dung chung Application, Infrastructure va Azure SQL.
 
+### Mo hinh trien khai da chot
+
+```text
+WPF (local) -> Web API (Azure App Service F1) -> Azure SQL
+DeviceApp (local) <-> HiveMQ Cloud <-> Worker (local laptop) -> Azure SQL
+```
+
+- Chi Web API duoc publish len Azure App Service F1.
+- Worker khong publish len Azure; Worker chay local tren laptop va giu ket noi MQTT dai han.
+- DeviceApp va WPF chay local; HiveMQ va Azure SQL chay tren cloud.
+- API va Worker dung chung Azure SQL Database.
+- Do F1 khong co Always On, API co the cold start sau thoi gian khong co request.
+- Worker local phu thuoc laptop dang bat, khong sleep va co Internet; day la gioi han duoc chap nhan cho bai tap lon.
+
 ### Capability dong
 
 DeviceApp khong co cac loai `AirConditioner`, `Pump` dong cung. Khi chay, nguoi dung cau hinh manifest gom:
@@ -228,8 +242,11 @@ Khong chuyen sang P6 neu cac tieu chi nghiem thu cua P1-P5 chua dat. Neu thieu t
 
 ### P7 - Cloud, kiem thu va bao cao
 
-- Deploy API va Worker len Azure, SQL tren Azure SQL Database.
-- Cau hinh HiveMQ credentials, CORS, HTTPS, health checks va structured logs.
+- Deploy chi Web API len Azure App Service F1; Worker, DeviceApp va WPF chay local.
+- Trien khai database tren Azure SQL va ket noi ca API Azure lan Worker local vao cung database.
+- Cau hinh API secret trong Azure App Settings; Worker/HiveMQ secret trong local user-secrets hoac environment variables.
+- Cau hinh CORS, HTTPS, API health check va structured logs.
+- Chuan bi quy trinh demo: danh thuc API F1, dam bao laptop khong sleep va khoi dong Worker local.
 - Seed tai khoan/demo scenario khong chua secret.
 - Integration test voi broker test hoac MQTT abstraction.
 - Script demo chuan: claim -> telemetry -> manual command -> automation.
@@ -257,13 +274,13 @@ DeviceApp instances
     <-> MQTT/TLS
 HiveMQ Cloud
     <-> subscribe/publish
-ASP.NET Core MQTT Worker
+ASP.NET Core MQTT Worker (local laptop)
     <-> Dapper
 Azure SQL Database
     <-> Dapper
-ASP.NET Core Web API
+ASP.NET Core Web API (Azure App Service F1)
     <-> HTTPS/JSON + JWT
-WPF Application
+WPF Application (local)
 ```
 
 The hien rieng telemetry upstream, command downstream, ACK, authentication va Worker/API dung chung database.
@@ -349,6 +366,8 @@ Chuan bi bon sequence diagram:
 
 - Nhom co it nhat 5 nguoi va hon 10 tuan.
 - HiveMQ Cloud la broker chinh; Azure khong thay the MQTT broker.
+- Chi Web API chay tren Azure App Service F1; Worker, DeviceApp va WPF chay local.
+- Khong su dung Continuous WebJob/Always On trong topology hien tai.
 - He thong da nguoi dung nhung chua co chia se thiet bi hoac role admin trong MVP.
 - DeviceApp dung manifest runtime, khong dung danh sach device type dong cung.
 - Pairing code la co che claim mac dinh.
