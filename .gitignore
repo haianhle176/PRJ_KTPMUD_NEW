@@ -1,0 +1,78 @@
+# ==========================================
+# 1. Các file rác của Hệ điều hành
+# ==========================================
+.DS_Store
+.AppleDouble
+.LSOverride
+Thumbs.db
+ehthumbs.db
+$RECYCLE.BIN/
+
+# ==========================================
+# 2. Cấu hình Editor/IDE cá nhân 
+# (Visual Studio, VS Code, IntelliJ, Eclipse)
+# ==========================================
+# Visual Studio
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# Visual Studio Code
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# IntelliJ IDEA / Eclipse (Cho Java)
+.idea/
+*.iml
+*.iws
+*.ipr
+.settings/
+.classpath
+.project
+
+# ==========================================
+# 3. Frontend & Biến môi trường
+# ==========================================
+node_modules/
+dist/
+build/
+.env
+.env.local
+.env.development
+.env.test
+.env.production
+
+# ==========================================
+# 4. Backend - C# / ASP.NET Core
+# ==========================================
+bin/
+obj/
+TestResults/
+*.log
+# Bỏ qua file cấu hình chứa chuỗi kết nối DB thật ở máy local
+appsettings.Development.json
+appsettings.Local.json
+
+# ==========================================
+# 5. Backend - Java / Spring Boot
+# ==========================================
+target/
+*.class
+*.jar
+*.war
+*.ear
+hs_err_pid*
+
+# ==========================================
+# 6. Thư mục chứa file Upload lúc Test
+# (Tránh đẩy ảnh rác lên kho lưu trữ chung)
+# ==========================================
+public/uploads/
+wwwroot/uploads/
+src/main/resources/static/uploads/
+uploads/
