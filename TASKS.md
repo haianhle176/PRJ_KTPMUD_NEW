@@ -72,60 +72,58 @@ Ky hieu:
 
 ## P3 - Telemetry pipeline
 
-- [ ] `P3-01` DeviceApp ho tro telemetry tu sinh va nhap tay theo capability.
-- [ ] `P3-02` Validate schema version, serial, timestamp, capability va data type tai Worker.
-- [ ] `P3-03` Implement deduplication theo `messageId`.
-- [ ] `P3-04` Insert `TelemetryRecords` va transactional upsert `DeviceLatestValues`.
-- [ ] `P3-05` Cap nhat `LastSeenAt` va online/offline state tu presence.
-- [ ] `P3-06` Implement device list/detail va latest-values API.
-- [ ] `P3-07` Implement telemetry history API co pagination va time range.
-- [ ] `P3-08` Test malformed payload, unknown capability, wrong type va duplicate message.
-- [ ] `P3-09` Load test 100 device, moi device mot message moi 5 giay.
+- [x] `P3-01` DeviceApp ho tro telemetry tu sinh va nhap tay theo capability.
+- [x] `P3-02` Validate schema version, serial, timestamp, capability va data type tai Worker.
+- [x] `P3-03` Implement deduplication theo `messageId`.
+- [x] `P3-04` Insert `TelemetryRecords` va transactional upsert `DeviceLatestValues`.
+- [x] `P3-05` Cap nhat `LastSeenAt` va online/offline state tu presence.
+- [x] `P3-06` Implement device list/detail va latest-values API.
+- [x] `P3-07` Implement telemetry history API co pagination va time range.
+- [x] `P3-08` Test malformed payload, unknown capability, wrong type va duplicate message.
+- [x] `P3-09` Load test 100 device, moi device mot message moi 5 giay.
 
 **P3 complete khi:** telemetry di end-to-end va duoc doc lai dung qua API ma khong bi trung.
 
 ## P4 - Dieu khien actuator
 
-- [ ] `P4-01` Tao command use case voi ownership, writable va data type validation.
-- [ ] `P4-02` Luu command o trang thai `Pending` va nguon `Manual`/`Automation`.
-- [ ] `P4-03` Worker publish command va chuyen `Pending -> Sent`.
-- [ ] `P4-04` DeviceApp subscribe command, validate va thuc thi actuator.
-- [ ] `P4-05` DeviceApp publish `accepted`, `completed` hoac `failed` ACK.
-- [ ] `P4-06` Worker xu ly ACK idempotent va enforce state transition hop le.
-- [ ] `P4-07` Implement timeout va retry gioi han cho loi tam thoi.
-- [ ] `P4-08` Implement command status API va reported state.
-- [ ] `P4-09` Test offline device, delayed/duplicate ACK, invalid transition va retry.
+- [x] `P4-01` Tao command use case voi ownership, writable va data type validation.
+- [x] `P4-02` Luu command o trang thai `Pending` va nguon `Manual`/`Automation`.
+- [x] `P4-03` Worker publish command va chuyen `Pending -> Sent`.
+- [x] `P4-04` DeviceApp subscribe command, validate va thuc thi actuator.
+- [x] `P4-05` DeviceApp publish `accepted`, `completed` hoac `failed` ACK.
+- [x] `P4-06` Worker xu ly ACK idempotent va enforce state transition hop le.
+- [x] `P4-07` Implement timeout va retry gioi han cho loi tam thoi.
+- [x] `P4-08` Implement command status API va reported state.
+- [x] `P4-09` Test offline device, delayed/duplicate ACK, invalid transition va retry.
 
 **P4 complete khi:** command API thay doi DeviceApp va trang thai cuoi cung duoc quan sat chinh xac.
 
 ## P5 - Automation engine
 
-- [ ] `P5-01` Tao CRUD API cho automation rule va enable/disable.
-- [ ] `P5-02` Validate source sensor, target actuator, data type va ownership.
-- [ ] `P5-03` Implement comparator `>`, `>=`, `<`, `<=`, `==`, `!=`.
-- [ ] `P5-04` Implement edge trigger va cooldown.
-- [ ] `P5-05` Danh gia rule sau khi telemetry transaction thanh cong.
-- [ ] `P5-06` Tao automation command qua cung command service cua manual control.
-- [ ] `P5-07` Luu `AutomationExecutions` voi trigger/skip/failure reason.
-- [ ] `P5-08` Ngan duplicate execution khi telemetry bi giao lai.
-- [ ] `P5-09` Test sensor A dieu khien actuator B, cooldown va disabled rule.
+- [x] `P5-01` Tao CRUD API cho automation rule va enable/disable.
+- [x] `P5-02` Validate source sensor, target actuator, data type va ownership.
+- [x] `P5-03` Implement comparator `>`, `>=`, `<`, `<=`, `==`, `!=`.
+- [x] `P5-04` Implement edge trigger va cooldown.
+- [x] `P5-05` Danh gia rule sau khi telemetry transaction thanh cong.
+- [x] `P5-06` Tao automation command qua cung command service cua manual control.
+- [x] `P5-07` Luu `AutomationExecutions` voi trigger/skip/failure reason.
+- [x] `P5-08` Ngan duplicate execution khi telemetry bi giao lai.
+- [x] `P5-09` Test sensor A dieu khien actuator B, cooldown va disabled rule.
 
 **P5 complete khi:** automation end-to-end on dinh va co execution history de giai thich moi command.
 
 ## P6 - WPF App
 
-> Blocked cho den khi P1-P5 complete. WPF khong duoc chua business rule cot loi.
-
-- [!] `P6-01` Tao WPF shell theo MVVM, DI va navigation.
-- [!] `P6-02` Tao typed API client, token refresh va secure token storage.
-- [!] `P6-03` Tao man hinh register/login/logout.
-- [!] `P6-04` Tao device list voi online state, filter, claim, rename va classification.
-- [!] `P6-05` Tao device detail voi capability va latest values.
-- [!] `P6-06` Tao telemetry history view va bieu do toi thieu.
-- [!] `P6-07` Tao actuator control va command status feedback.
-- [!] `P6-08` Tao automation rule list/editor tu capability dong.
-- [!] `P6-09` Them polling 3-5 giay, loading, empty, validation va error states.
-- [!] `P6-10` Chay full MVP demo chi qua WPF va DeviceApp.
+- [x] `P6-01` Tao WPF shell theo MVVM, DI va navigation.
+- [x] `P6-02` Tao typed API client, token refresh va secure token storage.
+- [x] `P6-03` Tao man hinh register/login/logout.
+- [x] `P6-04` Tao device list voi online state, filter, claim, rename va classification.
+- [x] `P6-05` Tao device detail voi capability va latest values.
+- [>] `P6-06` Tao telemetry history view va bieu do toi thieu.
+- [x] `P6-07` Tao actuator control va command status feedback.
+- [x] `P6-08` Tao automation rule list/editor tu capability dong.
+- [x] `P6-09` Them polling 3-5 giay, loading, empty, validation va error states.
+- [ ] `P6-10` Chay full MVP demo chi qua WPF va DeviceApp.
 
 **P6 complete khi:** nguoi dung thuc hien duoc toan bo MVP ma khong can Swagger/Postman.
 
@@ -161,8 +159,8 @@ Ky hieu:
 
 Bat dau theo thu tu:
 
-1. `P3-01` DeviceApp ho tro telemetry tu sinh va nhap tay theo capability.
-2. `P3-02` Validate schema version, serial, timestamp, capability va data type tai Worker.
-3. `P3-03` Implement deduplication theo `messageId`.
+1. Hoan thien `P6-06` bang bieu do telemetry toi thieu neu can polish.
+2. `P6-10` Chay full MVP demo qua WPF + Worker + DeviceApp.
+3. Sau demo, chuyen sang `P7-03` health checks/cloud logs va tai lieu demo.
 
 `P0-06` va `P0-07` duoc hoan theo yeu cau, khong chan phan trien khai ky thuat P1.

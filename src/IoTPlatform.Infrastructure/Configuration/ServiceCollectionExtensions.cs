@@ -9,6 +9,12 @@ using IoTPlatform.Application.Devices;
 using IoTPlatform.Application.Security;
 using IoTPlatform.Infrastructure.Audit;
 using IoTPlatform.Infrastructure.Auth;
+using IoTPlatform.Application.Telemetry;
+using IoTPlatform.Application.Commands;
+using IoTPlatform.Application.Automation;
+using IoTPlatform.Infrastructure.Automation;
+using IoTPlatform.Infrastructure.Commands;
+using IoTPlatform.Infrastructure.Telemetry;
 
 namespace IoTPlatform.Infrastructure.Configuration;
 
@@ -25,6 +31,11 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthRepository, SqlAuthRepository>();
         services.AddScoped<IDeviceClaimRepository, SqlDeviceClaimRepository>();
         services.AddScoped<IDeviceManagementRepository, SqlDeviceManagementRepository>();
+        services.AddScoped<ITelemetryQueryRepository, SqlTelemetryQueryRepository>();
+        services.AddScoped<ICommandRepository, SqlCommandRepository>();
+        services.AddScoped<IAutomationRuleRepository, SqlAutomationRuleRepository>();
+        services.AddSingleton<ITelemetryIngestionRepository, SqlTelemetryIngestionRepository>();
+        services.AddSingleton<ICommandDispatchRepository, SqlCommandDispatchRepository>();
         services.AddScoped<IAuditLogRepository, SqlAuditLogRepository>();
         return services;
     }
@@ -34,6 +45,9 @@ public static class ServiceCollectionExtensions
         services.AddScoped<IAuthService, AuthService>();
         services.AddScoped<IDeviceClaimService, DeviceClaimService>();
         services.AddScoped<IDeviceManagementService, DeviceManagementService>();
+        services.AddScoped<ITelemetryQueryService, TelemetryQueryService>();
+        services.AddScoped<ICommandService, CommandService>();
+        services.AddScoped<IAutomationRuleService, AutomationRuleService>();
         services.AddSingleton<IPasswordService, PasswordService>();
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddSingleton<ICurrentUserTokenService, CurrentUserTokenService>();

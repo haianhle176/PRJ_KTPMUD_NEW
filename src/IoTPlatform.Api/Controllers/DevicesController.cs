@@ -1,6 +1,8 @@
 using IoTPlatform.Api.Contracts;
 using IoTPlatform.Application.Devices;
 using IoTPlatform.Application.Security;
+using IoTPlatform.Application.Telemetry;
+using IoTPlatform.Application.Commands;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 
@@ -11,6 +13,8 @@ namespace IoTPlatform.Api.Controllers;
 public sealed class DevicesController(
     IDeviceClaimService deviceClaimService,
     IDeviceManagementService deviceManagementService,
+    ITelemetryQueryService telemetryQueryService,
+    ICommandService commandService,
     ICurrentUserTokenService currentUserTokenService) : ControllerBase
 {
     [HttpPost("claim")]
@@ -112,6 +116,101 @@ public sealed class DevicesController(
         catch (DeviceNotFoundException exception)
         {
             return NotFound(ProblemDetails("device_not_found", exception.Message, StatusCodes.Status404NotFound));
+        }
+    }
+
+    [HttpGet("{id:guid}/latest-values")]
+    public async Task<ActionResult<IReadOnlyList<TelemetryValueDto>>> GetLatestValues(Guid id, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId, out var unauthorized))
+        {
+            return unauthorized;
+        }
+
+        try
+        {
+            return Ok(await telemetryQueryService.GetLatestValuesAsync(userId, id, cancellationToken));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(ProblemDetails("validation_error", exception.Message, StatusCodes.Status400BadRequest));
+        }
+    }
+
+    [HttpGet("{id:guid}/telemetry")]
+    public async Task<ActionResult<TelemetryHistoryPageDto>> GetTelemetryHistory(
+        Guid id,
+        [FromQuery] string? capabilityKey,
+        [FromQuery] DateTimeOffset? fromUtc,
+        [FromQuery] DateTimeOffset? toUtc,
+        [FromQuery] int page = 1,
+        [FromQuery] int pageSize = 50,
+        CancellationToken cancellationToken = default)
+    {
+        if (!TryGetUserId(out var userId, out var unauthorized))
+        {
+            return unauthorized;
+        }
+
+        try
+        {
+            return Ok(await telemetryQueryService.GetHistoryAsync(
+                userId,
+                id,
+                capabilityKey,
+                fromUtc,
+                toUtc,
+                page,
+                pageSize,
+                cancellationToken));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(ProblemDetails("validation_error", exception.Message, StatusCodes.Status400BadRequest));
+        }
+    }
+
+    [HttpPost("{id:guid}/commands")]
+    public async Task<ActionResult<CommandDto>> CreateCommand(Guid id, CreateCommandRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId, out var unauthorized))
+        {
+            return unauthorized;
+        }
+
+        try
+        {
+            var command = await commandService.CreateManualAsync(userId, request.ToDto(id), cancellationToken);
+            return Created($"/api/v1/devices/{id}/commands/{command.Id}", command);
+        }
+        catch (CommandValidationException exception)
+        {
+            return BadRequest(ProblemDetails("command_validation_error", exception.Message, StatusCodes.Status400BadRequest));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(ProblemDetails("validation_error", exception.Message, StatusCodes.Status400BadRequest));
+        }
+    }
+
+    [HttpGet("{id:guid}/commands/{commandId:guid}")]
+    public async Task<ActionResult<CommandDto>> GetCommand(Guid id, Guid commandId, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId, out var unauthorized))
+        {
+            return unauthorized;
+        }
+
+        try
+        {
+            var command = await commandService.GetAsync(userId, commandId, cancellationToken);
+            return command.DeviceId == id
+                ? Ok(command)
+                : NotFound(ProblemDetails("command_not_found", "Command was not found.", StatusCodes.Status404NotFound));
+        }
+        catch (CommandNotFoundException exception)
+        {
+            return NotFound(ProblemDetails("command_not_found", exception.Message, StatusCodes.Status404NotFound));
         }
     }
 

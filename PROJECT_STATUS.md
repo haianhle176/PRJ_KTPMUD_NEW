@@ -1,9 +1,9 @@
 # Project Status
 
 **Cap nhat lan cuoi:** 2026-06-16  
-**Trang thai tong the:** P2 complete; P3 ready  
-**Phase hien tai:** P3 ready to start  
-**Muc tieu tiep theo:** Telemetry pipeline
+**Trang thai tong the:** P6 functional UI implemented; demo/polish pending  
+**Phase hien tai:** P6 in progress  
+**Muc tieu tiep theo:** Chay full MVP demo qua WPF + Worker + DeviceApp
 
 ## 1. Tien do phase
 
@@ -12,10 +12,10 @@
 | P0 | Dac ta va nen mong | Technical work complete; diagrams deferred | 90% |
 | P1 | Device identity va capability discovery | Complete | 100% |
 | P2 | Tai khoan va claim thiet bi | Complete | 100% |
-| P3 | Telemetry pipeline | Not started | 0% |
-| P4 | Dieu khien actuator | Not started | 0% |
-| P5 | Automation engine | Not started | 0% |
-| P6 | WPF App | Blocked by P1-P5 | 0% |
+| P3 | Telemetry pipeline | Complete | 100% |
+| P4 | Dieu khien actuator | Complete | 100% |
+| P5 | Automation engine | Complete | 100% |
+| P6 | WPF App | Functional UI implemented; full demo pending | 85% |
 | P7 | Cloud, kiem thu va bao cao | Not started | 0% |
 | P8 | Mo rong sau MVP | Deferred | 0% |
 
@@ -24,6 +24,14 @@ Toan bo phan ky thuat P0 da hoan thanh. Phan con lai chi la `P0-06` va `P0-07` v
 P1 da hoan thanh: persistent profile/serial, runtime manifest, TLS MQTT, Last Will, reconnect, Worker routing, database upsert, pairing hash va verification tren Azure SQL.
 
 P2 da hoan thanh: account register/login/refresh/logout, password hashing, JWT token service, rotating refresh token, pairing-code claim, device list/detail/rename/classify/unclaim, ownership authorization va audit log cho auth/device operations.
+
+P3 da hoan thanh: DeviceApp publish telemetry tu dong/nhap tay, Worker subscribe telemetry, validate payload/capability/type/range, dedupe theo `ProcessedMessages`, insert `TelemetryRecords`, upsert `DeviceLatestValues`, cap nhat online/last seen va API doc latest/history theo ownership.
+
+P4 da hoan thanh: API tao manual command, validate ownership/writable actuator/value type/supported command, luu `pending`, Worker publish MQTT command va chuyen `sent`, DeviceApp subscribe/thuc thi actuator dong va publish ACK, Worker xu ly ACK idempotent, retry command da sent neu chua co ACK va timeout khi het han.
+
+P5 da hoan thanh: CRUD automation rule, validation source sensor/target actuator/ownership/data type, comparator `> >= < <= == !=`, edge trigger, cooldown, evaluation sau telemetry transaction, tao command source `automation`, ghi execution history va chong duplicate execution khi telemetry bi giao lai.
+
+P6 da co functional WPF UI: MVVM shell, typed API client, DPAPI token storage, login/register/logout, device list/claim/rename, telemetry latest/history, actuator command form, automation rule list/editor/execution history va polling 5 giay. Phan con lai la bieu do telemetry toi thieu/polish va full MVP demo that qua Worker + DeviceApp.
 
 ## 2. Da hoan thanh
 
@@ -69,40 +77,74 @@ P2 da hoan thanh: account register/login/refresh/logout, password hashing, JWT t
 - [x] Enforce ownership: user chi doc/sua/unclaim duoc device minh da claim.
 - [x] Ghi audit log cho `auth.register`, `auth.login`, `auth.logout`, `device.claim`, `device.update`, `device.unclaim`.
 - [x] Them integration tests cho duplicate/invalid credential, refresh rotation, used/expired/concurrent pairing code va cross-user device access.
+- [x] Them `DeviceTelemetryMessage` va telemetry publish tu DeviceApp moi 5 giay cho sensor capability.
+- [x] Them manual telemetry command trong DeviceApp: `set <capabilityKey> <value>`.
+- [x] Worker subscribe `iot/devices/+/telemetry`, route va luu telemetry.
+- [x] Them SQL telemetry ingestion voi validation schema, serial, active sensor capability, value type va min/max.
+- [x] Dedupe MQTT QoS 1 bang `ProcessedMessages.MessageId`.
+- [x] Insert telemetry history va upsert latest values trong cung transaction.
+- [x] Them API `GET /api/v1/devices/{id}/latest-values`.
+- [x] Them API `GET /api/v1/devices/{id}/telemetry` co filter capability/time range va pagination.
+- [x] Them LocalDB integration tests cho duplicate, unknown capability, wrong type, actuator reading, cross-user read isolation va 100-device load baseline.
+- [x] Them command DTO/use case va repository cho manual actuator control.
+- [x] Them API `POST /api/v1/devices/{id}/commands` va `GET /api/v1/devices/{id}/commands/{commandId}`.
+- [x] Worker polling command pending/sent retry, publish MQTT command va cap nhat `sent`.
+- [x] DeviceApp subscribe command topic, validate capability dong, cap nhat actuator state mo phong va publish `accepted`/`completed`/`failed`.
+- [x] Worker subscribe command ACK va ghi `CommandAcknowledgements` idempotent.
+- [x] Cap nhat command status theo ACK: `accepted`, `completed`, `failed`, `timed_out`.
+- [x] Them P4 integration tests cho create/dispatch/completed ACK duplicate/retry/timeout va reject cross-user/sensor/wrong-type/unsupported command.
+- [x] Them migration `V003_AutomationRuleCommandName.sql` de AutomationRules luu command actuator.
+- [x] Them Automation application service/repository va API CRUD `/api/v1/automation-rules`.
+- [x] Them execution API `/api/v1/automation-rules/{id}/executions`.
+- [x] Telemetry ingestion danh gia automation rule trong cung transaction sau khi ghi history/latest.
+- [x] Automation tao `DeviceCommands` source `automation` dung chung pipeline P4.
+- [x] Luu `AutomationExecutions` voi outcome `triggered`/`skipped` va reason.
+- [x] Them P5 integration tests cho trigger, skipped, duplicate telemetry, edge/cooldown, disabled rule va invalid ownership/capability.
+- [x] Tao WPF functional shell bang `TabControl`: Auth, Devices, Telemetry, Commands, Automation.
+- [x] Tao typed API client trong WPF voi token refresh va DPAPI token storage theo Windows user.
+- [x] WPF goi API auth/device/telemetry/command/automation va polling 5 giay.
+- [x] WPF build thanh cong trong solution.
 
 ## 3. Chua bat dau
 
-- [ ] Telemetry, command, automation va WPF use cases P3-P6 chua duoc trien khai.
-- [ ] Test coverage hien bao phu P0-P2 cot loi; P3-P6 chua co test nghiep vu.
+- [ ] WPF full MVP demo qua Worker + DeviceApp chua duoc chay.
+- [ ] WPF telemetry moi co history table, chua co chart toi thieu.
+- [ ] Test coverage hien bao phu P0-P5 cot loi; P6 moi duoc verify bang build, chua co UI automation test.
 - [ ] Chua xac minh ket noi runtime tu source hien tai toi HiveMQ Cloud, Azure SQL va App Service F1.
 - [ ] Chua co diagram artifact hoan chinh.
-- [ ] P3-P6 use cases chua duoc trien khai.
+- [ ] P6-10 full MVP demo qua WPF + DeviceApp chua duoc chay.
 
 ## 4. Verification gan nhat
 
 - `dotnet build IoTPlatform.sln --configuration Debug`: thanh cong, 0 warnings, 0 errors.
-- `dotnet test IoTPlatform.sln --configuration Debug`: thanh cong; 13 tests passed. `IoTPlatform.Application.Tests` va `IoTPlatform.Api.Tests` hien la scaffold chua co test nen test runner bao `No test is available` nhung exit code thanh cong.
+- `dotnet test IoTPlatform.sln --configuration Debug`: thanh cong; 23 tests passed. `IoTPlatform.Application.Tests` va `IoTPlatform.Api.Tests` hien la scaffold chua co test nen test runner bao `No test is available` nhung exit code thanh cong.
+- `dotnet build IoTPlatform.sln --configuration Debug`: thanh cong sau khi them WPF UI.
 - Tat ca JSON schema va example files parse thanh cong nhu JSON.
 - LocalDB integration: tao database rong, apply 2 migrations, apply lai, kiem tra 13 bang, rollback/commit va xoa database test thanh cong.
 - P1 cloud integration: Worker ket noi Azure SQL + HiveMQ; ba DeviceApp publish manifest/presence; Last Will offline va reconnect online duoc ghi nhan.
 - `dotnet run --project src\IoTPlatform.Worker -- --verify-p1`: thanh cong, doc duoc ba device P1 trong Azure SQL.
 - P2 integration tests: auth register/login/refresh/logout, pairing code used/expired/concurrent, device ownership list/detail/update/unclaim va audit log deu pass tren LocalDB.
+- P3 integration tests: telemetry ingest/latest/history/dedup/reject malformed va 100-device local load baseline deu pass tren LocalDB.
+- P4 integration tests: command create/dispatch/ACK idempotency/retry/timeout va validation cross-user/sensor/wrong-type/unsupported command deu pass tren LocalDB.
+- P5 integration tests: automation CRUD validation, sensor-to-actuator trigger, cooldown/edge/disabled rule va duplicate telemetry protection deu pass tren LocalDB.
 
-## 5. Dieu kien mo khoa P3
+## 5. Dieu kien mo khoa P6
 
-P3 chi bat dau sau khi:
+P6 chi bat dau sau khi:
 
 - P1 discovery da ghi device/capability vao database.
 - P2 ownership da dam bao moi telemetry/query deu co ranh gioi user.
-- Database migration da co `TelemetryRecords`, `DeviceLatestValues` va `ProcessedMessages`.
-- MQTT telemetry contract da co schema/example trong `docs/contracts`.
-- Solution build/test thanh cong sau P2.
+- P3 telemetry da ghi history/latest va doc lai duoc qua API.
+- P4 command service da tao command manual va DeviceApp co ACK.
+- P5 automation da tao command source `automation` va co execution history.
+- API endpoints cho auth, device, telemetry, command va automation da san sang de WPF goi.
+- Solution build/test thanh cong sau P5.
 
 ## 6. Blocker va rui ro hien tai
 
 ### Blocker
 
-- Chua co blocker dang chan P3 local development.
+- Chua co blocker dang chan P6 local development.
 
 ### Rui ro
 

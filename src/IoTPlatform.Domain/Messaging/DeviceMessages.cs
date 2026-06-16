@@ -67,6 +67,39 @@ public sealed record DevicePresenceMessage(
     string Status,
     Guid SessionId);
 
+public sealed record DeviceTelemetryMessage(
+    Guid MessageId,
+    string Serial,
+    DateTimeOffset TimestampUtc,
+    string SchemaVersion,
+    IReadOnlyList<TelemetryReadingItem> Readings);
+
+public sealed record TelemetryReadingItem(
+    string CapabilityKey,
+    JsonElement Value);
+
+public sealed record DeviceCommandMessage(
+    Guid MessageId,
+    string Serial,
+    DateTimeOffset TimestampUtc,
+    string SchemaVersion,
+    Guid CommandId,
+    string CapabilityKey,
+    string CommandName,
+    JsonElement DesiredValue,
+    DateTimeOffset? ExpiresAtUtc);
+
+public sealed record DeviceCommandAcknowledgementMessage(
+    Guid MessageId,
+    string Serial,
+    DateTimeOffset TimestampUtc,
+    string SchemaVersion,
+    Guid CommandId,
+    string Status,
+    JsonElement? ReportedValue,
+    string? ErrorCode,
+    string? ErrorMessage);
+
 public static class DeviceMessageSerializer
 {
     public const string CurrentSchemaVersion = "1.0";

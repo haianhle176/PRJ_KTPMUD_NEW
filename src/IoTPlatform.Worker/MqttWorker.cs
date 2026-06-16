@@ -1,4 +1,5 @@
 using IoTPlatform.Domain.Messaging;
+using IoTPlatform.Infrastructure.Commands;
 using IoTPlatform.Infrastructure.Configuration;
 using IoTPlatform.Infrastructure.Devices;
 using IoTPlatform.Infrastructure.Persistence.Migrations;
@@ -13,7 +14,8 @@ public sealed class MqttWorker(
     ILogger<MqttWorker> logger,
     IOptions<HiveMqOptions> hiveMqOptions,
     ISqlMigrationRunner migrationRunner,
-    DeviceMessageHandler messageHandler) : BackgroundService
+    DeviceMessageHandler messageHandler,
+    ICommandDispatchRepository commandDispatchRepository) : BackgroundService
 {
     private readonly HiveMqOptions _hiveMq = hiveMqOptions.Value;
 
@@ -72,11 +74,23 @@ public sealed class MqttWorker(
             .WithTopicFilter(filter => filter
                 .WithTopic("iot/devices/+/presence")
                 .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+            .WithTopicFilter(filter => filter
+                .WithTopic("iot/devices/+/telemetry")
+                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
+            .WithTopicFilter(filter => filter
+                .WithTopic("iot/devices/+/commands/ack")
+                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce))
             .Build();
         await client.SubscribeAsync(subscribeOptions, cancellationToken);
-        logger.LogInformation("Connected to HiveMQ {Host}:{Port} and subscribed to P1 topics.", _hiveMq.Host, _hiveMq.Port);
+        logger.LogInformation("Connected to HiveMQ {Host}:{Port} and subscribed to device topics.", _hiveMq.Host, _hiveMq.Port);
 
         using var registration = cancellationToken.Register(() => disconnected.TrySetCanceled(cancellationToken));
+        while (!cancellationToken.IsCancellationRequested && !disconnected.Task.IsCompleted)
+        {
+            await PublishPendingCommandsAsync(client, cancellationToken);
+            await Task.WhenAny(disconnected.Task, Task.Delay(TimeSpan.FromSeconds(1), cancellationToken));
+        }
+
         await disconnected.Task;
     }
 
@@ -92,6 +106,48 @@ public sealed class MqttWorker(
         {
             logger.LogError(exception, "Failed to process MQTT message from {Topic}.", topic);
         }
+    }
+
+    private async Task PublishPendingCommandsAsync(IMqttClient client, CancellationToken cancellationToken)
+    {
+        var pendingCommands = await commandDispatchRepository.GetPendingAsync(25, cancellationToken);
+        foreach (var command in pendingCommands)
+        {
+            var message = new DeviceCommandMessage(
+                Guid.NewGuid(),
+                command.Serial,
+                DateTimeOffset.UtcNow,
+                DeviceMessageSerializer.CurrentSchemaVersion,
+                command.Id,
+                command.CapabilityKey,
+                command.CommandName,
+                CreateDesiredValue(command),
+                command.ExpiresAtUtc);
+            var payload = System.Text.Json.JsonSerializer.Serialize(message, DeviceMessageSerializer.Options);
+            var mqttMessage = new MqttApplicationMessageBuilder()
+                .WithTopic(MqttTopics.Commands(command.Serial))
+                .WithPayload(payload)
+                .WithQualityOfServiceLevel(MqttQualityOfServiceLevel.AtLeastOnce)
+                .WithRetainFlag(false)
+                .Build();
+
+            await client.PublishAsync(mqttMessage, cancellationToken);
+            if (await commandDispatchRepository.MarkSentAsync(command.Id, cancellationToken))
+            {
+                logger.LogInformation("Published command {CommandId} to {Serial}.", command.Id, command.Serial);
+            }
+        }
+    }
+
+    private static System.Text.Json.JsonElement CreateDesiredValue(PendingCommand command)
+    {
+        return command.DesiredValueType switch
+        {
+            "number" => System.Text.Json.JsonSerializer.SerializeToElement(command.DesiredNumberValue!.Value, DeviceMessageSerializer.Options),
+            "boolean" => System.Text.Json.JsonSerializer.SerializeToElement(command.DesiredBooleanValue!.Value, DeviceMessageSerializer.Options),
+            "string" => System.Text.Json.JsonSerializer.SerializeToElement(command.DesiredStringValue, DeviceMessageSerializer.Options),
+            _ => throw new InvalidOperationException("Unsupported command value type.")
+        };
     }
 
 }
