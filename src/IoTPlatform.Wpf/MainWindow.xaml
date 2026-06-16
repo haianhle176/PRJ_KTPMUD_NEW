@@ -270,199 +270,512 @@
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="34,28,28,0">
                 <Grid>
                     <StackPanel Visibility="{Binding HomeVisibility}">
-                        <Grid Margin="0,0,0,24">
+                        <Grid Margin="0,0,0,22" Panel.ZIndex="20">
                             <StackPanel>
-                                <TextBlock Text="Home" FontSize="28" FontWeight="Bold" />
+                                <TextBlock Text="Home" FontSize="30" FontWeight="Bold" />
                                 <TextBlock Text="Overview of your dynamic IoT home"
                                            Foreground="{StaticResource MutedInkBrush}"
                                            Margin="0,6,0,0" />
                             </StackPanel>
-                            <Button Content="Refresh"
-                                    Command="{Binding RefreshDevicesCommand}"
-                                    Style="{StaticResource SecondaryButton}"
+
+                            <StackPanel Orientation="Horizontal"
+                                        HorizontalAlignment="Right"
+                                        VerticalAlignment="Top">
+                                <Button Content="Refresh"
+                                        Command="{Binding RefreshHomeCommand}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Height="38" />
+                                <Button Command="{Binding ToggleNotificationFlyoutCommand}"
+                                        Style="{StaticResource SecondaryButton}"
+                                        Width="46"
+                                        Height="38"
+                                        Padding="0"
+                                        Margin="0,4,0,8">
+                                    <Grid>
+                                        <TextBlock Text="&#xE7F4;"
+                                                   FontFamily="Segoe MDL2 Assets"
+                                                   FontSize="17"
+                                                   Foreground="{StaticResource PrimaryBrush}"
+                                                   HorizontalAlignment="Center"
+                                                   VerticalAlignment="Center" />
+                                        <Border Background="{StaticResource PrimaryBrush}"
+                                                CornerRadius="8"
+                                                MinWidth="16"
+                                                Height="16"
+                                                Padding="4,0"
+                                                HorizontalAlignment="Right"
+                                                VerticalAlignment="Top"
+                                                Margin="0,-8,-8,0">
+                                            <TextBlock Text="{Binding UnreadNotificationBadgeText}"
+                                                       Foreground="White"
+                                                       FontSize="10"
+                                                       FontWeight="SemiBold"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                    </Grid>
+                                </Button>
+                            </StackPanel>
+
+                            <Border Visibility="{Binding NotificationFlyoutVisibility}"
                                     HorizontalAlignment="Right"
-                                    VerticalAlignment="Top" />
+                                    VerticalAlignment="Top"
+                                    Width="340"
+                                    Margin="0,52,0,0"
+                                    Background="{StaticResource SurfaceBrush}"
+                                    BorderBrush="{StaticResource BorderBrushSoft}"
+                                    BorderThickness="1"
+                                    CornerRadius="18"
+                                    Padding="16">
+                                <Border.Effect>
+                                    <DropShadowEffect BlurRadius="22" Opacity="0.12" ShadowDepth="8" />
+                                </Border.Effect>
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,10">
+                                        <TextBlock Text="Notifications" FontSize="17" FontWeight="SemiBold" />
+                                        <Button Content="View all"
+                                                Command="{Binding ViewAllNotificationsCommand}"
+                                                Style="{StaticResource LinkButton}"
+                                                HorizontalAlignment="Right" />
+                                    </Grid>
+                                    <Border Visibility="{Binding EmptyNotificationsVisibility}"
+                                            Background="{StaticResource SurfaceMutedBrush}"
+                                            CornerRadius="12"
+                                            Padding="14">
+                                        <TextBlock Text="No notifications."
+                                                   Foreground="{StaticResource MutedInkBrush}" />
+                                    </Border>
+                                    <ItemsControl ItemsSource="{Binding RecentHomeNotifications}"
+                                                  Visibility="{Binding HasNotificationsVisibility}">
+                                        <ItemsControl.ItemTemplate>
+                                            <DataTemplate>
+                                                <Border BorderBrush="{StaticResource BorderBrushSoft}"
+                                                        BorderThickness="0,0,0,1"
+                                                        Padding="0,8">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="34" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Width="24" Height="24" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="12">
+                                                            <TextBlock Text="{Binding SeverityIcon}"
+                                                                       FontFamily="Segoe MDL2 Assets"
+                                                                       Foreground="{StaticResource PrimaryBrush}"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center" />
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding Message}"
+                                                                       Foreground="{StaticResource MutedInkBrush}"
+                                                                       TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="2"
+                                                                   Text="{Binding CreatedText}"
+                                                                   Foreground="{StaticResource MutedInkBrush}"
+                                                                   Margin="10,0,0,0" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
                         </Grid>
 
-                        <UniformGrid Columns="4" Margin="0,0,0,4">
-                            <Border Style="{StaticResource CardBorder}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="56" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="46" Height="46" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="23" VerticalAlignment="Center">
-                                        <TextBlock Text="&#xE701;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                        <Grid Visibility="{Binding HomeEmptyVisibility}">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="1.2*" />
+                                <ColumnDefinition Width="0.8*" />
+                            </Grid.ColumnDefinitions>
+
+                            <Border Style="{StaticResource CardBorder}" Padding="24">
+                                <StackPanel>
+                                    <TextBlock Text="Welcome to OmniConnect" FontSize="28" FontWeight="Bold" />
+                                    <TextBlock Text="Connect your first dynamic IoT device."
+                                               Foreground="{StaticResource MutedInkBrush}"
+                                               FontSize="15"
+                                               Margin="0,6,0,24" />
+
+                                    <UniformGrid Columns="4" Margin="0,0,0,24">
+                                        <StackPanel>
+                                            <Border Width="42" Height="42" Background="{StaticResource PrimaryBrush}" CornerRadius="21">
+                                                <TextBlock Text="1" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Text="Connect your device" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,8,10,0" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <Border Width="42" Height="42" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="21">
+                                                <TextBlock Text="2" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Text="Enter pairing code" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,8,10,0" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <Border Width="42" Height="42" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="21">
+                                                <TextBlock Text="3" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Text="Claim your device" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,8,10,0" />
+                                        </StackPanel>
+                                        <StackPanel>
+                                            <Border Width="42" Height="42" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="21">
+                                                <TextBlock Text="4" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Text="You're all set" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,8,10,0" />
+                                        </StackPanel>
+                                    </UniformGrid>
+
+                                    <Border Background="{StaticResource SurfaceMutedBrush}" CornerRadius="18" Padding="18" Margin="0,0,0,18">
+                                        <Grid>
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="52" />
+                                                <ColumnDefinition Width="*" />
+                                            </Grid.ColumnDefinitions>
+                                            <Border Width="42" Height="42" Background="{StaticResource SurfaceBrush}" CornerRadius="21">
+                                                <TextBlock Text="&#xE8B7;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel Grid.Column="1">
+                                                <TextBlock Text="Start Worker and DeviceApp locally" FontWeight="SemiBold" />
+                                                <TextBlock Text="When the device sends its manifest, it will appear as available here. Copy the pairing code from DeviceApp to claim it."
+                                                           Foreground="{StaticResource MutedInkBrush}"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,4,0,0" />
+                                            </StackPanel>
+                                        </Grid>
                                     </Border>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="Online" Style="{StaticResource SmallLabel}" />
+
+                                    <TextBlock Text="{Binding LastHomeRefreshText}" Foreground="{StaticResource MutedInkBrush}" />
+                                </StackPanel>
+                            </Border>
+
+                            <StackPanel Grid.Column="1">
+                                <Border Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <TextBlock Text="Available devices" FontSize="20" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding AvailableDeviceMessage}"
+                                                   Foreground="{StaticResource MutedInkBrush}"
+                                                   Margin="0,4,0,12" />
+                                        <Border Visibility="{Binding EmptyAvailableDevicesVisibility}"
+                                                Background="{StaticResource SurfaceMutedBrush}"
+                                                CornerRadius="14"
+                                                Padding="16">
+                                            <TextBlock Text="Waiting for DeviceApp..."
+                                                       Foreground="{StaticResource MutedInkBrush}" />
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding AvailableDevices}"
+                                                      Visibility="{Binding HasAvailableDevicesVisibility}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Border BorderBrush="{StaticResource BorderBrushSoft}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="16"
+                                                            Padding="14"
+                                                            Margin="0,0,0,10">
+                                                        <StackPanel>
+                                                            <Grid>
+                                                                <TextBlock Text="{Binding Serial}" FontWeight="SemiBold" />
+                                                                <TextBlock Text="{Binding StatusLabel}"
+                                                                           Foreground="{StaticResource PrimaryBrush}"
+                                                                           FontWeight="SemiBold"
+                                                                           HorizontalAlignment="Right" />
+                                                            </Grid>
+                                                            <TextBlock Text="{Binding CapabilitySummary}" Foreground="{StaticResource MutedInkBrush}" Margin="0,4,0,0" />
+                                                            <TextBlock Text="{Binding ExpiresText}" Foreground="{StaticResource MutedInkBrush}" Margin="0,2,0,0" />
+                                                        </StackPanel>
+                                                    </Border>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+
+                                <Border Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <TextBlock Text="Claim device" FontSize="20" FontWeight="SemiBold" />
+                                        <TextBlock Text="Pairing code" Style="{StaticResource SmallLabel}" Margin="0,12,0,4" />
+                                        <TextBox Text="{Binding ClaimPairingCode, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="Display name" Style="{StaticResource SmallLabel}" />
+                                        <TextBox Text="{Binding ClaimDisplayName, UpdateSourceTrigger=PropertyChanged}" />
+                                        <TextBlock Text="Category" Style="{StaticResource SmallLabel}" />
+                                        <TextBox Text="{Binding ClaimCategory, UpdateSourceTrigger=PropertyChanged}" />
+                                        <Button Content="Claim device"
+                                                Command="{Binding ClaimDeviceCommand}"
+                                                HorizontalAlignment="Stretch"
+                                                Margin="0,4,0,0" />
+                                    </StackPanel>
+                                </Border>
+                            </StackPanel>
+                        </Grid>
+
+                        <StackPanel Visibility="{Binding HomeDashboardVisibility}">
+                            <UniformGrid Columns="4" Margin="0,0,0,10">
+                                <Border Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <Border Width="46" Height="46" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="23">
+                                            <TextBlock Text="&#xE701;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="Online" Style="{StaticResource SmallLabel}" Margin="0,14,0,0" />
                                         <TextBlock Text="{Binding OnlineDeviceCount}" FontSize="32" FontWeight="Bold" />
                                         <TextBlock Text="devices" Foreground="{StaticResource MutedInkBrush}" />
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource CardBorder}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="56" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="46" Height="46" Background="#F1F5F9" CornerRadius="23" VerticalAlignment="Center">
-                                        <TextBlock Text="&#xE711;" Style="{StaticResource IconGlyph}" Foreground="{StaticResource MutedInkBrush}" HorizontalAlignment="Center" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="Offline" Style="{StaticResource SmallLabel}" />
+                                </Border>
+                                <Border Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <Border Width="46" Height="46" Background="#F1F5F9" CornerRadius="23">
+                                            <TextBlock Text="&#xE711;" Style="{StaticResource IconGlyph}" Foreground="{StaticResource MutedInkBrush}" HorizontalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="Offline" Style="{StaticResource SmallLabel}" Margin="0,14,0,0" />
                                         <TextBlock Text="{Binding OfflineDeviceCount}" FontSize="32" FontWeight="Bold" />
                                         <TextBlock Text="devices" Foreground="{StaticResource MutedInkBrush}" />
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource CardBorder}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="56" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="46" Height="46" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="23" VerticalAlignment="Center">
-                                        <TextBlock Text="&#xE7F4;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="Unread alerts" Style="{StaticResource SmallLabel}" />
-                                        <TextBlock Text="{Binding UnreadNotificationCount}" FontSize="32" FontWeight="Bold" />
-                                        <TextBlock Text="notifications" Foreground="{StaticResource MutedInkBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <Border Width="46" Height="46" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="23">
+                                            <TextBlock Text="&#xE95B;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="Sensors" Style="{StaticResource SmallLabel}" Margin="0,14,0,0" />
+                                        <TextBlock Text="{Binding SelectedSensorCount}" FontSize="32" FontWeight="Bold" />
+                                        <TextBlock Text="on selected device" Foreground="{StaticResource MutedInkBrush}" />
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                            <Border Style="{StaticResource CardBorder}">
-                                <Grid>
-                                    <Grid.ColumnDefinitions>
-                                        <ColumnDefinition Width="56" />
-                                        <ColumnDefinition Width="*" />
-                                    </Grid.ColumnDefinitions>
-                                    <Border Width="46" Height="46" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="23" VerticalAlignment="Center">
-                                        <TextBlock Text="&#xE945;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
-                                    </Border>
-                                    <StackPanel Grid.Column="1">
-                                        <TextBlock Text="Automation" Style="{StaticResource SmallLabel}" />
-                                        <TextBlock Text="{Binding EnabledAutomationCount}" FontSize="32" FontWeight="Bold" />
-                                        <TextBlock Text="enabled rules" Foreground="{StaticResource MutedInkBrush}" />
+                                </Border>
+                                <Border Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <Border Width="46" Height="46" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="23">
+                                            <TextBlock Text="&#xE945;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="Actuators" Style="{StaticResource SmallLabel}" Margin="0,14,0,0" />
+                                        <TextBlock Text="{Binding SelectedActuatorCount}" FontSize="32" FontWeight="Bold" />
+                                        <TextBlock Text="controllable" Foreground="{StaticResource MutedInkBrush}" />
                                     </StackPanel>
-                                </Grid>
-                            </Border>
-                        </UniformGrid>
+                                </Border>
+                            </UniformGrid>
 
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.25*" />
-                                <ColumnDefinition Width="1.75*" />
-                            </Grid.ColumnDefinitions>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="1.05*" />
+                                    <ColumnDefinition Width="1.55*" />
+                                </Grid.ColumnDefinitions>
 
-                            <Border Style="{StaticResource CardBorder}">
-                                <DockPanel>
-                                    <StackPanel DockPanel.Dock="Top">
-                                        <TextBlock Text="Devices" FontSize="18" FontWeight="SemiBold" />
-                                        <TextBlock Text="Select one to view its live capabilities."
-                                                   Foreground="{StaticResource MutedInkBrush}"
-                                                   Margin="0,2,0,14" />
-                                        <Button Content="Refresh" Command="{Binding RefreshDevicesCommand}" Style="{StaticResource SecondaryButton}" />
+                                <Border Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <Grid Margin="0,0,0,14">
+                                            <StackPanel>
+                                                <TextBlock Text="Devices" FontSize="20" FontWeight="SemiBold" />
+                                                <TextBlock Text="Select one to view its live capabilities."
+                                                           Foreground="{StaticResource MutedInkBrush}" />
+                                            </StackPanel>
+                                            <Button Content="Refresh"
+                                                    Command="{Binding RefreshHomeCommand}"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Top" />
+                                        </Grid>
+
+                                        <ItemsControl ItemsSource="{Binding Devices}">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Button Command="{Binding DataContext.SelectDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource SecondaryButton}"
+                                                            HorizontalAlignment="Stretch"
+                                                            Padding="0"
+                                                            Margin="0,0,0,10">
+                                                        <Border Padding="14" CornerRadius="16" Background="White">
+                                                            <Grid>
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="46" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Border Width="36" Height="36" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="18">
+                                                                    <TextBlock Text="&#xE8B7;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                                                                </Border>
+                                                                <StackPanel Grid.Column="1">
+                                                                    <TextBlock Text="{Binding NameOrSerial}" FontWeight="SemiBold" />
+                                                                    <TextBlock Text="{Binding Category}" Foreground="{StaticResource MutedInkBrush}" />
+                                                                </StackPanel>
+                                                                <Border Grid.Column="2"
+                                                                        Background="{StaticResource SurfaceMutedBrush}"
+                                                                        CornerRadius="10"
+                                                                        Padding="10,4"
+                                                                        VerticalAlignment="Center">
+                                                                    <TextBlock Text="{Binding Status}"
+                                                                               Foreground="{StaticResource PrimaryBrush}"
+                                                                               FontWeight="SemiBold" />
+                                                                </Border>
+                                                            </Grid>
+                                                        </Border>
+                                                    </Button>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
                                     </StackPanel>
+                                </Border>
 
-                                    <Border Visibility="{Binding EmptyDevicesVisibility}"
-                                            Background="{StaticResource SurfaceMutedBrush}"
-                                            CornerRadius="14"
-                                            Padding="18">
-                                        <TextBlock Text="No claimed devices yet. Start DeviceApp, copy its pairing code, then claim it in Devices."
-                                                   TextWrapping="Wrap"
-                                                   Foreground="{StaticResource MutedInkBrush}" />
-                                    </Border>
+                                <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <Grid>
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding SelectedDeviceName}" FontSize="24" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding SelectedDeviceStatus}" Foreground="{StaticResource MutedInkBrush}" Margin="0,4,0,18" />
+                                            </StackPanel>
+                                            <Button Content="Remove device"
+                                                    Command="{Binding UnclaimDeviceCommand}"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    HorizontalAlignment="Right"
+                                                    VerticalAlignment="Top"
+                                                    Visibility="{Binding HasSelectedDeviceVisibility}" />
+                                        </Grid>
 
-                                    <ListBox ItemsSource="{Binding Devices}"
-                                             SelectedItem="{Binding SelectedDevice}"
-                                             Visibility="{Binding HasDevicesVisibility}"
-                                             BorderThickness="0"
-                                             Background="Transparent">
-                                        <ListBox.ItemTemplate>
-                                            <DataTemplate>
-                                                <Border BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="0,0,0,1" Padding="12">
-                                                    <Grid>
+                                        <Border Visibility="{Binding NoSelectedDeviceVisibility}"
+                                                Background="{StaticResource SurfaceMutedBrush}"
+                                                CornerRadius="14"
+                                                Padding="20">
+                                            <TextBlock Text="Choose a device on the left. OmniConnect will build controls from the capabilities this device announces."
+                                                       TextWrapping="Wrap"
+                                                       Foreground="{StaticResource MutedInkBrush}" />
+                                        </Border>
+
+                                        <StackPanel Visibility="{Binding HasSelectedDeviceVisibility}">
+                                            <TextBlock Text="Sensors" FontSize="17" FontWeight="SemiBold" />
+                                            <ItemsControl ItemsSource="{Binding Sensors}" Margin="0,8,0,18">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Width="210"
+                                                                Background="{StaticResource SurfaceMutedBrush}"
+                                                                BorderBrush="{StaticResource BorderBrushSoft}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="16"
+                                                                Padding="16"
+                                                                Margin="0,0,12,12">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                                                                <TextBlock Text="{Binding ValueWithUnit}" FontSize="24" FontWeight="Bold" Margin="0,8,0,2" />
+                                                                <TextBlock Text="{Binding RecordedAt}" Foreground="{StaticResource MutedInkBrush}" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <TextBlock Text="Actuators" FontSize="17" FontWeight="SemiBold" />
+                                            <ItemsControl ItemsSource="{Binding Actuators}" Margin="0,8,0,0">
+                                                <ItemsControl.ItemsPanel>
+                                                    <ItemsPanelTemplate>
+                                                        <WrapPanel />
+                                                    </ItemsPanelTemplate>
+                                                </ItemsControl.ItemsPanel>
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Border Width="240"
+                                                                BorderBrush="{StaticResource BorderBrushSoft}"
+                                                                BorderThickness="1"
+                                                                CornerRadius="16"
+                                                                Padding="16"
+                                                                Margin="0,0,12,12">
+                                                            <StackPanel>
+                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                                                                <TextBlock Text="{Binding StateText}" Foreground="{StaticResource MutedInkBrush}" Margin="0,4,0,12" />
+                                                                <Button Content="{Binding ButtonText}"
+                                                                        Command="{Binding DataContext.SendActuatorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                        CommandParameter="{Binding}"
+                                                                        HorizontalAlignment="Stretch" />
+                                                                <TextBlock Text="{Binding LastStatus}" Foreground="{StaticResource MutedInkBrush}" TextWrapping="Wrap" />
+                                                            </StackPanel>
+                                                        </Border>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+                                        </StackPanel>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <TextBlock Text="Latest sensor readings" FontSize="20" FontWeight="SemiBold" />
+                                        <ItemsControl ItemsSource="{Binding LatestValues}" Margin="0,12,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,10">
                                                         <Grid.ColumnDefinitions>
                                                             <ColumnDefinition Width="*" />
                                                             <ColumnDefinition Width="Auto" />
                                                         </Grid.ColumnDefinitions>
                                                         <StackPanel>
-                                                            <TextBlock Text="{Binding NameOrSerial}" FontWeight="SemiBold" />
-                                                            <TextBlock Text="{Binding Category}" Foreground="{StaticResource MutedInkBrush}" />
+                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding CapabilityKey}" Foreground="{StaticResource MutedInkBrush}" />
                                                         </StackPanel>
-                                                        <TextBlock Grid.Column="1" Text="{Binding Status}" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" />
+                                                        <TextBlock Grid.Column="1"
+                                                                   Text="{Binding DisplayValue}"
+                                                                   FontSize="18"
+                                                                   FontWeight="SemiBold" />
                                                     </Grid>
-                                                </Border>
-                                            </DataTemplate>
-                                        </ListBox.ItemTemplate>
-                                    </ListBox>
-                                </DockPanel>
-                            </Border>
-
-                            <Border Grid.Column="1" Style="{StaticResource CardBorder}">
-                                <StackPanel>
-                                    <TextBlock Text="{Binding SelectedDeviceName}" FontSize="22" FontWeight="SemiBold" />
-                                    <TextBlock Text="{Binding SelectedDeviceStatus}" Foreground="{StaticResource MutedInkBrush}" Margin="0,4,0,18" />
-
-                                    <Border Visibility="{Binding NoSelectedDeviceVisibility}"
-                                            Background="{StaticResource SurfaceMutedBrush}"
-                                            CornerRadius="14"
-                                            Padding="20">
-                                        <TextBlock Text="Choose a device on the left. OmniConnect will build this page from the device capabilities, not from a hard-coded template."
-                                                   TextWrapping="Wrap"
-                                                   Foreground="{StaticResource MutedInkBrush}" />
-                                    </Border>
-
-                                    <StackPanel Visibility="{Binding HasSelectedDeviceVisibility}">
-                                        <TextBlock Text="Sensors" FontSize="16" FontWeight="SemiBold" />
-                                        <ItemsControl ItemsSource="{Binding Sensors}" Margin="0,8,0,16">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Width="210" Style="{StaticResource CardBorder}" Background="{StaticResource SurfaceMutedBrush}" Margin="0,0,12,12">
-                                                        <StackPanel>
-                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                            <TextBlock Text="{Binding ValueWithUnit}" FontSize="24" FontWeight="Bold" Margin="0,8,0,2" />
-                                                            <TextBlock Text="{Binding RecordedAt}" Foreground="{StaticResource MutedInkBrush}" />
-                                                        </StackPanel>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-
-                                        <TextBlock Text="Actuators" FontSize="16" FontWeight="SemiBold" />
-                                        <ItemsControl ItemsSource="{Binding Actuators}" Margin="0,8,0,0">
-                                            <ItemsControl.ItemsPanel>
-                                                <ItemsPanelTemplate>
-                                                    <WrapPanel />
-                                                </ItemsPanelTemplate>
-                                            </ItemsControl.ItemsPanel>
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Border Width="260" Style="{StaticResource CardBorder}" Margin="0,0,12,12">
-                                                        <StackPanel>
-                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                            <TextBlock Text="{Binding StateText}" Foreground="{StaticResource MutedInkBrush}" Margin="0,4,0,12" />
-                                                            <Button Content="{Binding ButtonText}"
-                                                                    Command="{Binding DataContext.SendActuatorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                    CommandParameter="{Binding}" />
-                                                            <TextBlock Text="{Binding LastStatus}" Foreground="{StaticResource MutedInkBrush}" TextWrapping="Wrap" />
-                                                        </StackPanel>
-                                                    </Border>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
                                     </StackPanel>
-                                </StackPanel>
-                            </Border>
-                        </Grid>
+                                </Border>
+
+                                <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                                    <StackPanel>
+                                        <Grid>
+                                            <TextBlock Text="Recent activity" FontSize="20" FontWeight="SemiBold" />
+                                            <Button Content="View all"
+                                                    Command="{Binding ViewAllNotificationsCommand}"
+                                                    Style="{StaticResource LinkButton}"
+                                                    HorizontalAlignment="Right" />
+                                        </Grid>
+                                        <Border Visibility="{Binding EmptyNotificationsVisibility}"
+                                                Background="{StaticResource SurfaceMutedBrush}"
+                                                CornerRadius="14"
+                                                Padding="16"
+                                                Margin="0,12,0,0">
+                                            <TextBlock Text="No notifications yet."
+                                                       Foreground="{StaticResource MutedInkBrush}" />
+                                        </Border>
+                                        <ItemsControl ItemsSource="{Binding RecentHomeNotifications}"
+                                                      Visibility="{Binding HasNotificationsVisibility}"
+                                                      Margin="0,12,0,0">
+                                            <ItemsControl.ItemTemplate>
+                                                <DataTemplate>
+                                                    <Grid Margin="0,0,0,12">
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="34" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Width="24" Height="24" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="12">
+                                                            <TextBlock Text="{Binding SeverityIcon}"
+                                                                       FontFamily="Segoe MDL2 Assets"
+                                                                       Foreground="{StaticResource PrimaryBrush}"
+                                                                       HorizontalAlignment="Center"
+                                                                       VerticalAlignment="Center" />
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                                            <TextBlock Text="{Binding Message}" Foreground="{StaticResource MutedInkBrush}" TextTrimming="CharacterEllipsis" />
+                                                        </StackPanel>
+                                                        <TextBlock Grid.Column="2" Text="{Binding CreatedText}" Foreground="{StaticResource MutedInkBrush}" />
+                                                    </Grid>
+                                                </DataTemplate>
+                                            </ItemsControl.ItemTemplate>
+                                        </ItemsControl>
+                                    </StackPanel>
+                                </Border>
+                            </Grid>
+                        </StackPanel>
                     </StackPanel>
 
                     <StackPanel Visibility="{Binding DevicesVisibility}">
@@ -533,7 +846,13 @@
                                         <TextBox Text="{Binding RenameDisplayName, UpdateSourceTrigger=PropertyChanged}" />
                                         <TextBlock Text="Category" Style="{StaticResource SmallLabel}" />
                                         <TextBox Text="{Binding RenameCategory, UpdateSourceTrigger=PropertyChanged}" />
-                                        <Button Content="Save device" Command="{Binding RenameDeviceCommand}" HorizontalAlignment="Left" />
+                                        <WrapPanel>
+                                            <Button Content="Save device" Command="{Binding RenameDeviceCommand}" HorizontalAlignment="Left" />
+                                            <Button Content="Remove device"
+                                                    Command="{Binding UnclaimDeviceCommand}"
+                                                    Style="{StaticResource SecondaryButton}"
+                                                    HorizontalAlignment="Left" />
+                                        </WrapPanel>
                                     </StackPanel>
                                 </Border>
                             </StackPanel>

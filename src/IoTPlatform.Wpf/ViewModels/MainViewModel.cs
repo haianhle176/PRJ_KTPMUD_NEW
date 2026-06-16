@@ -20,6 +20,9 @@ public sealed class MainViewModel : ObservableObject
     private string _displayName = "";
     private bool _isAuthenticated;
     private bool _isRegisterMode;
+    private bool _isNotificationFlyoutOpen;
+    private string _lastHomeRefreshText = "Not refreshed yet";
+    private string _availableDeviceMessage = "Waiting for DeviceApp...";
     private DeviceSummary? _selectedDevice;
     private AutomationRuleDto? _selectedAutomationRule;
 
@@ -31,14 +34,19 @@ public sealed class MainViewModel : ObservableObject
         ToggleAuthModeCommand = new RelayCommand(ToggleAuthModeAsync);
         LogoutCommand = new RelayCommand(LogoutAsync, () => IsAuthenticated);
         NavigateCommand = new RelayCommand<string>(NavigateAsync);
+        RefreshHomeCommand = new RelayCommand(RefreshHomeAsync, () => IsAuthenticated);
+        SelectDeviceCommand = new RelayCommand<DeviceSummary>(SelectDeviceAsync, device => IsAuthenticated && device is not null);
         RefreshDevicesCommand = new RelayCommand(RefreshDevicesAsync, () => IsAuthenticated);
         ClaimDeviceCommand = new RelayCommand(ClaimDeviceAsync, () => IsAuthenticated);
         RenameDeviceCommand = new RelayCommand(RenameDeviceAsync, () => IsAuthenticated && SelectedDevice is not null);
+        UnclaimDeviceCommand = new RelayCommand(UnclaimDeviceAsync, () => IsAuthenticated && SelectedDevice is not null);
         LoadDeviceDetailCommand = new RelayCommand(LoadDeviceDetailAsync, () => IsAuthenticated && SelectedDevice is not null);
         SendCommandCommand = new RelayCommand(SendCommandAsync, () => IsAuthenticated && SelectedDevice is not null);
         SendActuatorCommand = new RelayCommand<ActuatorControl>(SendActuatorCommandAsync, control => IsAuthenticated && SelectedDevice is not null && control is not null);
         RefreshAutomationRulesCommand = new RelayCommand(RefreshAutomationRulesAsync, () => IsAuthenticated);
         RefreshNotificationsCommand = new RelayCommand(RefreshNotificationsAsync, () => IsAuthenticated);
+        ToggleNotificationFlyoutCommand = new RelayCommand(ToggleNotificationFlyoutAsync, () => IsAuthenticated);
+        ViewAllNotificationsCommand = new RelayCommand(ViewAllNotificationsAsync, () => IsAuthenticated);
         SaveAutomationRuleCommand = new RelayCommand(SaveAutomationRuleAsync, () => IsAuthenticated);
         DeleteAutomationRuleCommand = new RelayCommand(DeleteAutomationRuleAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
         LoadAutomationExecutionsCommand = new RelayCommand(LoadAutomationExecutionsAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
@@ -51,6 +59,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public ObservableCollection<DeviceSummary> Devices { get; } = [];
+    public ObservableCollection<AvailableDevice> AvailableDevices { get; } = [];
     public ObservableCollection<DeviceCapability> Capabilities { get; } = [];
     public ObservableCollection<SensorCard> Sensors { get; } = [];
     public ObservableCollection<ActuatorControl> Actuators { get; } = [];
@@ -67,14 +76,19 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand ToggleAuthModeCommand { get; }
     public RelayCommand LogoutCommand { get; }
     public RelayCommand<string> NavigateCommand { get; }
+    public RelayCommand RefreshHomeCommand { get; }
+    public RelayCommand<DeviceSummary> SelectDeviceCommand { get; }
     public RelayCommand RefreshDevicesCommand { get; }
     public RelayCommand ClaimDeviceCommand { get; }
     public RelayCommand RenameDeviceCommand { get; }
+    public RelayCommand UnclaimDeviceCommand { get; }
     public RelayCommand LoadDeviceDetailCommand { get; }
     public RelayCommand SendCommandCommand { get; }
     public RelayCommand<ActuatorControl> SendActuatorCommand { get; }
     public RelayCommand RefreshAutomationRulesCommand { get; }
     public RelayCommand RefreshNotificationsCommand { get; }
+    public RelayCommand ToggleNotificationFlyoutCommand { get; }
+    public RelayCommand ViewAllNotificationsCommand { get; }
     public RelayCommand SaveAutomationRuleCommand { get; }
     public RelayCommand DeleteAutomationRuleCommand { get; }
     public RelayCommand LoadAutomationExecutionsCommand { get; }
@@ -184,6 +198,15 @@ public sealed class MainViewModel : ObservableObject
                     OnPropertyChanged(nameof(AutomationTargetDeviceId));
                     _ = LoadDeviceDetailAsync();
                 }
+                else
+                {
+                    Capabilities.Clear();
+                    Sensors.Clear();
+                    Actuators.Clear();
+                    LatestValues.Clear();
+                    TelemetryHistory.Clear();
+                    NotifyDashboardCounts();
+                }
             }
         }
     }
@@ -247,7 +270,35 @@ public sealed class MainViewModel : ObservableObject
     public int OnlineDeviceCount => Devices.Count(device => device.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
     public int OfflineDeviceCount => Devices.Count(device => !device.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
     public int UnreadNotificationCount => Notifications.Count(notification => !notification.IsRead);
+    public int SelectedSensorCount => Sensors.Count;
+    public int SelectedActuatorCount => Actuators.Count;
     public int EnabledAutomationCount => AutomationRules.Count(rule => rule.IsEnabled);
+    public string UnreadNotificationBadgeText => UnreadNotificationCount > 99 ? "99+" : UnreadNotificationCount.ToString();
+    public string LastHomeRefreshText
+    {
+        get => _lastHomeRefreshText;
+        set => SetProperty(ref _lastHomeRefreshText, value);
+    }
+
+    public string AvailableDeviceMessage
+    {
+        get => _availableDeviceMessage;
+        set => SetProperty(ref _availableDeviceMessage, value);
+    }
+
+    public bool IsNotificationFlyoutOpen
+    {
+        get => _isNotificationFlyoutOpen;
+        set
+        {
+            if (SetProperty(ref _isNotificationFlyoutOpen, value))
+            {
+                OnPropertyChanged(nameof(NotificationFlyoutVisibility));
+            }
+        }
+    }
+
+    public IEnumerable<NotificationDto> RecentHomeNotifications => Notifications.Take(5);
     public string SelectedDeviceName => SelectedDevice?.NameOrSerial ?? "Select a device";
     public string SelectedDeviceStatus => SelectedDevice is null ? "No device selected" : $"{SelectedDevice.Status} - Last seen {SelectedDevice.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "never"}";
     public string WorkerLaunchHelp => "OmniConnect runs from the cloud. These local shortcuts are only for your development machine when the source projects and dotnet SDK are available.";
@@ -278,7 +329,13 @@ public sealed class MainViewModel : ObservableObject
     public Visibility NoSelectedDeviceVisibility => SelectedDevice is null ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyDevicesVisibility => Devices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasDevicesVisibility => Devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HomeEmptyVisibility => Devices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HomeDashboardVisibility => Devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility EmptyAvailableDevicesVisibility => AvailableDevices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HasAvailableDevicesVisibility => AvailableDevices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyNotificationsVisibility => Notifications.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HasNotificationsVisibility => Notifications.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility NotificationFlyoutVisibility => IsNotificationFlyoutOpen ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RegisterFieldVisibility => IsRegisterMode ? Visibility.Visible : Visibility.Collapsed;
 
     private Task ToggleAuthModeAsync()
@@ -297,7 +354,11 @@ public sealed class MainViewModel : ObservableObject
         }
 
         CurrentSection = section;
-        if (IsAuthenticated && section is "Home" or "Devices")
+        if (IsAuthenticated && section == "Home")
+        {
+            await RefreshHomeAsync();
+        }
+        else if (IsAuthenticated && section == "Devices")
         {
             await RefreshDevicesAsync();
         }
@@ -365,6 +426,7 @@ public sealed class MainViewModel : ObservableObject
             CurrentSection = "Auth";
             _pollTimer.Stop();
             Devices.Clear();
+            AvailableDevices.Clear();
             Capabilities.Clear();
             Sensors.Clear();
             Actuators.Clear();
@@ -381,9 +443,26 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task RefreshAllAsync()
     {
-        await RefreshDevicesAsync();
+        await RefreshHomeAsync();
         await RefreshAutomationRulesAsync();
+    }
+
+    private async Task RefreshHomeAsync()
+    {
+        await RefreshDevicesAsync();
+        await RefreshAvailableDevicesSafelyAsync();
         await RefreshNotificationsAsync();
+        LastHomeRefreshText = $"Last updated {DateTime.Now:t}";
+    }
+
+    private Task SelectDeviceAsync(DeviceSummary? device)
+    {
+        if (device is not null)
+        {
+            SelectedDevice = device;
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task RefreshDevicesAsync()
@@ -400,12 +479,36 @@ public sealed class MainViewModel : ObservableObject
         });
     }
 
+    private async Task RefreshAvailableDevicesSafelyAsync()
+    {
+        if (!IsAuthenticated)
+        {
+            return;
+        }
+
+        try
+        {
+            Replace(AvailableDevices, await _api.GetAvailableDevicesAsync());
+            AvailableDeviceMessage = AvailableDevices.Count == 0
+                ? "Waiting for DeviceApp..."
+                : $"{AvailableDevices.Count} device ready to claim.";
+        }
+        catch
+        {
+            AvailableDevices.Clear();
+            AvailableDeviceMessage = "Available device discovery is temporarily unavailable.";
+        }
+
+        NotifyDashboardCounts();
+    }
+
     private async Task ClaimDeviceAsync()
     {
         await RunAsync(async () =>
         {
             var device = await _api.ClaimDeviceAsync(ClaimPairingCode, ClaimDisplayName, EmptyToNull(ClaimCategory));
             await RefreshDevicesAsync();
+            await RefreshAvailableDevicesSafelyAsync();
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == device.Id);
             CurrentSection = "Home";
             StatusMessage = $"Claimed {device.NameOrSerial}.";
@@ -425,6 +528,33 @@ public sealed class MainViewModel : ObservableObject
             await RefreshDevicesAsync();
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == updated.Id);
             StatusMessage = "Device details saved.";
+        });
+    }
+
+    private async Task UnclaimDeviceAsync()
+    {
+        if (SelectedDevice is null)
+        {
+            return;
+        }
+
+        var device = SelectedDevice;
+        var answer = MessageBox.Show(
+            $"Remove {device.NameOrSerial} from your account? You can claim it again later with a valid pairing code.",
+            "Remove device",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning);
+        if (answer != MessageBoxResult.Yes)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            await _api.UnclaimDeviceAsync(device.Id);
+            SelectedDevice = null;
+            await RefreshHomeAsync();
+            StatusMessage = $"Removed {device.NameOrSerial} from your account.";
         });
     }
 
@@ -572,6 +702,19 @@ public sealed class MainViewModel : ObservableObject
         });
     }
 
+    private Task ToggleNotificationFlyoutAsync()
+    {
+        IsNotificationFlyoutOpen = !IsNotificationFlyoutOpen;
+        return Task.CompletedTask;
+    }
+
+    private async Task ViewAllNotificationsAsync()
+    {
+        IsNotificationFlyoutOpen = false;
+        CurrentSection = "Notifications";
+        await RefreshNotificationsAsync();
+    }
+
     private async Task RefreshNotificationsAsync()
     {
         await RunAsync(async () =>
@@ -626,6 +769,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             await RefreshDevicesAsync();
+            await RefreshAvailableDevicesSafelyAsync();
             if (SelectedDevice is not null)
             {
                 await LoadDeviceDetailAsync();
@@ -669,6 +813,8 @@ public sealed class MainViewModel : ObservableObject
                     isOn,
                     isOn ? "Currently on" : "Currently off");
             }));
+        OnPropertyChanged(nameof(SelectedSensorCount));
+        OnPropertyChanged(nameof(SelectedActuatorCount));
     }
 
     private async Task RunAsync(Func<Task> action)
@@ -689,13 +835,18 @@ public sealed class MainViewModel : ObservableObject
         RegisterCommand.RaiseCanExecuteChanged();
         LogoutCommand.RaiseCanExecuteChanged();
         RefreshDevicesCommand.RaiseCanExecuteChanged();
+        RefreshHomeCommand.RaiseCanExecuteChanged();
+        SelectDeviceCommand.RaiseCanExecuteChanged();
         ClaimDeviceCommand.RaiseCanExecuteChanged();
         RenameDeviceCommand.RaiseCanExecuteChanged();
+        UnclaimDeviceCommand.RaiseCanExecuteChanged();
         LoadDeviceDetailCommand.RaiseCanExecuteChanged();
         SendCommandCommand.RaiseCanExecuteChanged();
         SendActuatorCommand.RaiseCanExecuteChanged();
         RefreshAutomationRulesCommand.RaiseCanExecuteChanged();
         RefreshNotificationsCommand.RaiseCanExecuteChanged();
+        ToggleNotificationFlyoutCommand.RaiseCanExecuteChanged();
+        ViewAllNotificationsCommand.RaiseCanExecuteChanged();
         SaveAutomationRuleCommand.RaiseCanExecuteChanged();
         DeleteAutomationRuleCommand.RaiseCanExecuteChanged();
         LoadAutomationExecutionsCommand.RaiseCanExecuteChanged();
@@ -706,10 +857,19 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(OnlineDeviceCount));
         OnPropertyChanged(nameof(OfflineDeviceCount));
         OnPropertyChanged(nameof(UnreadNotificationCount));
+        OnPropertyChanged(nameof(SelectedSensorCount));
+        OnPropertyChanged(nameof(SelectedActuatorCount));
+        OnPropertyChanged(nameof(UnreadNotificationBadgeText));
+        OnPropertyChanged(nameof(RecentHomeNotifications));
         OnPropertyChanged(nameof(EnabledAutomationCount));
         OnPropertyChanged(nameof(EmptyDevicesVisibility));
         OnPropertyChanged(nameof(HasDevicesVisibility));
+        OnPropertyChanged(nameof(HomeEmptyVisibility));
+        OnPropertyChanged(nameof(HomeDashboardVisibility));
+        OnPropertyChanged(nameof(EmptyAvailableDevicesVisibility));
+        OnPropertyChanged(nameof(HasAvailableDevicesVisibility));
         OnPropertyChanged(nameof(EmptyNotificationsVisibility));
+        OnPropertyChanged(nameof(HasNotificationsVisibility));
     }
 
     private void OnAutomationPropertiesChanged()

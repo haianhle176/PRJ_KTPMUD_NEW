@@ -74,6 +74,9 @@ public sealed class IoTPlatformApiClient
     public Task<DeviceSummary> UpdateDeviceAsync(Guid deviceId, string displayName, string? category) =>
         PatchAsync<DeviceSummary>($"api/v1/devices/{deviceId}", new { displayName, category });
 
+    public Task UnclaimDeviceAsync(Guid deviceId) =>
+        SendAsync(HttpMethod.Delete, $"api/v1/devices/{deviceId}/claim");
+
     public Task<IReadOnlyList<TelemetryValue>> GetLatestValuesAsync(Guid deviceId) =>
         GetAsync<IReadOnlyList<TelemetryValue>>($"api/v1/devices/{deviceId}/latest-values");
 
@@ -218,7 +221,13 @@ public sealed record AvailableDevice(
     DateTimeOffset? LastSeenAtUtc,
     DateTimeOffset PairingCodeExpiresAtUtc,
     int SensorCount,
-    int ActuatorCount);
+    int ActuatorCount)
+{
+    public string StatusLabel => string.IsNullOrWhiteSpace(Status) ? "unknown" : Status;
+    public string CapabilitySummary => $"{SensorCount} sensors - {ActuatorCount} actuators";
+    public string LastSeenText => LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "No heartbeat yet";
+    public string ExpiresText => $"Pairing expires {PairingCodeExpiresAtUtc.ToLocalTime():t}";
+}
 
 public sealed record DeviceCapability(
     Guid Id,
@@ -267,4 +276,9 @@ public sealed record AutomationRuleDto(Guid Id, string Name, Guid SourceDeviceId
 
 public sealed record AutomationExecutionDto(long Id, Guid AutomationRuleId, Guid TriggerMessageId, Guid? CommandId, string Outcome, string? Reason, DateTimeOffset EvaluatedAtUtc);
 
-public sealed record NotificationDto(long Id, Guid OwnerUserId, Guid? DeviceId, Guid? CapabilityId, string Type, string Severity, string Title, string Message, bool IsRead, DateTimeOffset CreatedAtUtc);
+public sealed record NotificationDto(long Id, Guid OwnerUserId, Guid? DeviceId, Guid? CapabilityId, string Type, string Severity, string Title, string Message, bool IsRead, DateTimeOffset CreatedAtUtc)
+{
+    public string CreatedText => CreatedAtUtc.ToLocalTime().ToString("t");
+    public string SeverityIcon => Severity.Equals("warning", StringComparison.OrdinalIgnoreCase) ? "\uE7BA" :
+        Severity.Equals("error", StringComparison.OrdinalIgnoreCase) ? "\uEA39" : "\uE946";
+}
