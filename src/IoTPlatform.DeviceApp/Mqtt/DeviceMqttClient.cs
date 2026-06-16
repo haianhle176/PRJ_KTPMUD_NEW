@@ -64,9 +64,16 @@ public sealed class DeviceMqttClient(
                 Console.WriteLine("Manual telemetry command: set <capabilityKey> <value>");
                 delaySeconds = _deviceApp.ReconnectMinSeconds;
                 var nextTelemetryAt = DateTimeOffset.UtcNow;
+                var nextPresenceAt = DateTimeOffset.UtcNow.AddSeconds(15);
 
                 while (client.IsConnected && !cancellationToken.IsCancellationRequested)
                 {
+                    if (DateTimeOffset.UtcNow >= nextPresenceAt)
+                    {
+                        await PublishAsync(client, MqttTopics.Presence(profile.Serial), SerializePresence(profile.Serial, sessionId, "online"), retain: true, cancellationToken);
+                        nextPresenceAt = DateTimeOffset.UtcNow.AddSeconds(15);
+                    }
+
                     if (DateTimeOffset.UtcNow >= nextTelemetryAt)
                     {
                         await PublishTelemetryAsync(client, profile, CreateAutomaticReadings(profile), cancellationToken);

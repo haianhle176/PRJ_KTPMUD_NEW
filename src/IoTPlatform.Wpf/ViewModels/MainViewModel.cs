@@ -23,7 +23,9 @@ public sealed class MainViewModel : ObservableObject
     private bool _isNotificationFlyoutOpen;
     private string _lastHomeRefreshText = "Not refreshed yet";
     private string _availableDeviceMessage = "Waiting for DeviceApp...";
+    private string _availablePairingCode = "";
     private DeviceSummary? _selectedDevice;
+    private AvailableDevice? _selectedAvailableDevice;
     private AutomationRuleDto? _selectedAutomationRule;
 
     public MainViewModel()
@@ -36,6 +38,8 @@ public sealed class MainViewModel : ObservableObject
         NavigateCommand = new RelayCommand<string>(NavigateAsync);
         RefreshHomeCommand = new RelayCommand(RefreshHomeAsync, () => IsAuthenticated);
         SelectDeviceCommand = new RelayCommand<DeviceSummary>(SelectDeviceAsync, device => IsAuthenticated && device is not null);
+        SelectAvailableDeviceCommand = new RelayCommand<AvailableDevice>(SelectAvailableDeviceAsync, device => IsAuthenticated && device is not null);
+        ClaimSelectedAvailableDeviceCommand = new RelayCommand(ClaimSelectedAvailableDeviceAsync, () => IsAuthenticated && SelectedAvailableDevice is not null);
         RefreshDevicesCommand = new RelayCommand(RefreshDevicesAsync, () => IsAuthenticated);
         ClaimDeviceCommand = new RelayCommand(ClaimDeviceAsync, () => IsAuthenticated);
         RenameDeviceCommand = new RelayCommand(RenameDeviceAsync, () => IsAuthenticated && SelectedDevice is not null);
@@ -78,6 +82,8 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand<string> NavigateCommand { get; }
     public RelayCommand RefreshHomeCommand { get; }
     public RelayCommand<DeviceSummary> SelectDeviceCommand { get; }
+    public RelayCommand<AvailableDevice> SelectAvailableDeviceCommand { get; }
+    public RelayCommand ClaimSelectedAvailableDeviceCommand { get; }
     public RelayCommand RefreshDevicesCommand { get; }
     public RelayCommand ClaimDeviceCommand { get; }
     public RelayCommand RenameDeviceCommand { get; }
@@ -267,6 +273,26 @@ public sealed class MainViewModel : ObservableObject
     public string AutomationActiveDaysOfWeek { get; set; } = "";
     public bool AutomationIsEnabled { get; set; } = true;
 
+    public AvailableDevice? SelectedAvailableDevice
+    {
+        get => _selectedAvailableDevice;
+        set
+        {
+            if (SetProperty(ref _selectedAvailableDevice, value))
+            {
+                OnPropertyChanged(nameof(SelectedAvailableDeviceName));
+                OnPropertyChanged(nameof(SelectedAvailableDeviceVisibility));
+                ClaimSelectedAvailableDeviceCommand.RaiseCanExecuteChanged();
+            }
+        }
+    }
+
+    public string AvailablePairingCode
+    {
+        get => _availablePairingCode;
+        set => SetProperty(ref _availablePairingCode, value);
+    }
+
     public int OnlineDeviceCount => Devices.Count(device => device.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
     public int OfflineDeviceCount => Devices.Count(device => !device.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
     public int UnreadNotificationCount => Notifications.Count(notification => !notification.IsRead);
@@ -299,6 +325,7 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public IEnumerable<NotificationDto> RecentHomeNotifications => Notifications.Take(5);
+    public string SelectedAvailableDeviceName => SelectedAvailableDevice?.Serial ?? "selected device";
     public string SelectedDeviceName => SelectedDevice?.NameOrSerial ?? "Select a device";
     public string SelectedDeviceStatus => SelectedDevice is null ? "No device selected" : $"{SelectedDevice.Status} - Last seen {SelectedDevice.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "never"}";
     public string WorkerLaunchHelp => "OmniConnect runs from the cloud. These local shortcuts are only for your development machine when the source projects and dotnet SDK are available.";
@@ -333,6 +360,7 @@ public sealed class MainViewModel : ObservableObject
     public Visibility HomeDashboardVisibility => Devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyAvailableDevicesVisibility => AvailableDevices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasAvailableDevicesVisibility => AvailableDevices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SelectedAvailableDeviceVisibility => SelectedAvailableDevice is null ? Visibility.Collapsed : Visibility.Visible;
     public Visibility EmptyNotificationsVisibility => Notifications.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasNotificationsVisibility => Notifications.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NotificationFlyoutVisibility => IsNotificationFlyoutOpen ? Visibility.Visible : Visibility.Collapsed;
@@ -465,6 +493,17 @@ public sealed class MainViewModel : ObservableObject
         return Task.CompletedTask;
     }
 
+    private Task SelectAvailableDeviceAsync(AvailableDevice? device)
+    {
+        if (device is not null)
+        {
+            SelectedAvailableDevice = device;
+            AvailablePairingCode = "";
+        }
+
+        return Task.CompletedTask;
+    }
+
     private async Task RefreshDevicesAsync()
     {
         await RunAsync(async () =>
@@ -491,7 +530,12 @@ public sealed class MainViewModel : ObservableObject
             Replace(AvailableDevices, await _api.GetAvailableDevicesAsync());
             AvailableDeviceMessage = AvailableDevices.Count == 0
                 ? "Waiting for DeviceApp..."
-                : $"{AvailableDevices.Count} device ready to claim.";
+                : $"{AvailableDevices.Count} online device ready.";
+            if (SelectedAvailableDevice is not null && AvailableDevices.All(device => device.DeviceId != SelectedAvailableDevice.DeviceId))
+            {
+                SelectedAvailableDevice = null;
+                AvailablePairingCode = "";
+            }
         }
         catch
         {
@@ -507,6 +551,27 @@ public sealed class MainViewModel : ObservableObject
         await RunAsync(async () =>
         {
             var device = await _api.ClaimDeviceAsync(ClaimPairingCode, ClaimDisplayName, EmptyToNull(ClaimCategory));
+            await RefreshDevicesAsync();
+            await RefreshAvailableDevicesSafelyAsync();
+            SelectedDevice = Devices.FirstOrDefault(item => item.Id == device.Id);
+            CurrentSection = "Home";
+            StatusMessage = $"Claimed {device.NameOrSerial}.";
+        });
+    }
+
+    private async Task ClaimSelectedAvailableDeviceAsync()
+    {
+        if (SelectedAvailableDevice is null)
+        {
+            return;
+        }
+
+        var availableDevice = SelectedAvailableDevice;
+        await RunAsync(async () =>
+        {
+            var device = await _api.ClaimDeviceAsync(AvailablePairingCode, availableDevice.Serial, null);
+            AvailablePairingCode = "";
+            SelectedAvailableDevice = null;
             await RefreshDevicesAsync();
             await RefreshAvailableDevicesSafelyAsync();
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == device.Id);
@@ -837,6 +902,8 @@ public sealed class MainViewModel : ObservableObject
         RefreshDevicesCommand.RaiseCanExecuteChanged();
         RefreshHomeCommand.RaiseCanExecuteChanged();
         SelectDeviceCommand.RaiseCanExecuteChanged();
+        SelectAvailableDeviceCommand.RaiseCanExecuteChanged();
+        ClaimSelectedAvailableDeviceCommand.RaiseCanExecuteChanged();
         ClaimDeviceCommand.RaiseCanExecuteChanged();
         RenameDeviceCommand.RaiseCanExecuteChanged();
         UnclaimDeviceCommand.RaiseCanExecuteChanged();
@@ -868,6 +935,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HomeDashboardVisibility));
         OnPropertyChanged(nameof(EmptyAvailableDevicesVisibility));
         OnPropertyChanged(nameof(HasAvailableDevicesVisibility));
+        OnPropertyChanged(nameof(SelectedAvailableDeviceVisibility));
         OnPropertyChanged(nameof(EmptyNotificationsVisibility));
         OnPropertyChanged(nameof(HasNotificationsVisibility));
     }

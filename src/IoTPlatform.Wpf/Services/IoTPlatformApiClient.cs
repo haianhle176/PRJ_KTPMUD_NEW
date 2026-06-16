@@ -227,6 +227,8 @@ public sealed record AvailableDevice(
     public string CapabilitySummary => $"{SensorCount} sensors - {ActuatorCount} actuators";
     public string LastSeenText => LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "No heartbeat yet";
     public string ExpiresText => $"Pairing expires {PairingCodeExpiresAtUtc.ToLocalTime():t}";
+    public string KindIcon => ActuatorCount > 0 ? "\uE945" : "\uE9D9";
+    public string KindLabel => ActuatorCount > 0 ? "Actuator" : "Sensor";
 }
 
 public sealed record DeviceCapability(

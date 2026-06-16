@@ -35,8 +35,8 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
         {
             await scope.Connection.ExecuteAsync(new CommandDefinition(
                 """
-                INSERT dbo.Devices (Id, Serial, Status, ManifestVersion, LastSeenAtUtc, CreatedAtUtc, UpdatedAtUtc)
-                VALUES (@DeviceId, @Serial, 'online', @ManifestVersion, @Now, @Now, @Now);
+                INSERT dbo.Devices (Id, Serial, Status, ManifestVersion, CreatedAtUtc, UpdatedAtUtc)
+                VALUES (@DeviceId, @Serial, 'offline', @ManifestVersion, @Now, @Now);
                 """,
                 new { DeviceId = deviceId, manifest.Serial, manifest.ManifestVersion, Now = now },
                 scope.Transaction,
@@ -52,7 +52,7 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
             await scope.Connection.ExecuteAsync(new CommandDefinition(
                 """
                 UPDATE dbo.Devices
-                SET Status = 'online', ManifestVersion = @ManifestVersion, LastSeenAtUtc = @Now, UpdatedAtUtc = @Now
+                SET ManifestVersion = @ManifestVersion, UpdatedAtUtc = @Now
                 WHERE Id = @DeviceId;
                 """,
                 new { DeviceId = deviceId, manifest.ManifestVersion, Now = now },

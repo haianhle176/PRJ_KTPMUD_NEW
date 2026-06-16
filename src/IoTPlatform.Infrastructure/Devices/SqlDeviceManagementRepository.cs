@@ -47,9 +47,10 @@ public sealed class SqlDeviceManagementRepository(IDbConnectionFactory connectio
             ) pc
             LEFT JOIN dbo.Capabilities c ON c.DeviceId = d.Id AND c.IsActive = 1
             WHERE d.OwnerUserId IS NULL
+              AND d.Status = 'online'
+              AND d.LastSeenAtUtc >= DATEADD(second, -45, SYSUTCDATETIME())
             GROUP BY d.Id, d.Serial, d.Status, d.ManifestVersion, d.LastSeenAtUtc, pc.ExpiresAtUtc
-            ORDER BY CASE WHEN d.Status = 'online' THEN 0 ELSE 1 END,
-                     d.LastSeenAtUtc DESC,
+            ORDER BY d.LastSeenAtUtc DESC,
                      d.Serial ASC;
             """,
             new { UserId = userId },

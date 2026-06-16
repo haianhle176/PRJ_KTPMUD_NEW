@@ -224,6 +224,7 @@ public sealed class DeviceClaimIntegrationTests
             await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(claimedSerial, "AVAL4567", [Actuator("relay")]));
             await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(expiredSerial, "AVAL5678", [Sensor("light")]));
             await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(usedSerial, "AVAL6789", [Actuator("lock")]));
+            await context.DeviceRegistry.UpdatePresenceAsync(CreatePresence(onlineSerial, "online"));
 
             await context.ClaimService.ClaimAsync(user.User.Id, new ClaimDeviceRequestDto("AVAL4567", "Claimed", null));
 
@@ -253,17 +254,14 @@ public sealed class DeviceClaimIntegrationTests
 
             var available = await context.ManagementService.ListAvailableAsync(user.User.Id);
 
-            Assert.Equal([onlineSerial, offlineSerial], available.Select(device => device.Serial).ToArray());
+            Assert.Equal([onlineSerial], available.Select(device => device.Serial).ToArray());
             var online = Assert.Single(available.Where(device => device.Serial == onlineSerial));
             Assert.Equal("online", online.Status);
             Assert.Equal(1, online.SensorCount);
             Assert.Equal(1, online.ActuatorCount);
             Assert.True(online.PairingCodeExpiresAtUtc > DateTimeOffset.UtcNow);
 
-            var offline = Assert.Single(available.Where(device => device.Serial == offlineSerial));
-            Assert.Equal("offline", offline.Status);
-            Assert.Equal(1, offline.SensorCount);
-            Assert.Equal(0, offline.ActuatorCount);
+            Assert.DoesNotContain(available, device => device.Serial == offlineSerial);
             Assert.DoesNotContain(available, device => device.Serial == claimedSerial);
             Assert.DoesNotContain(available, device => device.Serial == expiredSerial);
             Assert.DoesNotContain(available, device => device.Serial == usedSerial);
@@ -292,6 +290,14 @@ public sealed class DeviceClaimIntegrationTests
         1,
         pairingCode,
         capabilities);
+
+    private static DevicePresenceMessage CreatePresence(string serial, string status) => new(
+        Guid.NewGuid(),
+        serial,
+        DateTimeOffset.UtcNow,
+        DeviceMessageSerializer.CurrentSchemaVersion,
+        status,
+        Guid.NewGuid());
 
     private static CapabilityManifestItem Sensor(string key) =>
         new(key, key, "sensor", "number", "C", -20, 80, false, []);
