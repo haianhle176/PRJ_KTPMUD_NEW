@@ -62,6 +62,9 @@ public sealed class IoTPlatformApiClient
     public Task<IReadOnlyList<DeviceSummary>> GetDevicesAsync() =>
         GetAsync<IReadOnlyList<DeviceSummary>>("api/v1/devices");
 
+    public Task<IReadOnlyList<AvailableDevice>> GetAvailableDevicesAsync() =>
+        GetAsync<IReadOnlyList<AvailableDevice>>("api/v1/devices/available");
+
     public Task<IReadOnlyList<DeviceCapability>> GetDeviceCapabilitiesAsync(Guid deviceId) =>
         GetAsync<IReadOnlyList<DeviceCapability>>($"api/v1/devices/{deviceId}/capabilities");
 
@@ -206,6 +209,16 @@ public sealed record DeviceSummary(Guid Id, string Serial, string? DisplayName, 
 {
     public string NameOrSerial => string.IsNullOrWhiteSpace(DisplayName) ? Serial : DisplayName;
 }
+
+public sealed record AvailableDevice(
+    Guid DeviceId,
+    string Serial,
+    string Status,
+    int ManifestVersion,
+    DateTimeOffset? LastSeenAtUtc,
+    DateTimeOffset PairingCodeExpiresAtUtc,
+    int SensorCount,
+    int ActuatorCount);
 
 public sealed record DeviceCapability(
     Guid Id,

@@ -19,6 +19,7 @@ public sealed class MainViewModel : ObservableObject
     private string _password = "";
     private string _displayName = "";
     private bool _isAuthenticated;
+    private bool _isRegisterMode;
     private DeviceSummary? _selectedDevice;
     private AutomationRuleDto? _selectedAutomationRule;
 
@@ -26,6 +27,8 @@ public sealed class MainViewModel : ObservableObject
     {
         LoginCommand = new RelayCommand(LoginAsync);
         RegisterCommand = new RelayCommand(RegisterAsync);
+        SubmitAuthCommand = new RelayCommand(SubmitAuthAsync);
+        ToggleAuthModeCommand = new RelayCommand(ToggleAuthModeAsync);
         LogoutCommand = new RelayCommand(LogoutAsync, () => IsAuthenticated);
         NavigateCommand = new RelayCommand<string>(NavigateAsync);
         RefreshDevicesCommand = new RelayCommand(RefreshDevicesAsync, () => IsAuthenticated);
@@ -60,6 +63,8 @@ public sealed class MainViewModel : ObservableObject
 
     public RelayCommand LoginCommand { get; }
     public RelayCommand RegisterCommand { get; }
+    public RelayCommand SubmitAuthCommand { get; }
+    public RelayCommand ToggleAuthModeCommand { get; }
     public RelayCommand LogoutCommand { get; }
     public RelayCommand<string> NavigateCommand { get; }
     public RelayCommand RefreshDevicesCommand { get; }
@@ -126,7 +131,31 @@ public sealed class MainViewModel : ObservableObject
             {
                 OnPropertyChanged(nameof(AuthenticatedVisibility));
                 OnPropertyChanged(nameof(UnauthenticatedVisibility));
+                OnPropertyChanged(nameof(AppWindowWidth));
+                OnPropertyChanged(nameof(AppWindowHeight));
+                OnPropertyChanged(nameof(AppWindowMinWidth));
+                OnPropertyChanged(nameof(AppWindowMinHeight));
+                OnPropertyChanged(nameof(AppWindowMaxWidth));
+                OnPropertyChanged(nameof(AppWindowMaxHeight));
+                OnPropertyChanged(nameof(AppResizeMode));
                 RaiseCommandStates();
+            }
+        }
+    }
+
+    public bool IsRegisterMode
+    {
+        get => _isRegisterMode;
+        set
+        {
+            if (SetProperty(ref _isRegisterMode, value))
+            {
+                OnPropertyChanged(nameof(AuthTitle));
+                OnPropertyChanged(nameof(AuthSubtitle));
+                OnPropertyChanged(nameof(AuthPrimaryButtonText));
+                OnPropertyChanged(nameof(AuthSwitchPrefix));
+                OnPropertyChanged(nameof(AuthSwitchAction));
+                OnPropertyChanged(nameof(RegisterFieldVisibility));
             }
         }
     }
@@ -221,7 +250,21 @@ public sealed class MainViewModel : ObservableObject
     public int EnabledAutomationCount => AutomationRules.Count(rule => rule.IsEnabled);
     public string SelectedDeviceName => SelectedDevice?.NameOrSerial ?? "Select a device";
     public string SelectedDeviceStatus => SelectedDevice is null ? "No device selected" : $"{SelectedDevice.Status} - Last seen {SelectedDevice.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "never"}";
-    public string WorkerLaunchHelp => "The desktop app only needs the Azure API. These local shortcuts are developer tools and only work on this machine when the source projects and dotnet SDK are available.";
+    public string WorkerLaunchHelp => "OmniConnect runs from the cloud. These local shortcuts are only for your development machine when the source projects and dotnet SDK are available.";
+    public string AuthTitle => IsRegisterMode ? "Tạo tài khoản" : "Đăng nhập";
+    public string AuthSubtitle => IsRegisterMode
+        ? "Bắt đầu quản lý các thiết bị IoT động của bạn."
+        : "Chào mừng bạn quay lại OmniConnect.";
+    public string AuthPrimaryButtonText => IsRegisterMode ? "Đăng ký" : "Đăng nhập";
+    public string AuthSwitchPrefix => IsRegisterMode ? "Đã có tài khoản? " : "Chưa có tài khoản? ";
+    public string AuthSwitchAction => IsRegisterMode ? "Đăng nhập" : "Đăng ký ngay";
+    public double AppWindowWidth => IsAuthenticated ? 1280 : 420;
+    public double AppWindowHeight => IsAuthenticated ? 820 : 520;
+    public double AppWindowMinWidth => IsAuthenticated ? 1080 : 420;
+    public double AppWindowMinHeight => IsAuthenticated ? 720 : 520;
+    public double AppWindowMaxWidth => IsAuthenticated ? double.PositiveInfinity : 420;
+    public double AppWindowMaxHeight => IsAuthenticated ? double.PositiveInfinity : 520;
+    public ResizeMode AppResizeMode => IsAuthenticated ? ResizeMode.CanResize : ResizeMode.NoResize;
 
     public Visibility AuthVisibility => Section("Auth");
     public Visibility HomeVisibility => Section("Home");
@@ -236,6 +279,15 @@ public sealed class MainViewModel : ObservableObject
     public Visibility EmptyDevicesVisibility => Devices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasDevicesVisibility => Devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyNotificationsVisibility => Notifications.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility RegisterFieldVisibility => IsRegisterMode ? Visibility.Visible : Visibility.Collapsed;
+
+    private Task ToggleAuthModeAsync()
+    {
+        IsRegisterMode = !IsRegisterMode;
+        return Task.CompletedTask;
+    }
+
+    private Task SubmitAuthAsync() => IsRegisterMode ? RegisterAsync() : LoginAsync();
 
     private async Task NavigateAsync(string? section)
     {

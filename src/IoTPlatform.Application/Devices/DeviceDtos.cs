@@ -12,6 +12,16 @@ public sealed record DeviceSummaryDto(
     DateTimeOffset? LastSeenAtUtc,
     DateTimeOffset? ClaimedAtUtc);
 
+public sealed record AvailableDeviceDto(
+    Guid DeviceId,
+    string Serial,
+    string Status,
+    int ManifestVersion,
+    DateTimeOffset? LastSeenAtUtc,
+    DateTimeOffset PairingCodeExpiresAtUtc,
+    int SensorCount,
+    int ActuatorCount);
+
 public sealed record UpdateDeviceRequestDto(string DisplayName, string? Category);
 
 public sealed record DeviceCapabilityDto(

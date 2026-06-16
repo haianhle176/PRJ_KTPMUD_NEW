@@ -60,6 +60,17 @@ public sealed class DevicesController(
         return Ok(await deviceManagementService.ListAsync(userId, cancellationToken));
     }
 
+    [HttpGet("available")]
+    public async Task<ActionResult<IReadOnlyList<AvailableDeviceDto>>> ListAvailable(CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId, out var unauthorized))
+        {
+            return unauthorized;
+        }
+
+        return Ok(await deviceManagementService.ListAvailableAsync(userId, cancellationToken));
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<DeviceSummaryDto>> Get(Guid id, CancellationToken cancellationToken)
     {

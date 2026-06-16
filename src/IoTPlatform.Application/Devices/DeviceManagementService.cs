@@ -10,6 +10,12 @@ public sealed class DeviceManagementService(IDeviceManagementRepository reposito
         return repository.ListAsync(userId, cancellationToken);
     }
 
+    public Task<IReadOnlyList<AvailableDeviceDto>> ListAvailableAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        ValidateUser(userId);
+        return repository.ListAvailableAsync(userId, cancellationToken);
+    }
+
     public async Task<DeviceSummaryDto> GetAsync(Guid userId, Guid deviceId, CancellationToken cancellationToken = default)
     {
         ValidateUser(userId);

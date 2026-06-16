@@ -22,6 +22,41 @@ public sealed class SqlDeviceManagementRepository(IDbConnectionFactory connectio
         return devices.Select(ToSummary).ToArray();
     }
 
+    public async Task<IReadOnlyList<AvailableDeviceDto>> ListAvailableAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        var devices = await connection.QueryAsync(new CommandDefinition(
+            """
+            SELECT
+                d.Id AS DeviceId,
+                d.Serial,
+                d.Status,
+                d.ManifestVersion,
+                d.LastSeenAtUtc,
+                pc.ExpiresAtUtc AS PairingCodeExpiresAtUtc,
+                SUM(CASE WHEN c.Kind = 'sensor' AND c.IsActive = 1 THEN 1 ELSE 0 END) AS SensorCount,
+                SUM(CASE WHEN c.Kind = 'actuator' AND c.IsActive = 1 THEN 1 ELSE 0 END) AS ActuatorCount
+            FROM dbo.Devices d
+            CROSS APPLY (
+                SELECT TOP (1) ExpiresAtUtc
+                FROM dbo.PairingCodes pc
+                WHERE pc.DeviceId = d.Id
+                  AND pc.UsedAtUtc IS NULL
+                  AND pc.ExpiresAtUtc > SYSUTCDATETIME()
+                ORDER BY pc.ExpiresAtUtc DESC, pc.CreatedAtUtc DESC
+            ) pc
+            LEFT JOIN dbo.Capabilities c ON c.DeviceId = d.Id AND c.IsActive = 1
+            WHERE d.OwnerUserId IS NULL
+            GROUP BY d.Id, d.Serial, d.Status, d.ManifestVersion, d.LastSeenAtUtc, pc.ExpiresAtUtc
+            ORDER BY CASE WHEN d.Status = 'online' THEN 0 ELSE 1 END,
+                     d.LastSeenAtUtc DESC,
+                     d.Serial ASC;
+            """,
+            new { UserId = userId },
+            cancellationToken: cancellationToken));
+        return devices.Select(ToAvailable).ToArray();
+    }
+
     public async Task<DeviceSummaryDto?> GetAsync(Guid userId, Guid deviceId, CancellationToken cancellationToken = default)
     {
         await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
@@ -107,6 +142,22 @@ public sealed class SqlDeviceManagementRepository(IDbConnectionFactory connectio
             row.ManifestVersion,
             lastSeenAtUtc is null ? null : new DateTimeOffset(DateTime.SpecifyKind(lastSeenAtUtc.Value, DateTimeKind.Utc)),
             claimedAtUtc is null ? null : new DateTimeOffset(DateTime.SpecifyKind(claimedAtUtc.Value, DateTimeKind.Utc)));
+    }
+
+    private static AvailableDeviceDto ToAvailable(dynamic row)
+    {
+        DateTime? lastSeenAtUtc = row.LastSeenAtUtc;
+        DateTime pairingCodeExpiresAtUtc = row.PairingCodeExpiresAtUtc;
+
+        return new AvailableDeviceDto(
+            row.DeviceId,
+            row.Serial,
+            row.Status,
+            row.ManifestVersion,
+            lastSeenAtUtc is null ? null : new DateTimeOffset(DateTime.SpecifyKind(lastSeenAtUtc.Value, DateTimeKind.Utc)),
+            new DateTimeOffset(DateTime.SpecifyKind(pairingCodeExpiresAtUtc, DateTimeKind.Utc)),
+            row.SensorCount,
+            row.ActuatorCount);
     }
 
     private static DeviceCapabilityDto ToCapability(dynamic row)

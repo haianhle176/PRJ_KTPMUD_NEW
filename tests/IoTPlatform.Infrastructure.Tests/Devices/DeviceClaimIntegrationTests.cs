@@ -201,6 +201,80 @@ public sealed class DeviceClaimIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task ListAvailableAsync_ReturnsOnlyUnclaimedDevicesWithActivePairingCode()
+    {
+        var databaseName = $"IoTPlatform_AvailableDevices_{Guid.NewGuid():N}";
+        var connectionString = new SqlConnectionStringBuilder(MasterConnectionString) { InitialCatalog = databaseName }.ConnectionString;
+        await ExecuteMasterAsync($"CREATE DATABASE [{databaseName}];");
+
+        try
+        {
+            var context = await CreateContextAsync(connectionString);
+            var user = await context.AuthService.RegisterAsync(new RegisterRequestDto("available@example.test", "Password123!", "Available User"));
+
+            const string onlineSerial = "DEV-P9AVAIL001";
+            const string offlineSerial = "DEV-P9AVAIL002";
+            const string claimedSerial = "DEV-P9CLAIM001";
+            const string expiredSerial = "DEV-P9EXPIRE01";
+            const string usedSerial = "DEV-P9USED0001";
+
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(onlineSerial, "AVAL2345", [Sensor("temperature"), Actuator("power")]));
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(offlineSerial, "AVAL3456", [Sensor("humidity")]));
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(claimedSerial, "AVAL4567", [Actuator("relay")]));
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(expiredSerial, "AVAL5678", [Sensor("light")]));
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(usedSerial, "AVAL6789", [Actuator("lock")]));
+
+            await context.ClaimService.ClaimAsync(user.User.Id, new ClaimDeviceRequestDto("AVAL4567", "Claimed", null));
+
+            await using (var connection = new SqlConnection(connectionString))
+            {
+                await connection.ExecuteAsync(
+                    """
+                    UPDATE dbo.Devices
+                    SET Status = 'offline', LastSeenAtUtc = DATEADD(minute, 5, SYSUTCDATETIME())
+                    WHERE Serial = @Serial;
+
+                    UPDATE dbo.PairingCodes
+                    SET ExpiresAtUtc = DATEADD(minute, -1, SYSUTCDATETIME())
+                    WHERE CodeHash = @ExpiredHash;
+
+                    UPDATE dbo.PairingCodes
+                    SET UsedAtUtc = SYSUTCDATETIME()
+                    WHERE CodeHash = @UsedHash;
+                    """,
+                    new
+                    {
+                        Serial = offlineSerial,
+                        ExpiredHash = Hash("AVAL5678"),
+                        UsedHash = Hash("AVAL6789")
+                    });
+            }
+
+            var available = await context.ManagementService.ListAvailableAsync(user.User.Id);
+
+            Assert.Equal([onlineSerial, offlineSerial], available.Select(device => device.Serial).ToArray());
+            var online = Assert.Single(available.Where(device => device.Serial == onlineSerial));
+            Assert.Equal("online", online.Status);
+            Assert.Equal(1, online.SensorCount);
+            Assert.Equal(1, online.ActuatorCount);
+            Assert.True(online.PairingCodeExpiresAtUtc > DateTimeOffset.UtcNow);
+
+            var offline = Assert.Single(available.Where(device => device.Serial == offlineSerial));
+            Assert.Equal("offline", offline.Status);
+            Assert.Equal(1, offline.SensorCount);
+            Assert.Equal(0, offline.ActuatorCount);
+            Assert.DoesNotContain(available, device => device.Serial == claimedSerial);
+            Assert.DoesNotContain(available, device => device.Serial == expiredSerial);
+            Assert.DoesNotContain(available, device => device.Serial == usedSerial);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            await ExecuteMasterAsync($"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}];");
+        }
+    }
+
     private static DeviceManifestMessage CreateManifest(string serial, string pairingCode) => new(
         Guid.NewGuid(),
         serial,
@@ -209,6 +283,21 @@ public sealed class DeviceClaimIntegrationTests
         1,
         pairingCode,
         [new CapabilityManifestItem("pump_power", "Pump Power", "actuator", "boolean", null, null, null, true, ["ON", "OFF"])]);
+
+    private static DeviceManifestMessage CreateManifest(string serial, string pairingCode, IReadOnlyList<CapabilityManifestItem> capabilities) => new(
+        Guid.NewGuid(),
+        serial,
+        DateTimeOffset.UtcNow,
+        DeviceMessageSerializer.CurrentSchemaVersion,
+        1,
+        pairingCode,
+        capabilities);
+
+    private static CapabilityManifestItem Sensor(string key) =>
+        new(key, key, "sensor", "number", "C", -20, 80, false, []);
+
+    private static CapabilityManifestItem Actuator(string key) =>
+        new(key, key, "actuator", "boolean", null, null, null, true, ["ON", "OFF"]);
 
     private static async Task<TestContext> CreateContextAsync(string connectionString)
     {
