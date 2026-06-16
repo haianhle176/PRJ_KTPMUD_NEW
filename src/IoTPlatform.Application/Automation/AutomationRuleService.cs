@@ -10,6 +10,7 @@ public sealed class AutomationRuleService(IAutomationRuleRepository repository) 
     {
         ValidateUser(userId);
         ValidateCommon(request.Name, request.ComparisonOperator, request.CooldownSeconds, request.CommandName);
+        ValidateSchedule(request.ActiveFromTime, request.ActiveToTime, request.ActiveDaysOfWeek);
         var threshold = CommandValue.FromJson(request.ThresholdValue);
         var desired = CommandValue.FromJson(request.DesiredValue);
         return await repository.CreateAsync(userId, request, threshold, desired, cancellationToken)
@@ -32,6 +33,7 @@ public sealed class AutomationRuleService(IAutomationRuleRepository repository) 
     {
         ValidateUser(userId);
         ValidateCommon(request.Name, request.ComparisonOperator, request.CooldownSeconds, request.CommandName);
+        ValidateSchedule(request.ActiveFromTime, request.ActiveToTime, request.ActiveDaysOfWeek);
         var threshold = CommandValue.FromJson(request.ThresholdValue);
         var desired = CommandValue.FromJson(request.DesiredValue);
         return await repository.UpdateAsync(userId, ruleId, request, threshold, desired, cancellationToken)
@@ -86,6 +88,24 @@ public sealed class AutomationRuleService(IAutomationRuleRepository repository) 
         if (string.IsNullOrWhiteSpace(commandName))
         {
             throw new AutomationValidationException("Command name is required.");
+        }
+    }
+
+    private static void ValidateSchedule(string? activeFromTime, string? activeToTime, int? activeDaysOfWeek)
+    {
+        if (!string.IsNullOrWhiteSpace(activeFromTime) && !TimeOnly.TryParse(activeFromTime, out _))
+        {
+            throw new AutomationValidationException("Active from time must be a valid time, for example 08:00.");
+        }
+
+        if (!string.IsNullOrWhiteSpace(activeToTime) && !TimeOnly.TryParse(activeToTime, out _))
+        {
+            throw new AutomationValidationException("Active to time must be a valid time, for example 18:00.");
+        }
+
+        if (activeDaysOfWeek is < 1 or > 127)
+        {
+            throw new AutomationValidationException("Active days of week must be a bit mask between 1 and 127.");
         }
     }
 }

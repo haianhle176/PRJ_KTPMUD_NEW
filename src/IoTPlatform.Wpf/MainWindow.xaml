@@ -197,6 +197,12 @@
                         <TextBox Text="{Binding AutomationDesiredValue, UpdateSourceTrigger=PropertyChanged}" />
                         <TextBlock Text="Cooldown seconds" />
                         <TextBox Text="{Binding AutomationCooldownSeconds, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Text="Active from UTC (optional, HH:mm)" />
+                        <TextBox Text="{Binding AutomationActiveFromTime, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Text="Active to UTC (optional, HH:mm)" />
+                        <TextBox Text="{Binding AutomationActiveToTime, UpdateSourceTrigger=PropertyChanged}" />
+                        <TextBlock Text="Active days bitmask (optional, Sun=1 Mon=2 ... Sat=64)" TextWrapping="Wrap" />
+                        <TextBox Text="{Binding AutomationActiveDaysOfWeek, UpdateSourceTrigger=PropertyChanged}" />
                         <CheckBox Content="Enabled" IsChecked="{Binding AutomationIsEnabled}" Margin="0,4,0,8" />
                         <StackPanel Orientation="Horizontal">
                             <Button Content="Save rule" Command="{Binding SaveAutomationRuleCommand}" />
@@ -216,6 +222,22 @@
                         </DataGrid>
                     </GroupBox>
                 </Grid>
+            </TabItem>
+
+            <TabItem Header="Notifications">
+                <DockPanel Margin="4">
+                    <Button DockPanel.Dock="Top" Content="Refresh notifications" Command="{Binding RefreshNotificationsCommand}" HorizontalAlignment="Left" />
+                    <DataGrid ItemsSource="{Binding Notifications}">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Header="Severity" Binding="{Binding Severity}" Width="90" />
+                            <DataGridTextColumn Header="Type" Binding="{Binding Type}" Width="150" />
+                            <DataGridTextColumn Header="Title" Binding="{Binding Title}" Width="180" />
+                            <DataGridTextColumn Header="Message" Binding="{Binding Message}" Width="*" />
+                            <DataGridCheckBoxColumn Header="Read" Binding="{Binding IsRead}" Width="70" />
+                            <DataGridTextColumn Header="Created" Binding="{Binding CreatedAtUtc}" Width="180" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </DockPanel>
             </TabItem>
         </TabControl>
     </DockPanel>

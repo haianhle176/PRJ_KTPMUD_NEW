@@ -1,9 +1,9 @@
 # Project Status
 
 **Cap nhat lan cuoi:** 2026-06-16  
-**Trang thai tong the:** P6 functional UI implemented; demo/polish pending  
-**Phase hien tai:** P6 in progress  
-**Muc tieu tiep theo:** Chay full MVP demo qua WPF + Worker + DeviceApp
+**Trang thai tong the:** P6 functional MVP complete; P7 cloud/test/report hardening in progress  
+**Phase hien tai:** P7 in progress  
+**Muc tieu tiep theo:** Publish lai API de co health endpoints va chay smoke test checklist
 
 ## 1. Tien do phase
 
@@ -15,9 +15,9 @@
 | P3 | Telemetry pipeline | Complete | 100% |
 | P4 | Dieu khien actuator | Complete | 100% |
 | P5 | Automation engine | Complete | 100% |
-| P6 | WPF App | Functional UI implemented; full demo pending | 85% |
-| P7 | Cloud, kiem thu va bao cao | Not started | 0% |
-| P8 | Mo rong sau MVP | Deferred | 0% |
+| P6 | WPF App | Functional MVP complete; polish deferred | 100% |
+| P7 | Cloud, kiem thu va bao cao | In progress | 35% |
+| P8 | Mo rong sau MVP | P8-03/P8-04/P8-08 backend MVP complete; remaining items deferred | 30% |
 
 Toan bo phan ky thuat P0 da hoan thanh. Phan con lai chi la `P0-06` va `P0-07` ve Architecture/Sequence/ERD/Class/Use Case/State diagrams, duoc hoan theo yeu cau hien tai.
 
@@ -31,7 +31,11 @@ P4 da hoan thanh: API tao manual command, validate ownership/writable actuator/v
 
 P5 da hoan thanh: CRUD automation rule, validation source sensor/target actuator/ownership/data type, comparator `> >= < <= == !=`, edge trigger, cooldown, evaluation sau telemetry transaction, tao command source `automation`, ghi execution history va chong duplicate execution khi telemetry bi giao lai.
 
-P6 da co functional WPF UI: MVVM shell, typed API client, DPAPI token storage, login/register/logout, device list/claim/rename, telemetry latest/history, actuator command form, automation rule list/editor/execution history va polling 5 giay. Phan con lai la bieu do telemetry toi thieu/polish va full MVP demo that qua Worker + DeviceApp.
+P6 da hoan thanh o muc functional MVP: MVVM shell, typed API client, DPAPI token storage, login/register/logout, device list/claim/rename, telemetry latest/history, actuator command form, automation rule list/editor/execution history va polling 5 giay. Demo thuc te da xac nhan claim, telemetry va command end-to-end qua WPF + Worker + DeviceApp.
+
+P7 da bat dau: topology Azure F1 + Azure SQL + HiveMQ + Worker local da duoc xac nhan, them API liveness/readiness health checks, tao deployment guide, demo script va smoke test checklist trong `docs/operations`.
+
+P8 da lam dung ba muc duoc yeu cau: automation co schedule/time-window optional, notification backend cho offline/threshold, API rate limiting, Worker maintenance job cho retention va hourly telemetry aggregation. Cac muc P8 khac giu nguyen backlog, chua dong den.
 
 ## 2. Da hoan thanh
 
@@ -107,18 +111,20 @@ P6 da co functional WPF UI: MVVM shell, typed API client, DPAPI token storage, l
 
 ## 3. Chua bat dau
 
-- [ ] WPF full MVP demo qua Worker + DeviceApp chua duoc chay.
-- [ ] WPF telemetry moi co history table, chua co chart toi thieu.
+- [ ] API can publish lai len Azure de co `/health/live` va `/health/ready`.
+- [ ] API/Worker can chay migration V004 tren Azure SQL truoc khi test notification/aggregation.
 - [ ] Test coverage hien bao phu P0-P5 cot loi; P6 moi duoc verify bang build, chua co UI automation test.
 - [ ] Chua xac minh ket noi runtime tu source hien tai toi HiveMQ Cloud, Azure SQL va App Service F1.
 - [ ] Chua co diagram artifact hoan chinh.
-- [ ] P6-10 full MVP demo qua WPF + DeviceApp chua duoc chay.
+- [ ] P7 smoke test checklist can duoc chay lai day du truoc demo/bao cao.
 
 ## 4. Verification gan nhat
 
 - `dotnet build IoTPlatform.sln --configuration Debug`: thanh cong, 0 warnings, 0 errors.
 - `dotnet test IoTPlatform.sln --configuration Debug`: thanh cong; 23 tests passed. `IoTPlatform.Application.Tests` va `IoTPlatform.Api.Tests` hien la scaffold chua co test nen test runner bao `No test is available` nhung exit code thanh cong.
 - `dotnet build IoTPlatform.sln --configuration Debug`: thanh cong sau khi them WPF UI.
+- WPF + Worker + DeviceApp demo thuc te: claim device, xem telemetry va gui command actuator thanh cong.
+- `dotnet test IoTPlatform.sln --configuration Debug`: thanh cong sau P8-03/P8-04/P8-08; 25 tests co thuc thi pass, Application/API test projects van la scaffold khong co test.
 - Tat ca JSON schema va example files parse thanh cong nhu JSON.
 - LocalDB integration: tao database rong, apply 2 migrations, apply lai, kiem tra 13 bang, rollback/commit va xoa database test thanh cong.
 - P1 cloud integration: Worker ket noi Azure SQL + HiveMQ; ba DeviceApp publish manifest/presence; Last Will offline va reconnect online duoc ghi nhan.

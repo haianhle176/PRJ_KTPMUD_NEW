@@ -41,13 +41,14 @@ public sealed class SqlPersistenceIntegrationTests
                 {
                     "Users", "RefreshTokens", "Devices", "PairingCodes", "Capabilities",
                     "TelemetryRecords", "DeviceLatestValues", "DeviceCommands", "CommandAcknowledgements",
-                    "AutomationRules", "AutomationExecutions", "ProcessedMessages", "AuditLogs"
+                    "AutomationRules", "AutomationExecutions", "ProcessedMessages", "AuditLogs",
+                    "Notifications", "TelemetryHourlyAggregates"
                 };
                 var tableCount = await connection.ExecuteScalarAsync<int>(
                     "SELECT COUNT(*) FROM sys.tables WHERE name IN @Names;",
                     new { Names = expectedTables });
 
-                Assert.Equal(3, migrationCount);
+                Assert.Equal(4, migrationCount);
                 Assert.Equal(expectedTables.Length, tableCount);
             }
 

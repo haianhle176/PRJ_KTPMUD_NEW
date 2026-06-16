@@ -97,6 +97,9 @@ public sealed class IoTPlatformApiClient
     public Task<IReadOnlyList<AutomationExecutionDto>> GetAutomationExecutionsAsync(Guid id) =>
         GetAsync<IReadOnlyList<AutomationExecutionDto>>($"api/v1/automation-rules/{id}/executions");
 
+    public Task<IReadOnlyList<NotificationDto>> GetNotificationsAsync(bool unreadOnly = false, int take = 50) =>
+        GetAsync<IReadOnlyList<NotificationDto>>($"api/v1/notifications?unreadOnly={unreadOnly.ToString().ToLowerInvariant()}&take={take}");
+
     private async Task SetTokensAsync(TokenResponse tokens)
     {
         _tokens = new AuthTokens(tokens.AccessToken, tokens.RefreshToken, tokens.AccessTokenExpiresAtUtc, tokens.RefreshTokenExpiresAtUtc);
@@ -227,10 +230,12 @@ public sealed record TelemetryHistoryItem(long Id, Guid CapabilityId, string Cap
 
 public sealed record CommandDto(Guid Id, Guid DeviceId, string Serial, string CapabilityKey, string CommandName, string DesiredValueType, decimal? DesiredNumberValue, bool? DesiredBooleanValue, string? DesiredStringValue, string Source, string Status, DateTimeOffset CreatedAtUtc, DateTimeOffset? SentAtUtc, DateTimeOffset? AcceptedAtUtc, DateTimeOffset? CompletedAtUtc, DateTimeOffset ExpiresAtUtc, string? FailureCode, string? FailureMessage);
 
-public sealed record CreateAutomationRulePayload(string Name, Guid SourceDeviceId, string SourceCapabilityKey, string ComparisonOperator, JsonElement ThresholdValue, Guid TargetDeviceId, string TargetCapabilityKey, string CommandName, JsonElement DesiredValue, int CooldownSeconds, bool IsEnabled);
+public sealed record CreateAutomationRulePayload(string Name, Guid SourceDeviceId, string SourceCapabilityKey, string ComparisonOperator, JsonElement ThresholdValue, Guid TargetDeviceId, string TargetCapabilityKey, string CommandName, JsonElement DesiredValue, int CooldownSeconds, bool IsEnabled, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek);
 
-public sealed record UpdateAutomationRulePayload(string Name, string ComparisonOperator, JsonElement ThresholdValue, string CommandName, JsonElement DesiredValue, int CooldownSeconds, bool IsEnabled);
+public sealed record UpdateAutomationRulePayload(string Name, string ComparisonOperator, JsonElement ThresholdValue, string CommandName, JsonElement DesiredValue, int CooldownSeconds, bool IsEnabled, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek);
 
-public sealed record AutomationRuleDto(Guid Id, string Name, Guid SourceDeviceId, string SourceDeviceSerial, string SourceCapabilityKey, string ComparisonOperator, string ThresholdValueType, decimal? ThresholdNumberValue, bool? ThresholdBooleanValue, string? ThresholdStringValue, Guid TargetDeviceId, string TargetDeviceSerial, string TargetCapabilityKey, string CommandName, string DesiredValueType, decimal? DesiredNumberValue, bool? DesiredBooleanValue, string? DesiredStringValue, bool IsEnabled, int CooldownSeconds, bool? LastConditionResult, DateTimeOffset? LastTriggeredAtUtc, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc);
+public sealed record AutomationRuleDto(Guid Id, string Name, Guid SourceDeviceId, string SourceDeviceSerial, string SourceCapabilityKey, string ComparisonOperator, string ThresholdValueType, decimal? ThresholdNumberValue, bool? ThresholdBooleanValue, string? ThresholdStringValue, Guid TargetDeviceId, string TargetDeviceSerial, string TargetCapabilityKey, string CommandName, string DesiredValueType, decimal? DesiredNumberValue, bool? DesiredBooleanValue, string? DesiredStringValue, bool IsEnabled, int CooldownSeconds, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek, bool? LastConditionResult, DateTimeOffset? LastTriggeredAtUtc, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc);
 
 public sealed record AutomationExecutionDto(long Id, Guid AutomationRuleId, Guid TriggerMessageId, Guid? CommandId, string Outcome, string? Reason, DateTimeOffset EvaluatedAtUtc);
+
+public sealed record NotificationDto(long Id, Guid OwnerUserId, Guid? DeviceId, Guid? CapabilityId, string Type, string Severity, string Title, string Message, bool IsRead, DateTimeOffset CreatedAtUtc);

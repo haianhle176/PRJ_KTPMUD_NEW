@@ -14,7 +14,10 @@ public sealed record CreateAutomationRuleRequest(
     string CommandName,
     JsonElement DesiredValue,
     int CooldownSeconds,
-    bool IsEnabled)
+    bool IsEnabled,
+    string? ActiveFromTime = null,
+    string? ActiveToTime = null,
+    int? ActiveDaysOfWeek = null)
 {
     public CreateAutomationRuleRequestDto ToDto() => new(
         Name,
@@ -27,7 +30,10 @@ public sealed record CreateAutomationRuleRequest(
         CommandName,
         DesiredValue,
         CooldownSeconds,
-        IsEnabled);
+        IsEnabled,
+        ActiveFromTime,
+        ActiveToTime,
+        ActiveDaysOfWeek);
 }
 
 public sealed record UpdateAutomationRuleRequest(
@@ -37,7 +43,20 @@ public sealed record UpdateAutomationRuleRequest(
     string CommandName,
     JsonElement DesiredValue,
     int CooldownSeconds,
-    bool IsEnabled)
+    bool IsEnabled,
+    string? ActiveFromTime = null,
+    string? ActiveToTime = null,
+    int? ActiveDaysOfWeek = null)
 {
-    public UpdateAutomationRuleRequestDto ToDto() => new(Name, ComparisonOperator, ThresholdValue, CommandName, DesiredValue, CooldownSeconds, IsEnabled);
+    public UpdateAutomationRuleRequestDto ToDto() => new(
+        Name,
+        ComparisonOperator,
+        ThresholdValue,
+        CommandName,
+        DesiredValue,
+        CooldownSeconds,
+        IsEnabled,
+        ActiveFromTime,
+        ActiveToTime,
+        ActiveDaysOfWeek);
 }

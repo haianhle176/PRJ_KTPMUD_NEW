@@ -29,6 +29,7 @@ public sealed class MainViewModel : ObservableObject
         LoadDeviceDetailCommand = new RelayCommand(LoadDeviceDetailAsync, () => IsAuthenticated && SelectedDevice is not null);
         SendCommandCommand = new RelayCommand(SendCommandAsync, () => IsAuthenticated && SelectedDevice is not null);
         RefreshAutomationRulesCommand = new RelayCommand(RefreshAutomationRulesAsync, () => IsAuthenticated);
+        RefreshNotificationsCommand = new RelayCommand(RefreshNotificationsAsync, () => IsAuthenticated);
         SaveAutomationRuleCommand = new RelayCommand(SaveAutomationRuleAsync, () => IsAuthenticated);
         DeleteAutomationRuleCommand = new RelayCommand(DeleteAutomationRuleAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
         LoadAutomationExecutionsCommand = new RelayCommand(LoadAutomationExecutionsAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
@@ -44,6 +45,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<CommandDto> Commands { get; } = [];
     public ObservableCollection<AutomationRuleDto> AutomationRules { get; } = [];
     public ObservableCollection<AutomationExecutionDto> AutomationExecutions { get; } = [];
+    public ObservableCollection<NotificationDto> Notifications { get; } = [];
 
     public RelayCommand LoginCommand { get; }
     public RelayCommand RegisterCommand { get; }
@@ -54,6 +56,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand LoadDeviceDetailCommand { get; }
     public RelayCommand SendCommandCommand { get; }
     public RelayCommand RefreshAutomationRulesCommand { get; }
+    public RelayCommand RefreshNotificationsCommand { get; }
     public RelayCommand SaveAutomationRuleCommand { get; }
     public RelayCommand DeleteAutomationRuleCommand { get; }
     public RelayCommand LoadAutomationExecutionsCommand { get; }
@@ -138,6 +141,9 @@ public sealed class MainViewModel : ObservableObject
                     AutomationCommandName = value.CommandName;
                     AutomationDesiredValue = FormatValue(value.DesiredValueType, value.DesiredNumberValue, value.DesiredBooleanValue, value.DesiredStringValue);
                     AutomationCooldownSeconds = value.CooldownSeconds.ToString();
+                    AutomationActiveFromTime = value.ActiveFromTime ?? "";
+                    AutomationActiveToTime = value.ActiveToTime ?? "";
+                    AutomationActiveDaysOfWeek = value.ActiveDaysOfWeek?.ToString() ?? "";
                     AutomationIsEnabled = value.IsEnabled;
                     OnPropertyChanged(nameof(AutomationName));
                     OnPropertyChanged(nameof(AutomationSourceDeviceId));
@@ -149,6 +155,9 @@ public sealed class MainViewModel : ObservableObject
                     OnPropertyChanged(nameof(AutomationCommandName));
                     OnPropertyChanged(nameof(AutomationDesiredValue));
                     OnPropertyChanged(nameof(AutomationCooldownSeconds));
+                    OnPropertyChanged(nameof(AutomationActiveFromTime));
+                    OnPropertyChanged(nameof(AutomationActiveToTime));
+                    OnPropertyChanged(nameof(AutomationActiveDaysOfWeek));
                     OnPropertyChanged(nameof(AutomationIsEnabled));
                     _ = LoadAutomationExecutionsAsync();
                 }
@@ -176,6 +185,9 @@ public sealed class MainViewModel : ObservableObject
     public string AutomationCommandName { get; set; } = "ON";
     public string AutomationDesiredValue { get; set; } = "true";
     public string AutomationCooldownSeconds { get; set; } = "30";
+    public string AutomationActiveFromTime { get; set; } = "";
+    public string AutomationActiveToTime { get; set; } = "";
+    public string AutomationActiveDaysOfWeek { get; set; } = "";
     public bool AutomationIsEnabled { get; set; } = true;
 
     private async Task RestoreSessionAsync()
@@ -239,6 +251,7 @@ public sealed class MainViewModel : ObservableObject
             Commands.Clear();
             AutomationRules.Clear();
             AutomationExecutions.Clear();
+            Notifications.Clear();
             StatusMessage = "Logged out.";
         });
     }
@@ -247,6 +260,7 @@ public sealed class MainViewModel : ObservableObject
     {
         await RefreshDevicesAsync();
         await RefreshAutomationRulesAsync();
+        await RefreshNotificationsAsync();
     }
 
     private async Task RefreshDevicesAsync()
@@ -349,7 +363,10 @@ public sealed class MainViewModel : ObservableObject
                     AutomationCommandName,
                     ParseDynamicValue(AutomationDesiredValue),
                     cooldown,
-                    AutomationIsEnabled));
+                    AutomationIsEnabled,
+                    EmptyToNull(AutomationActiveFromTime),
+                    EmptyToNull(AutomationActiveToTime),
+                    ParseNullableInt(AutomationActiveDaysOfWeek)));
                 await RefreshAutomationRulesAsync();
                 SelectedAutomationRule = AutomationRules.FirstOrDefault(item => item.Id == created.Id);
                 StatusMessage = "Automation rule created.";
@@ -363,7 +380,10 @@ public sealed class MainViewModel : ObservableObject
                     AutomationCommandName,
                     ParseDynamicValue(AutomationDesiredValue),
                     cooldown,
-                    AutomationIsEnabled));
+                    AutomationIsEnabled,
+                    EmptyToNull(AutomationActiveFromTime),
+                    EmptyToNull(AutomationActiveToTime),
+                    ParseNullableInt(AutomationActiveDaysOfWeek)));
                 await RefreshAutomationRulesAsync();
                 SelectedAutomationRule = AutomationRules.FirstOrDefault(item => item.Id == updated.Id);
                 StatusMessage = "Automation rule updated.";
@@ -401,6 +421,15 @@ public sealed class MainViewModel : ObservableObject
         });
     }
 
+    private async Task RefreshNotificationsAsync()
+    {
+        await RunAsync(async () =>
+        {
+            Replace(Notifications, await _api.GetNotificationsAsync());
+            StatusMessage = $"Loaded {Notifications.Count} notifications.";
+        });
+    }
+
     private async Task PollAsync()
     {
         if (!IsAuthenticated)
@@ -417,6 +446,7 @@ public sealed class MainViewModel : ObservableObject
             }
 
             await RefreshAutomationRulesAsync();
+            await RefreshNotificationsAsync();
         }
         catch (Exception exception)
         {
@@ -447,6 +477,7 @@ public sealed class MainViewModel : ObservableObject
         LoadDeviceDetailCommand.RaiseCanExecuteChanged();
         SendCommandCommand.RaiseCanExecuteChanged();
         RefreshAutomationRulesCommand.RaiseCanExecuteChanged();
+        RefreshNotificationsCommand.RaiseCanExecuteChanged();
         SaveAutomationRuleCommand.RaiseCanExecuteChanged();
         DeleteAutomationRuleCommand.RaiseCanExecuteChanged();
         LoadAutomationExecutionsCommand.RaiseCanExecuteChanged();
@@ -485,4 +516,7 @@ public sealed class MainViewModel : ObservableObject
     };
 
     private static string? EmptyToNull(string value) => string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static int? ParseNullableInt(string value) =>
+        string.IsNullOrWhiteSpace(value) ? null : int.Parse(value.Trim());
 }

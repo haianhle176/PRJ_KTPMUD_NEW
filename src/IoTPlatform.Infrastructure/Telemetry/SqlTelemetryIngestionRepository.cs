@@ -244,6 +244,9 @@ public sealed class SqlTelemetryIngestionRepository(ISqlTransactionScopeFactory 
                 ar.DesiredBooleanValue,
                 ar.DesiredStringValue,
                 ar.CooldownSeconds,
+                ar.ActiveFromTime,
+                ar.ActiveToTime,
+                ar.ActiveDaysOfWeek,
                 ar.LastConditionResult,
                 ar.LastTriggeredAtUtc
             FROM dbo.AutomationRules ar WITH (UPDLOCK, HOLDLOCK)
@@ -265,6 +268,13 @@ public sealed class SqlTelemetryIngestionRepository(ISqlTransactionScopeFactory 
 
             var conditionResult = EvaluateCondition(rule, value);
             var now = DateTimeOffset.UtcNow;
+            if (!IsWithinSchedule(rule, now))
+            {
+                await InsertAutomationExecutionAsync(scope, rule.Id, triggerMessageId, null, "skipped", "outside_schedule", cancellationToken);
+                await UpdateRuleStateAsync(scope, rule.Id, conditionResult, null, cancellationToken);
+                continue;
+            }
+
             var edgeTriggered = conditionResult && rule.LastConditionResult != true;
             var lastTriggeredAtUtc = rule.LastTriggeredAtUtc is null
                 ? (DateTimeOffset?)null
@@ -275,6 +285,7 @@ public sealed class SqlTelemetryIngestionRepository(ISqlTransactionScopeFactory 
             {
                 var commandId = Guid.NewGuid();
                 await InsertAutomationCommandAsync(scope, rule, commandId, now.AddSeconds(30), cancellationToken);
+                await InsertThresholdNotificationAsync(scope, rule, cancellationToken);
                 await InsertAutomationExecutionAsync(scope, rule.Id, triggerMessageId, commandId, "triggered", null, cancellationToken);
                 await UpdateRuleStateAsync(scope, rule.Id, conditionResult, now, cancellationToken);
                 continue;
@@ -325,6 +336,30 @@ public sealed class SqlTelemetryIngestionRepository(ISqlTransactionScopeFactory 
         _ => false
     };
 
+    private static bool IsWithinSchedule(AutomationRuleRow rule, DateTimeOffset now)
+    {
+        if (rule.ActiveDaysOfWeek is not null)
+        {
+            var dayBit = 1 << (int)now.UtcDateTime.DayOfWeek;
+            if ((rule.ActiveDaysOfWeek.Value & dayBit) == 0)
+            {
+                return false;
+            }
+        }
+
+        if (rule.ActiveFromTime is null && rule.ActiveToTime is null)
+        {
+            return true;
+        }
+
+        var current = now.UtcDateTime.TimeOfDay;
+        var from = rule.ActiveFromTime ?? TimeSpan.Zero;
+        var to = rule.ActiveToTime ?? new TimeSpan(23, 59, 59);
+        return from <= to
+            ? current >= from && current <= to
+            : current >= from || current <= to;
+    }
+
     private static Task InsertAutomationCommandAsync(
         ISqlTransactionScope scope,
         AutomationRuleRow rule,
@@ -355,6 +390,34 @@ public sealed class SqlTelemetryIngestionRepository(ISqlTransactionScopeFactory 
                 rule.DesiredBooleanValue,
                 rule.DesiredStringValue,
                 ExpiresAtUtc = expiresAtUtc
+            },
+            scope.Transaction,
+            cancellationToken: cancellationToken));
+
+    private static Task InsertThresholdNotificationAsync(
+        ISqlTransactionScope scope,
+        AutomationRuleRow rule,
+        CancellationToken cancellationToken) =>
+        scope.Connection.ExecuteAsync(new CommandDefinition(
+            """
+            INSERT dbo.Notifications (OwnerUserId, DeviceId, CapabilityId, Type, Severity, Title, Message)
+            SELECT @OwnerUserId, @TargetDeviceId, @TargetCapabilityId, 'threshold_triggered', 'info',
+                   'Automation threshold triggered', @Message
+            WHERE NOT EXISTS (
+                SELECT 1
+                FROM dbo.Notifications WITH (UPDLOCK, HOLDLOCK)
+                WHERE OwnerUserId = @OwnerUserId
+                  AND CapabilityId = @TargetCapabilityId
+                  AND Type = 'threshold_triggered'
+                  AND CreatedAtUtc >= DATEADD(minute, -10, SYSUTCDATETIME())
+            );
+            """,
+            new
+            {
+                rule.OwnerUserId,
+                rule.TargetDeviceId,
+                rule.TargetCapabilityId,
+                Message = $"Automation rule {rule.Id} triggered command {rule.CommandName} for {rule.TargetCapabilityKey}."
             },
             scope.Transaction,
             cancellationToken: cancellationToken));
@@ -421,6 +484,9 @@ public sealed class SqlTelemetryIngestionRepository(ISqlTransactionScopeFactory 
         bool? DesiredBooleanValue,
         string? DesiredStringValue,
         int CooldownSeconds,
+        TimeSpan? ActiveFromTime,
+        TimeSpan? ActiveToTime,
+        byte? ActiveDaysOfWeek,
         bool? LastConditionResult,
         DateTime? LastTriggeredAtUtc);
 }

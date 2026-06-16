@@ -9,6 +9,7 @@ builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddHiveMqOptions(builder.Configuration);
 builder.Services.AddSingleton<DeviceMessageHandler>();
 builder.Services.AddHostedService<MqttWorker>();
+builder.Services.AddHostedService<OperationsMaintenanceWorker>();
 
 var host = builder.Build();
 

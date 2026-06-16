@@ -119,25 +119,25 @@ Ky hieu:
 - [x] `P6-03` Tao man hinh register/login/logout.
 - [x] `P6-04` Tao device list voi online state, filter, claim, rename va classification.
 - [x] `P6-05` Tao device detail voi capability va latest values.
-- [>] `P6-06` Tao telemetry history view va bieu do toi thieu.
+- [x] `P6-06` Tao telemetry history view va bieu do toi thieu.
 - [x] `P6-07` Tao actuator control va command status feedback.
 - [x] `P6-08` Tao automation rule list/editor tu capability dong.
 - [x] `P6-09` Them polling 3-5 giay, loading, empty, validation va error states.
-- [ ] `P6-10` Chay full MVP demo chi qua WPF va DeviceApp.
+- [x] `P6-10` Chay full MVP demo chi qua WPF va DeviceApp.
 
 **P6 complete khi:** nguoi dung thuc hien duoc toan bo MVP ma khong can Swagger/Postman.
 
 ## P7 - Cloud, kiem thu va bao cao
 
-- [ ] `P7-01` Provision Azure SQL va Azure App Service F1 cho Web API; Worker tiep tuc chay local.
-- [ ] `P7-02` Cau hinh API secret trong Azure App Settings va Worker/HiveMQ secret bang local user-secrets hoac environment variables.
-- [ ] `P7-03` Them readiness/liveness health checks va structured cloud logs.
-- [ ] `P7-04` Chay migration va smoke test tren Azure environment.
+- [x] `P7-01` Provision Azure SQL va Azure App Service F1 cho Web API; Worker tiep tuc chay local.
+- [x] `P7-02` Cau hinh API secret trong Azure App Settings va Worker/HiveMQ secret bang local user-secrets hoac environment variables.
+- [x] `P7-03` Them readiness/liveness health checks va structured cloud logs.
+- [>] `P7-04` Chay migration va smoke test tren Azure environment.
 - [ ] `P7-05` Hoan thien unit, integration, API, MQTT va end-to-end test suite.
-- [ ] `P7-06` Tao seed/demo scenario khong chua secret.
-- [ ] `P7-07` Viet script demo claim -> telemetry -> manual command -> automation.
+- [>] `P7-06` Tao seed/demo scenario khong chua secret.
+- [x] `P7-07` Viet script demo claim -> telemetry -> manual command -> automation.
 - [ ] `P7-08` Hoan thien diagram va dong bo voi implementation thuc te.
-- [ ] `P7-09` Viet deployment guide, test report, risk va limitation sections.
+- [>] `P7-09` Viet deployment guide, test report, risk va limitation sections.
 - [ ] `P7-10` Dien tap demo: danh thuc API F1, khoi dong Worker local, sau do test disconnect/reconnect va restart.
 
 **P7 complete khi:** Web API deploy lap lai duoc tren Azure F1, Worker/DeviceApp/WPF chay local on dinh, HiveMQ va Azure SQL cloud hoat dong, va bao cao khop voi topology nay.
@@ -146,12 +146,12 @@ Ky hieu:
 
 - [ ] `P8-01` SignalR realtime thay polling.
 - [ ] `P8-02` Rule nhieu condition AND/OR.
-- [ ] `P8-03` Schedule/time-window trigger.
-- [ ] `P8-04` Offline/threshold notification.
+- [x] `P8-03` Schedule/time-window trigger.
+- [x] `P8-04` Offline/threshold notification.
 - [ ] `P8-05` Device group, room, area va tag.
 - [ ] `P8-06` CSV export va aggregate dashboard.
 - [ ] `P8-07` Admin role va device sharing.
-- [ ] `P8-08` Rate limiting, retention job va telemetry aggregation.
+- [x] `P8-08` Rate limiting, retention job va telemetry aggregation.
 - [ ] `P8-09` Per-device credential va certificate authentication.
 - [ ] `P8-10` OTA configuration.
 
@@ -159,8 +159,9 @@ Ky hieu:
 
 Bat dau theo thu tu:
 
-1. Hoan thien `P6-06` bang bieu do telemetry toi thieu neu can polish.
-2. `P6-10` Chay full MVP demo qua WPF + Worker + DeviceApp.
-3. Sau demo, chuyen sang `P7-03` health checks/cloud logs va tai lieu demo.
+1. Publish lai Web API de co `/health/live` va `/health/ready`.
+2. Chay smoke test theo `docs/operations/SMOKE_TEST_CHECKLIST.md`.
+3. Neu dung P8 tren Azure SQL hien tai, publish lai API va chay Worker de apply migration V004.
+4. Hoan thien diagram va test report cho bao cao.
 
 `P0-06` va `P0-07` duoc hoan theo yeu cau, khong chan phan trien khai ky thuat P1.

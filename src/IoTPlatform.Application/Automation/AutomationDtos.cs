@@ -13,7 +13,10 @@ public sealed record CreateAutomationRuleRequestDto(
     string CommandName,
     JsonElement DesiredValue,
     int CooldownSeconds,
-    bool IsEnabled);
+    bool IsEnabled,
+    string? ActiveFromTime = null,
+    string? ActiveToTime = null,
+    int? ActiveDaysOfWeek = null);
 
 public sealed record UpdateAutomationRuleRequestDto(
     string Name,
@@ -22,7 +25,10 @@ public sealed record UpdateAutomationRuleRequestDto(
     string CommandName,
     JsonElement DesiredValue,
     int CooldownSeconds,
-    bool IsEnabled);
+    bool IsEnabled,
+    string? ActiveFromTime = null,
+    string? ActiveToTime = null,
+    int? ActiveDaysOfWeek = null);
 
 public sealed record AutomationRuleDto(
     Guid Id,
@@ -45,6 +51,9 @@ public sealed record AutomationRuleDto(
     string? DesiredStringValue,
     bool IsEnabled,
     int CooldownSeconds,
+    string? ActiveFromTime,
+    string? ActiveToTime,
+    int? ActiveDaysOfWeek,
     bool? LastConditionResult,
     DateTimeOffset? LastTriggeredAtUtc,
     DateTimeOffset CreatedAtUtc,

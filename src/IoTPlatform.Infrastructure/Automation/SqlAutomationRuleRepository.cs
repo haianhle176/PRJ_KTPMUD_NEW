@@ -22,12 +22,12 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
                 (Id, OwnerUserId, Name, SourceCapabilityId, ComparisonOperator,
                  ThresholdValueType, ThresholdNumberValue, ThresholdBooleanValue, ThresholdStringValue,
                  TargetCapabilityId, CommandName, DesiredValueType, DesiredNumberValue, DesiredBooleanValue, DesiredStringValue,
-                 IsEnabled, CooldownSeconds)
+                 IsEnabled, CooldownSeconds, ActiveFromTime, ActiveToTime, ActiveDaysOfWeek)
             SELECT
                 @RuleId, @UserId, @Name, sourceCapability.Id, @ComparisonOperator,
                 @ThresholdValueType, @ThresholdNumberValue, @ThresholdBooleanValue, @ThresholdStringValue,
                 targetCapability.Id, @CommandName, @DesiredValueType, @DesiredNumberValue, @DesiredBooleanValue, @DesiredStringValue,
-                @IsEnabled, @CooldownSeconds
+                @IsEnabled, @CooldownSeconds, @ActiveFromTime, @ActiveToTime, @ActiveDaysOfWeek
             FROM dbo.Devices sourceDevice
             INNER JOIN dbo.Capabilities sourceCapability ON sourceCapability.DeviceId = sourceDevice.Id AND sourceCapability.IsActive = 1
             INNER JOIN dbo.Devices targetDevice ON targetDevice.Id = @TargetDeviceId AND targetDevice.OwnerUserId = @UserId
@@ -93,6 +93,9 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
                 DesiredStringValue = @DesiredStringValue,
                 IsEnabled = @IsEnabled,
                 CooldownSeconds = @CooldownSeconds,
+                ActiveFromTime = @ActiveFromTime,
+                ActiveToTime = @ActiveToTime,
+                ActiveDaysOfWeek = @ActiveDaysOfWeek,
                 UpdatedAtUtc = SYSUTCDATETIME()
             FROM dbo.AutomationRules ar
             INNER JOIN dbo.Capabilities sourceCapability ON sourceCapability.Id = ar.SourceCapabilityId
@@ -120,6 +123,9 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
                 DesiredStringValue = desiredValue.StringValue,
                 request.IsEnabled,
                 request.CooldownSeconds,
+                ActiveFromTime = ParseTime(request.ActiveFromTime),
+                ActiveToTime = ParseTime(request.ActiveToTime),
+                request.ActiveDaysOfWeek,
                 SupportedCommand = $"%\"{request.CommandName.Trim().ToUpperInvariant()}\"%"
             },
             cancellationToken: cancellationToken));
@@ -174,6 +180,9 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
             ar.DesiredStringValue,
             ar.IsEnabled,
             ar.CooldownSeconds,
+            ar.ActiveFromTime,
+            ar.ActiveToTime,
+            ar.ActiveDaysOfWeek,
             ar.LastConditionResult,
             ar.LastTriggeredAtUtc,
             ar.CreatedAtUtc,
@@ -211,6 +220,9 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
             DesiredStringValue = desiredValue.StringValue,
             request.IsEnabled,
             request.CooldownSeconds,
+            ActiveFromTime = ParseTime(request.ActiveFromTime),
+            ActiveToTime = ParseTime(request.ActiveToTime),
+            request.ActiveDaysOfWeek,
             SupportedCommand = $"%\"{request.CommandName.Trim().ToUpperInvariant()}\"%"
         };
 
@@ -219,6 +231,8 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
         DateTime? lastTriggeredAtUtc = row.LastTriggeredAtUtc;
         DateTime createdAtUtc = row.CreatedAtUtc;
         DateTime updatedAtUtc = row.UpdatedAtUtc;
+        TimeSpan? activeFromTime = row.ActiveFromTime;
+        TimeSpan? activeToTime = row.ActiveToTime;
         return new AutomationRuleDto(
             row.Id,
             row.Name,
@@ -240,6 +254,9 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
             row.DesiredStringValue,
             row.IsEnabled,
             row.CooldownSeconds,
+            FormatTime(activeFromTime),
+            FormatTime(activeToTime),
+            row.ActiveDaysOfWeek,
             row.LastConditionResult,
             lastTriggeredAtUtc is null ? null : Utc(lastTriggeredAtUtc.Value),
             Utc(createdAtUtc),
@@ -253,4 +270,10 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
     }
 
     private static DateTimeOffset Utc(DateTime value) => new(DateTime.SpecifyKind(value, DateTimeKind.Utc));
+
+    private static TimeSpan? ParseTime(string? value) =>
+        string.IsNullOrWhiteSpace(value) ? null : TimeOnly.Parse(value).ToTimeSpan();
+
+    private static string? FormatTime(TimeSpan? value) =>
+        value is null ? null : TimeOnly.FromTimeSpan(value.Value).ToString("HH:mm:ss");
 }

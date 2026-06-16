@@ -126,6 +126,12 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
         }
 
         await using var scope = await transactionScopeFactory.BeginAsync(cancellationToken);
+        var device = await scope.Connection.QuerySingleOrDefaultAsync<PresenceDeviceRow>(new CommandDefinition(
+            "SELECT Id, OwnerUserId FROM dbo.Devices WHERE Serial = @Serial;",
+            new { presence.Serial },
+            scope.Transaction,
+            cancellationToken: cancellationToken));
+
         await scope.Connection.ExecuteAsync(new CommandDefinition(
             """
             UPDATE dbo.Devices
@@ -135,6 +141,33 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
             new { presence.Status, presence.TimestampUtc, presence.Serial },
             scope.Transaction,
             cancellationToken: cancellationToken));
+
+        if (presence.Status == "offline" && device?.OwnerUserId is not null)
+        {
+            await scope.Connection.ExecuteAsync(new CommandDefinition(
+                """
+                INSERT dbo.Notifications (OwnerUserId, DeviceId, Type, Severity, Title, Message)
+                SELECT @OwnerUserId, @DeviceId, 'device_offline', 'warning', 'Device offline', @Message
+                WHERE NOT EXISTS (
+                    SELECT 1
+                    FROM dbo.Notifications WITH (UPDLOCK, HOLDLOCK)
+                    WHERE OwnerUserId = @OwnerUserId
+                      AND DeviceId = @DeviceId
+                      AND Type = 'device_offline'
+                      AND IsRead = 0
+                      AND CreatedAtUtc >= DATEADD(minute, -5, SYSUTCDATETIME())
+                );
+                """,
+                new
+                {
+                    device.OwnerUserId,
+                    DeviceId = device.Id,
+                    Message = $"Device {presence.Serial} went offline."
+                },
+                scope.Transaction,
+                cancellationToken: cancellationToken));
+        }
+
         await scope.CommitAsync(cancellationToken);
     }
 
@@ -237,4 +270,6 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
     private sealed record DeviceRow(Guid Id, int ManifestVersion);
 
     private sealed record PairingCodeRow(Guid DeviceId, DateTime ExpiresAtUtc);
+
+    private sealed record PresenceDeviceRow(Guid Id, Guid? OwnerUserId);
 }

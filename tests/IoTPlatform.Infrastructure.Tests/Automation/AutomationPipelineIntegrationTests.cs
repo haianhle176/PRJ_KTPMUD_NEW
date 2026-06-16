@@ -125,6 +125,55 @@ public sealed class AutomationPipelineIntegrationTests
         }
     }
 
+    [Fact]
+    public async Task AutomationPipeline_RespectsScheduleAndCreatesThresholdNotification()
+    {
+        var databaseName = $"IoTPlatform_AutomationSchedule_{Guid.NewGuid():N}";
+        var connectionString = new SqlConnectionStringBuilder(MasterConnectionString) { InitialCatalog = databaseName }.ConnectionString;
+        await ExecuteMasterAsync($"CREATE DATABASE [{databaseName}];");
+
+        try
+        {
+            var context = await CreateContextAsync(connectionString);
+            var owner = await context.AuthService.RegisterAsync(new RegisterRequestDto("automation-schedule@example.test", "Password123!", "Automation Schedule"));
+            const string serial = "DEV-P8SCHED001";
+            const string pairingCode = "SCHD2345";
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(serial, pairingCode));
+            var device = await context.ClaimService.ClaimAsync(owner.User.Id, new ClaimDeviceRequestDto(pairingCode, "Scheduled Device", "room"));
+            var inactiveTodayMask = 127 ^ (1 << (int)DateTimeOffset.UtcNow.DayOfWeek);
+
+            var outsideRule = await context.AutomationService.CreateAsync(owner.User.Id, ValidRequest(device.Id) with
+            {
+                Name = "Outside window",
+                ActiveDaysOfWeek = inactiveTodayMask
+            });
+
+            await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 40m), MqttTopics.Telemetry(serial));
+
+            Assert.Equal(0, await CountCommandsAsync(connectionString));
+            Assert.Equal("outside_schedule", await LastExecutionReasonAsync(connectionString, outsideRule.Id));
+
+            var insideRule = await context.AutomationService.CreateAsync(owner.User.Id, ValidRequest(device.Id) with
+            {
+                Name = "Always window",
+                ActiveFromTime = "00:00",
+                ActiveToTime = "23:59"
+            });
+
+            await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 20m), MqttTopics.Telemetry(serial));
+            await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 40m), MqttTopics.Telemetry(serial));
+
+            Assert.Equal(1, await CountCommandsAsync(connectionString));
+            Assert.Equal(1, await CountNotificationsAsync(connectionString, owner.User.Id, "threshold_triggered"));
+            Assert.Equal("triggered", await LastExecutionOutcomeAsync(connectionString, insideRule.Id));
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            await ExecuteMasterAsync($"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}];");
+        }
+    }
+
     private static CreateAutomationRuleRequestDto ValidRequest(Guid deviceId) => new(
         "Hot room",
         deviceId,
@@ -193,6 +242,24 @@ public sealed class AutomationPipelineIntegrationTests
             new { RuleId = ruleId });
         Assert.False(string.IsNullOrWhiteSpace(outcome));
         return outcome;
+    }
+
+    private static async Task<string> LastExecutionReasonAsync(string connectionString, Guid ruleId)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        var reason = await connection.ExecuteScalarAsync<string>(
+            "SELECT TOP (1) Reason FROM dbo.AutomationExecutions WHERE AutomationRuleId = @RuleId ORDER BY Id DESC;",
+            new { RuleId = ruleId });
+        Assert.False(string.IsNullOrWhiteSpace(reason));
+        return reason;
+    }
+
+    private static async Task<int> CountNotificationsAsync(string connectionString, Guid userId, string type)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        return await connection.ExecuteScalarAsync<int>(
+            "SELECT COUNT(*) FROM dbo.Notifications WHERE OwnerUserId = @UserId AND Type = @Type;",
+            new { UserId = userId, Type = type });
     }
 
     private static async Task ExecuteMasterAsync(string sql)

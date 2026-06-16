@@ -15,6 +15,9 @@ using IoTPlatform.Application.Automation;
 using IoTPlatform.Infrastructure.Automation;
 using IoTPlatform.Infrastructure.Commands;
 using IoTPlatform.Infrastructure.Telemetry;
+using IoTPlatform.Application.Notifications;
+using IoTPlatform.Infrastructure.Notifications;
+using IoTPlatform.Infrastructure.Operations;
 
 namespace IoTPlatform.Infrastructure.Configuration;
 
@@ -34,8 +37,10 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITelemetryQueryRepository, SqlTelemetryQueryRepository>();
         services.AddScoped<ICommandRepository, SqlCommandRepository>();
         services.AddScoped<IAutomationRuleRepository, SqlAutomationRuleRepository>();
+        services.AddScoped<INotificationRepository, SqlNotificationRepository>();
         services.AddSingleton<ITelemetryIngestionRepository, SqlTelemetryIngestionRepository>();
         services.AddSingleton<ICommandDispatchRepository, SqlCommandDispatchRepository>();
+        services.AddSingleton<IOperationsMaintenanceRepository, SqlOperationsMaintenanceRepository>();
         services.AddScoped<IAuditLogRepository, SqlAuditLogRepository>();
         return services;
     }
@@ -48,6 +53,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITelemetryQueryService, TelemetryQueryService>();
         services.AddScoped<ICommandService, CommandService>();
         services.AddScoped<IAutomationRuleService, AutomationRuleService>();
+        services.AddScoped<INotificationService, NotificationService>();
         services.AddSingleton<IPasswordService, PasswordService>();
         services.AddSingleton<ITokenService, JwtTokenService>();
         services.AddSingleton<ICurrentUserTokenService, CurrentUserTokenService>();
