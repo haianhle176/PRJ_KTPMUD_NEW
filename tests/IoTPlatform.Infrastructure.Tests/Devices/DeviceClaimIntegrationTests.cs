@@ -21,6 +21,35 @@ public sealed class DeviceClaimIntegrationTests
         "Server=(localdb)\\MSSQLLocalDB;Integrated Security=true;Initial Catalog=master;Encrypt=false;TrustServerCertificate=true";
 
     [Fact]
+    public async Task RegisterManifestAsync_IsIdempotentForRepeatedRetainedManifestPairingCode()
+    {
+        var databaseName = $"IoTPlatform_RetainedManifest_{Guid.NewGuid():N}";
+        var connectionString = new SqlConnectionStringBuilder(MasterConnectionString) { InitialCatalog = databaseName }.ConnectionString;
+        await ExecuteMasterAsync($"CREATE DATABASE [{databaseName}];");
+
+        try
+        {
+            var context = await CreateContextAsync(connectionString);
+            const string serial = "DEV-P2RETAIN001";
+            const string pairingCode = "RTND2345";
+
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(serial, pairingCode));
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(serial, pairingCode));
+
+            await using var connection = new SqlConnection(connectionString);
+            var codeCount = await connection.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM dbo.PairingCodes WHERE CodeHash = @CodeHash;",
+                new { CodeHash = Hash(pairingCode) });
+            Assert.Equal(1, codeCount);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            await ExecuteMasterAsync($"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}];");
+        }
+    }
+
+    [Fact]
     public async Task ClaimAsync_ClaimsDeviceAndRejectsReusedPairingCode()
     {
         var databaseName = $"IoTPlatform_Claim_{Guid.NewGuid():N}";

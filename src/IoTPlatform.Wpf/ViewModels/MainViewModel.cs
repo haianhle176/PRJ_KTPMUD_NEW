@@ -197,7 +197,7 @@ public sealed class MainViewModel : ObservableObject
             IsAuthenticated = true;
             StatusMessage = $"Logged in as {result.User.DisplayName}.";
             _pollTimer.Start();
-            await RefreshAllAsync();
+            await RefreshAllAfterAuthenticationAsync($"Logged in as {result.User.DisplayName}.");
         });
     }
 
@@ -209,8 +209,21 @@ public sealed class MainViewModel : ObservableObject
             IsAuthenticated = true;
             StatusMessage = $"Registered and logged in as {result.User.DisplayName}.";
             _pollTimer.Start();
-            await RefreshAllAsync();
+            await RefreshAllAfterAuthenticationAsync($"Registered and logged in as {result.User.DisplayName}.");
         });
+    }
+
+    private async Task RefreshAllAfterAuthenticationAsync(string successMessage)
+    {
+        try
+        {
+            await RefreshAllAsync();
+            StatusMessage = successMessage;
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = $"{successMessage} Data refresh failed: {exception.Message}";
+        }
     }
 
     private async Task LogoutAsync()

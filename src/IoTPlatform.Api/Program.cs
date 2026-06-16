@@ -1,4 +1,5 @@
 using IoTPlatform.Infrastructure.Configuration;
+using IoTPlatform.Infrastructure.Persistence.Migrations;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,6 +14,8 @@ builder.Services.AddApplicationServices();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.
+
+await app.Services.GetRequiredService<ISqlMigrationRunner>().MigrateAsync();
 
 app.UseHttpsRedirection();
 

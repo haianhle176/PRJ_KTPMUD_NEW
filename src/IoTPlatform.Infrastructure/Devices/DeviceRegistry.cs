@@ -181,18 +181,43 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
         }
 
         var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(pairingCode)));
-        var existingExpiry = await scope.Connection.ExecuteScalarAsync<DateTimeOffset?>(new CommandDefinition(
-            "SELECT ExpiresAtUtc FROM dbo.PairingCodes WHERE DeviceId = @DeviceId AND CodeHash = @CodeHash AND UsedAtUtc IS NULL AND ExpiresAtUtc > @Now;",
-            new { DeviceId = deviceId, CodeHash = hash, Now = now },
+        var existing = await scope.Connection.QuerySingleOrDefaultAsync<PairingCodeRow>(new CommandDefinition(
+            "SELECT DeviceId, ExpiresAtUtc FROM dbo.PairingCodes WITH (UPDLOCK, HOLDLOCK) WHERE CodeHash = @CodeHash;",
+            new { CodeHash = hash },
             scope.Transaction,
             cancellationToken: cancellationToken));
 
-        if (existingExpiry is not null)
+        if (existing is not null && existing.DeviceId != deviceId)
         {
-            return existingExpiry;
+            throw new InvalidOperationException("Pairing code hash already belongs to another device.");
+        }
+
+        var existingExpiresAtUtc = existing is null
+            ? (DateTimeOffset?)null
+            : new DateTimeOffset(DateTime.SpecifyKind(existing.ExpiresAtUtc, DateTimeKind.Utc));
+
+        if (existingExpiresAtUtc is not null && existingExpiresAtUtc > now)
+        {
+            return existingExpiresAtUtc;
         }
 
         var expiresAtUtc = now.AddMinutes(10);
+        if (existing is not null)
+        {
+            await scope.Connection.ExecuteAsync(new CommandDefinition(
+                """
+                UPDATE dbo.PairingCodes
+                SET ExpiresAtUtc = @ExpiresAtUtc,
+                    UsedAtUtc = NULL,
+                    CreatedAtUtc = @Now
+                WHERE DeviceId = @DeviceId AND CodeHash = @CodeHash;
+                """,
+                new { DeviceId = deviceId, CodeHash = hash, ExpiresAtUtc = expiresAtUtc, Now = now },
+                scope.Transaction,
+                cancellationToken: cancellationToken));
+            return expiresAtUtc;
+        }
+
         await scope.Connection.ExecuteAsync(new CommandDefinition(
             "UPDATE dbo.PairingCodes SET ExpiresAtUtc = @Now WHERE DeviceId = @DeviceId AND UsedAtUtc IS NULL AND ExpiresAtUtc > @Now;",
             new { DeviceId = deviceId, Now = now },
@@ -210,4 +235,6 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
     }
 
     private sealed record DeviceRow(Guid Id, int ManifestVersion);
+
+    private sealed record PairingCodeRow(Guid DeviceId, DateTime ExpiresAtUtc);
 }

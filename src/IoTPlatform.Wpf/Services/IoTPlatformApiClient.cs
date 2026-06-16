@@ -114,6 +114,11 @@ public sealed class IoTPlatformApiClient
     private async Task<T> PostAnonymousAsync<T>(string path, object body)
     {
         var response = await SendCoreAsync(HttpMethod.Post, path, body, includeBearer: false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw new InvalidOperationException(await CreateErrorMessageAsync(response));
+        }
+
         return await ReadAsync<T>(response);
     }
 
