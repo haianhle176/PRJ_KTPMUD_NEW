@@ -42,31 +42,31 @@ Ky hieu:
 
 ## P1 - Device identity va capability discovery
 
-- [ ] `P1-01` Tao serial duy nhat va luu ben vung theo DeviceApp instance.
-- [ ] `P1-02` Xay runtime manifest editor cho number, boolean va string capability.
-- [ ] `P1-03` Validate unique key, range, kind, writable va supported command.
-- [ ] `P1-04` Cau hinh MQTTnet client ket noi HiveMQ Cloud qua TLS.
-- [ ] `P1-05` Them reconnect exponential backoff va MQTT Last Will.
-- [ ] `P1-06` Publish retained manifest/presence va tang `manifestVersion` khi thay doi.
-- [ ] `P1-07` Worker subscribe cac topic va route message theo loai.
-- [ ] `P1-08` Luu/upsert unclaimed device va capability; inactive capability bi giu lich su.
-- [ ] `P1-09` Sinh pairing code ngau nhien, luu hash va het han sau 10 phut.
-- [ ] `P1-10` Test nhieu DeviceApp co manifest khac nhau va reconnect thanh cong.
+- [x] `P1-01` Tao serial duy nhat va luu ben vung theo DeviceApp instance.
+- [x] `P1-02` Xay runtime manifest editor cho number, boolean va string capability.
+- [x] `P1-03` Validate unique key, range, kind, writable va supported command.
+- [x] `P1-04` Cau hinh MQTTnet client ket noi HiveMQ Cloud qua TLS.
+- [x] `P1-05` Them reconnect exponential backoff va MQTT Last Will.
+- [x] `P1-06` Publish retained manifest/presence va tang `manifestVersion` khi thay doi.
+- [x] `P1-07` Worker subscribe cac topic va route message theo loai.
+- [x] `P1-08` Luu/upsert unclaimed device va capability; inactive capability bi giu lich su.
+- [x] `P1-09` Sinh pairing code ngau nhien, luu hash va het han sau 10 phut.
+- [x] `P1-10` Test nhieu DeviceApp co manifest khac nhau va reconnect thanh cong.
 
 **P1 complete khi:** it nhat ba DeviceApp dong thoi online, co serial va manifest khac nhau trong database.
 
 ## P2 - Tai khoan va claim thiet bi
 
-- [ ] `P2-01` Tao `Users` va `RefreshTokens` repositories/use cases.
-- [ ] `P2-02` Implement register voi normalized unique identity va password hashing.
-- [ ] `P2-03` Implement login, JWT access token va rotating refresh token.
-- [ ] `P2-04` Implement logout/revoke refresh token.
-- [ ] `P2-05` Implement claim transaction bang pairing code mot lan.
-- [ ] `P2-06` Implement device list/detail, rename, classify va unclaim.
-- [ ] `P2-07` Them `IUserContext` va ownership authorization cho moi device use case.
-- [ ] `P2-08` Ghi audit log cho auth, claim, unclaim va rename.
-- [ ] `P2-09` Test expired/used/invalid pairing code va concurrent claim.
-- [ ] `P2-10` Test hai user khong doc, sua hoac claim cheo tai nguyen.
+- [x] `P2-01` Tao `Users` va `RefreshTokens` repositories/use cases.
+- [x] `P2-02` Implement register voi normalized unique identity va password hashing.
+- [x] `P2-03` Implement login, JWT access token va rotating refresh token.
+- [x] `P2-04` Implement logout/revoke refresh token.
+- [x] `P2-05` Implement claim transaction bang pairing code mot lan.
+- [x] `P2-06` Implement device list/detail, rename, classify va unclaim.
+- [x] `P2-07` Them `IUserContext` va ownership authorization cho moi device use case.
+- [x] `P2-08` Ghi audit log cho auth, claim, unclaim va rename.
+- [x] `P2-09` Test expired/used/invalid pairing code va concurrent claim.
+- [x] `P2-10` Test hai user khong doc, sua hoac claim cheo tai nguyen.
 
 **P2 complete khi:** hai tai khoan doc lap chi truy cap duoc thiet bi minh da claim.
 
@@ -161,9 +161,8 @@ Ky hieu:
 
 Bat dau theo thu tu:
 
-1. `P1-01` serial duy nhat va luu ben vung cho DeviceApp.
-2. `P1-02` runtime manifest editor.
-3. `P1-03` manifest validation.
-4. `P1-04` MQTTnet client cho HiveMQ Cloud.
+1. `P3-01` DeviceApp ho tro telemetry tu sinh va nhap tay theo capability.
+2. `P3-02` Validate schema version, serial, timestamp, capability va data type tai Worker.
+3. `P3-03` Implement deduplication theo `messageId`.
 
 `P0-06` va `P0-07` duoc hoan theo yeu cau, khong chan phan trien khai ky thuat P1.

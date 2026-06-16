@@ -1,6 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <ItemGroup>
+    <PackageReference Include="MQTTnet" Version="4.3.3.952" />
     <ProjectReference Include="..\IoTPlatform.Domain\IoTPlatform.Domain.csproj" />
   </ItemGroup>
 
@@ -9,6 +10,17 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <UserSecretsId>dotnet-IoTPlatform.DeviceApp-5ffb56d4-4ab4-461c-8918-8a335643f768</UserSecretsId>
   </PropertyGroup>
+
+  <ItemGroup>
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>

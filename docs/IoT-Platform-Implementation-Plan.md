@@ -184,7 +184,7 @@ Khong chuyen sang P6 neu cac tieu chi nghiem thu cua P1-P5 chua dat. Neu thieu t
 - Man hinh console cho chon capability, che do tu sinh hoac nhap tay.
 - Ket noi HiveMQ Cloud, Last Will, reconnect va exponential backoff.
 - Gui manifest/presence; Worker luu device chua claim va capability.
-- Sinh pairing code an toan.
+- DeviceApp sinh pairing code an toan va hien thi tren console; Worker chi luu SHA-256 hash, het han sau 10 phut.
 
 **Hoan thanh khi:** nhieu DeviceApp co manifest khac nhau cung online va xuat hien trong database.
 

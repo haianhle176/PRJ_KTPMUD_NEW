@@ -2,6 +2,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using IoTPlatform.Infrastructure.Persistence;
 using IoTPlatform.Infrastructure.Persistence.Migrations;
+using IoTPlatform.Infrastructure.Devices;
+using IoTPlatform.Application.Auth;
+using IoTPlatform.Application.Audit;
+using IoTPlatform.Application.Devices;
+using IoTPlatform.Application.Security;
+using IoTPlatform.Infrastructure.Audit;
+using IoTPlatform.Infrastructure.Auth;
 
 namespace IoTPlatform.Infrastructure.Configuration;
 
@@ -14,6 +21,22 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ISqlTransactionScopeFactory, SqlTransactionScopeFactory>();
         services.AddSingleton<ISqlMigrationSource, EmbeddedSqlMigrationSource>();
         services.AddSingleton<ISqlMigrationRunner, SqlMigrationRunner>();
+        services.AddSingleton<IDeviceRegistry, DeviceRegistry>();
+        services.AddScoped<IAuthRepository, SqlAuthRepository>();
+        services.AddScoped<IDeviceClaimRepository, SqlDeviceClaimRepository>();
+        services.AddScoped<IDeviceManagementRepository, SqlDeviceManagementRepository>();
+        services.AddScoped<IAuditLogRepository, SqlAuditLogRepository>();
+        return services;
+    }
+
+    public static IServiceCollection AddApplicationServices(this IServiceCollection services)
+    {
+        services.AddScoped<IAuthService, AuthService>();
+        services.AddScoped<IDeviceClaimService, DeviceClaimService>();
+        services.AddScoped<IDeviceManagementService, DeviceManagementService>();
+        services.AddSingleton<IPasswordService, PasswordService>();
+        services.AddSingleton<ITokenService, JwtTokenService>();
+        services.AddSingleton<ICurrentUserTokenService, CurrentUserTokenService>();
         return services;
     }
 
@@ -54,4 +77,5 @@ public static class ServiceCollectionExtensions
 
         return services;
     }
+
 }

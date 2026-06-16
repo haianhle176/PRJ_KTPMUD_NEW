@@ -18,7 +18,7 @@ Topic serial va payload serial phai trung nhau. Worker reject message neu schema
 ### Manifest
 
 ```json
-{"messageId":"8a9853de-1037-4e25-85d2-976d53eb8e77","serial":"DEV-A1B2C3D4","timestampUtc":"2026-06-15T10:30:00Z","schemaVersion":"1.0","manifestVersion":1,"capabilities":[{"key":"temperature","displayName":"Temperature","kind":"sensor","dataType":"number","unit":"C","minValue":-20,"maxValue":80,"isWritable":false,"supportedCommands":[]},{"key":"pump_power","displayName":"Pump Power","kind":"actuator","dataType":"boolean","unit":null,"minValue":null,"maxValue":null,"isWritable":true,"supportedCommands":["ON","OFF"]}]}
+{"messageId":"8a9853de-1037-4e25-85d2-976d53eb8e77","serial":"DEV-A1B2C3D4","timestampUtc":"2026-06-15T10:30:00Z","schemaVersion":"1.0","manifestVersion":1,"pairingCode":"ABCD2345","capabilities":[{"key":"temperature","displayName":"Temperature","kind":"sensor","dataType":"number","unit":"C","minValue":-20,"maxValue":80,"isWritable":false,"supportedCommands":[]},{"key":"pump_power","displayName":"Pump Power","kind":"actuator","dataType":"boolean","unit":null,"minValue":null,"maxValue":null,"isWritable":true,"supportedCommands":["ON","OFF"]}]}
 ```
 
 ### Telemetry
@@ -40,9 +40,9 @@ Topic serial va payload serial phai trung nhau. Worker reject message neu schema
 ## Invalid examples
 
 - Manifest co hai capability trung `key` (business validation reject).
+- Pairing code khong gom dung 8 ky tu `A-Z`/`2-9` (schema reject).
 - Sensor co `isWritable: true` (business validation reject).
 - Telemetry gui object/array/null lam `value` (schema reject).
 - Topic serial khac payload serial (identity validation reject).
 - Command het `expiresAtUtc`, capability khong writable hoac sai data type (command validation reject).
 - ACK cho command khong ton tai hoac state transition khong hop le (state validation reject).
-

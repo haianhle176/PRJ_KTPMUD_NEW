@@ -4,6 +4,7 @@
     <FrameworkReference Include="Microsoft.AspNetCore.App" />
     <PackageReference Include="Dapper" Version="2.1.79" />
     <PackageReference Include="Microsoft.Data.SqlClient" Version="6.1.2" />
+    <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.16.0" />
     <ProjectReference Include="..\IoTPlatform.Application\IoTPlatform.Application.csproj" />
     <ProjectReference Include="..\IoTPlatform.Domain\IoTPlatform.Domain.csproj" />
   </ItemGroup>

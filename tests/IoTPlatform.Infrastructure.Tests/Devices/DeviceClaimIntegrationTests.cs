@@ -1,0 +1,233 @@
+using System.Security.Cryptography;
+using System.Text;
+using Dapper;
+using IoTPlatform.Application.Auth;
+using IoTPlatform.Application.Devices;
+using IoTPlatform.Domain.Messaging;
+using IoTPlatform.Infrastructure.Audit;
+using IoTPlatform.Infrastructure.Auth;
+using IoTPlatform.Infrastructure.Configuration;
+using IoTPlatform.Infrastructure.Devices;
+using IoTPlatform.Infrastructure.Persistence;
+using IoTPlatform.Infrastructure.Persistence.Migrations;
+using Microsoft.Data.SqlClient;
+using Microsoft.Extensions.Options;
+
+namespace IoTPlatform.Infrastructure.Tests.Devices;
+
+public sealed class DeviceClaimIntegrationTests
+{
+    private const string MasterConnectionString =
+        "Server=(localdb)\\MSSQLLocalDB;Integrated Security=true;Initial Catalog=master;Encrypt=false;TrustServerCertificate=true";
+
+    [Fact]
+    public async Task ClaimAsync_ClaimsDeviceAndRejectsReusedPairingCode()
+    {
+        var databaseName = $"IoTPlatform_Claim_{Guid.NewGuid():N}";
+        var connectionString = new SqlConnectionStringBuilder(MasterConnectionString) { InitialCatalog = databaseName }.ConnectionString;
+        await ExecuteMasterAsync($"CREATE DATABASE [{databaseName}];");
+
+        try
+        {
+            var context = await CreateContextAsync(connectionString);
+            var owner = await context.AuthService.RegisterAsync(new RegisterRequestDto("owner@example.test", "Password123!", "Owner"));
+            var other = await context.AuthService.RegisterAsync(new RegisterRequestDto("other@example.test", "Password123!", "Other"));
+            const string serial = "DEV-P2CLAIM0001";
+            const string pairingCode = "ABCD2345";
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(serial, pairingCode));
+
+            var claimed = await context.ClaimService.ClaimAsync(owner.User.Id, new ClaimDeviceRequestDto(
+                pairingCode,
+                "Garden Pump",
+                "garden"));
+
+            Assert.Equal(serial, claimed.Serial);
+            Assert.Equal("Garden Pump", claimed.DisplayName);
+            Assert.Equal("garden", claimed.Category);
+            Assert.NotNull(claimed.ClaimedAtUtc);
+
+            await Assert.ThrowsAsync<InvalidPairingCodeException>(() => context.ClaimService.ClaimAsync(owner.User.Id, new ClaimDeviceRequestDto(
+                pairingCode,
+                "Again",
+                null)));
+            await Assert.ThrowsAsync<InvalidPairingCodeException>(() => context.ClaimService.ClaimAsync(other.User.Id, new ClaimDeviceRequestDto(
+                pairingCode,
+                "Steal",
+                null)));
+
+            await using var connection = new SqlConnection(connectionString);
+            var row = await connection.QuerySingleAsync<(Guid OwnerUserId, DateTime? UsedAtUtc)>(
+                """
+                SELECT d.OwnerUserId, pc.UsedAtUtc
+                FROM dbo.Devices d
+                INNER JOIN dbo.PairingCodes pc ON pc.DeviceId = d.Id
+                WHERE d.Serial = @Serial AND pc.CodeHash = @CodeHash;
+                """,
+                new { Serial = serial, CodeHash = Hash(pairingCode) });
+            Assert.Equal(owner.User.Id, row.OwnerUserId);
+            Assert.NotNull(row.UsedAtUtc);
+
+            var auditCount = await connection.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM dbo.AuditLogs WHERE UserId = @UserId AND Action = 'device.claim' AND EntityId = @DeviceId;",
+                new { UserId = owner.User.Id, DeviceId = claimed.Id.ToString() });
+            Assert.Equal(1, auditCount);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            await ExecuteMasterAsync($"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}];");
+        }
+    }
+
+    [Fact]
+    public async Task ClaimAsync_RejectsExpiredCodeAndAllowsOnlyOneConcurrentClaim()
+    {
+        var databaseName = $"IoTPlatform_ClaimRules_{Guid.NewGuid():N}";
+        var connectionString = new SqlConnectionStringBuilder(MasterConnectionString) { InitialCatalog = databaseName }.ConnectionString;
+        await ExecuteMasterAsync($"CREATE DATABASE [{databaseName}];");
+
+        try
+        {
+            var context = await CreateContextAsync(connectionString);
+            var owner = await context.AuthService.RegisterAsync(new RegisterRequestDto("owner2@example.test", "Password123!", "Owner"));
+            var other = await context.AuthService.RegisterAsync(new RegisterRequestDto("other2@example.test", "Password123!", "Other"));
+
+            const string expiredCode = "EXPR2345";
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest("DEV-P2EXPIRED001", expiredCode));
+            await using (var connection = new SqlConnection(connectionString))
+            {
+                await connection.ExecuteAsync(
+                    "UPDATE dbo.PairingCodes SET ExpiresAtUtc = DATEADD(minute, -1, SYSUTCDATETIME()) WHERE CodeHash = @CodeHash;",
+                    new { CodeHash = Hash(expiredCode) });
+            }
+
+            await Assert.ThrowsAsync<InvalidPairingCodeException>(() => context.ClaimService.ClaimAsync(owner.User.Id, new ClaimDeviceRequestDto(
+                expiredCode,
+                "Expired",
+                null)));
+
+            const string concurrentCode = "CNCP2345";
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest("DEV-P2CONCUR001", concurrentCode));
+            var attempts = new[]
+            {
+                TryClaimAsync(context.ClaimService, owner.User.Id, concurrentCode, "Owner Device"),
+                TryClaimAsync(context.ClaimService, other.User.Id, concurrentCode, "Other Device")
+            };
+
+            var results = await Task.WhenAll(attempts);
+            Assert.Single(results.Where(result => result is not null));
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            await ExecuteMasterAsync($"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}];");
+        }
+    }
+
+    [Fact]
+    public async Task DeviceManagement_EnforcesOwnershipForListDetailUpdateAndUnclaim()
+    {
+        var databaseName = $"IoTPlatform_DeviceAccess_{Guid.NewGuid():N}";
+        var connectionString = new SqlConnectionStringBuilder(MasterConnectionString) { InitialCatalog = databaseName }.ConnectionString;
+        await ExecuteMasterAsync($"CREATE DATABASE [{databaseName}];");
+
+        try
+        {
+            var context = await CreateContextAsync(connectionString);
+            var owner = await context.AuthService.RegisterAsync(new RegisterRequestDto("owner3@example.test", "Password123!", "Owner"));
+            var other = await context.AuthService.RegisterAsync(new RegisterRequestDto("other3@example.test", "Password123!", "Other"));
+            const string pairingCode = "MGMT2345";
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest("DEV-P2MGMT0001", pairingCode));
+
+            var claimed = await context.ClaimService.ClaimAsync(owner.User.Id, new ClaimDeviceRequestDto(pairingCode, "Room Sensor", "room"));
+
+            var ownerDevices = await context.ManagementService.ListAsync(owner.User.Id);
+            var otherDevices = await context.ManagementService.ListAsync(other.User.Id);
+            Assert.Single(ownerDevices);
+            Assert.Empty(otherDevices);
+            Assert.Equal(claimed.Id, (await context.ManagementService.GetAsync(owner.User.Id, claimed.Id)).Id);
+            await Assert.ThrowsAsync<DeviceNotFoundException>(() => context.ManagementService.GetAsync(other.User.Id, claimed.Id));
+
+            var updated = await context.ManagementService.UpdateAsync(owner.User.Id, claimed.Id, new UpdateDeviceRequestDto("Living Room Sensor", "living-room"));
+            Assert.Equal("Living Room Sensor", updated.DisplayName);
+            Assert.Equal("living-room", updated.Category);
+            await Assert.ThrowsAsync<DeviceNotFoundException>(() => context.ManagementService.UpdateAsync(other.User.Id, claimed.Id, new UpdateDeviceRequestDto("Steal", null)));
+            await Assert.ThrowsAsync<DeviceNotFoundException>(() => context.ManagementService.UnclaimAsync(other.User.Id, claimed.Id));
+
+            await context.ManagementService.UnclaimAsync(owner.User.Id, claimed.Id);
+            Assert.Empty(await context.ManagementService.ListAsync(owner.User.Id));
+
+            await using var connection = new SqlConnection(connectionString);
+            var auditActions = await connection.QueryAsync<string>(
+                "SELECT Action FROM dbo.AuditLogs WHERE UserId = @UserId ORDER BY Id;",
+                new { UserId = owner.User.Id });
+            Assert.Contains("device.claim", auditActions);
+            Assert.Contains("device.update", auditActions);
+            Assert.Contains("device.unclaim", auditActions);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            await ExecuteMasterAsync($"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}];");
+        }
+    }
+
+    private static DeviceManifestMessage CreateManifest(string serial, string pairingCode) => new(
+        Guid.NewGuid(),
+        serial,
+        DateTimeOffset.UtcNow,
+        DeviceMessageSerializer.CurrentSchemaVersion,
+        1,
+        pairingCode,
+        [new CapabilityManifestItem("pump_power", "Pump Power", "actuator", "boolean", null, null, null, true, ["ON", "OFF"])]);
+
+    private static async Task<TestContext> CreateContextAsync(string connectionString)
+    {
+        var databaseOptions = Options.Create(new DatabaseOptions { IoTPlatform = connectionString });
+        var jwtOptions = Options.Create(new JwtOptions
+        {
+            Issuer = "IoTPlatform.Tests",
+            Audience = "IoTPlatform.Tests",
+            SigningKey = "test-signing-key-that-is-long-enough-123456",
+            AccessTokenMinutes = 15,
+            RefreshTokenDays = 30
+        });
+        var connectionFactory = new SqlConnectionFactory(databaseOptions);
+        await new SqlMigrationRunner(connectionFactory, new EmbeddedSqlMigrationSource()).MigrateAsync();
+        var transactionFactory = new SqlTransactionScopeFactory(connectionFactory);
+        var authRepository = new SqlAuthRepository(transactionFactory, connectionFactory);
+        var auditRepository = new SqlAuditLogRepository(connectionFactory);
+        var authService = new AuthService(authRepository, new PasswordService(), new JwtTokenService(jwtOptions), auditRepository);
+        var deviceRegistry = new DeviceRegistry(transactionFactory);
+        var claimService = new DeviceClaimService(new SqlDeviceClaimRepository(transactionFactory), auditRepository);
+        var managementService = new DeviceManagementService(new SqlDeviceManagementRepository(connectionFactory), auditRepository);
+        return new TestContext(authService, deviceRegistry, claimService, managementService);
+    }
+
+    private static string Hash(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
+    private static async Task<DeviceSummaryDto?> TryClaimAsync(IDeviceClaimService claimService, Guid userId, string pairingCode, string displayName)
+    {
+        try
+        {
+            return await claimService.ClaimAsync(userId, new ClaimDeviceRequestDto(pairingCode, displayName, null));
+        }
+        catch (Exception exception) when (exception is InvalidPairingCodeException or DeviceAlreadyClaimedException)
+        {
+            return null;
+        }
+    }
+
+    private static async Task ExecuteMasterAsync(string sql)
+    {
+        await using var connection = new SqlConnection(MasterConnectionString);
+        await connection.OpenAsync();
+        await connection.ExecuteAsync(sql);
+    }
+
+    private sealed record TestContext(
+        IAuthService AuthService,
+        DeviceRegistry DeviceRegistry,
+        IDeviceClaimService ClaimService,
+        IDeviceManagementService ManagementService);
+}

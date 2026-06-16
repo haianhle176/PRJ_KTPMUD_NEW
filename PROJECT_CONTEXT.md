@@ -135,7 +135,7 @@ Rang buoc quan trong:
 
 - `Devices.Serial` unique.
 - `Capabilities(DeviceId, Key)` unique.
-- Pairing code duoc hash, het han sau 10 phut va chi dung mot lan.
+- Pairing code do DeviceApp tao, backend chi luu SHA-256 hash, het han sau 10 phut va chi dung mot lan.
 - Telemetry mac dinh giu 30 ngay; latest value giu vo thoi han.
 - Moi repository query du lieu cua user phai co ownership filter.
 

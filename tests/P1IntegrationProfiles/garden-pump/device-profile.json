@@ -1,0 +1,1 @@
+{"serial":"DEV-P1PUMP00001","manifestVersion":1,"capabilities":[{"key":"pump_power","displayName":"Pump Power","kind":"actuator","dataType":"boolean","unit":null,"minValue":null,"maxValue":null,"isWritable":true,"supportedCommands":["ON","OFF"]}]}

@@ -14,7 +14,7 @@
 | Command | Yeu cau thay doi mot writable capability, co `commandId` duy nhat. |
 | ACK | Phan hoi cua device cho command: `accepted`, `completed` hoac `failed`. |
 | Presence | Trang thai ket noi `online`/`offline`; offline duoc publish bang Last Will. |
-| Pairing code | Ma mot lan, het han sau 10 phut, dung de user claim device. |
+| Pairing code | Ma 8 ky tu do DeviceApp tao cho phien chay, het han sau 10 phut; backend chi luu SHA-256 hash de user claim device. |
 | Claim | Gan ownership cua device chua co chu cho mot user da xac thuc. |
 | Automation rule | Mot dieu kien sensor va mot hanh dong actuator cua cung owner. |
 | Automation execution | Ban ghi ket qua danh gia rule: triggered, skipped hoac failed. |
@@ -29,4 +29,3 @@
 - Dynamic value chi nhan JSON number, boolean hoac string; `null`, object va array khong hop le.
 - Sensor khong writable. Actuator writable phai khai bao it nhat mot supported command.
 - Moi truy van user-owned resource phai loc theo authenticated user ID.
-

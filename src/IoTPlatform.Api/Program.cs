@@ -8,6 +8,7 @@ builder.Services.AddControllers();
 builder.Services.AddHealthChecks();
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddJwtOptions(builder.Configuration);
+builder.Services.AddApplicationServices();
 
 var app = builder.Build();
 
