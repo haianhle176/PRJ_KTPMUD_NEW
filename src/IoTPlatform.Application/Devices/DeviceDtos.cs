@@ -13,3 +13,16 @@ public sealed record DeviceSummaryDto(
     DateTimeOffset? ClaimedAtUtc);
 
 public sealed record UpdateDeviceRequestDto(string DisplayName, string? Category);
+
+public sealed record DeviceCapabilityDto(
+    Guid Id,
+    Guid DeviceId,
+    string Key,
+    string DisplayName,
+    string Kind,
+    string DataType,
+    string? Unit,
+    decimal? MinValue,
+    decimal? MaxValue,
+    bool IsWritable,
+    IReadOnlyList<string> SupportedCommands);

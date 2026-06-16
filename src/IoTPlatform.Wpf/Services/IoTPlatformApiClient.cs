@@ -62,6 +62,9 @@ public sealed class IoTPlatformApiClient
     public Task<IReadOnlyList<DeviceSummary>> GetDevicesAsync() =>
         GetAsync<IReadOnlyList<DeviceSummary>>("api/v1/devices");
 
+    public Task<IReadOnlyList<DeviceCapability>> GetDeviceCapabilitiesAsync(Guid deviceId) =>
+        GetAsync<IReadOnlyList<DeviceCapability>>($"api/v1/devices/{deviceId}/capabilities");
+
     public Task<DeviceSummary> ClaimDeviceAsync(string pairingCode, string displayName, string? category) =>
         PostAsync<DeviceSummary>("api/v1/devices/claim", new { pairingCode, displayName, category });
 
@@ -203,6 +206,19 @@ public sealed record DeviceSummary(Guid Id, string Serial, string? DisplayName, 
 {
     public string NameOrSerial => string.IsNullOrWhiteSpace(DisplayName) ? Serial : DisplayName;
 }
+
+public sealed record DeviceCapability(
+    Guid Id,
+    Guid DeviceId,
+    string Key,
+    string DisplayName,
+    string Kind,
+    string DataType,
+    string? Unit,
+    decimal? MinValue,
+    decimal? MaxValue,
+    bool IsWritable,
+    IReadOnlyList<string> SupportedCommands);
 
 public sealed record TelemetryValue(Guid CapabilityId, string CapabilityKey, string DisplayName, string ValueType, decimal? NumberValue, bool? BooleanValue, string? StringValue, DateTimeOffset RecordedAtUtc)
 {

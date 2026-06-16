@@ -9,4 +9,6 @@ public interface IDeviceManagementService
     Task<DeviceSummaryDto> UpdateAsync(Guid userId, Guid deviceId, UpdateDeviceRequestDto request, CancellationToken cancellationToken = default);
 
     Task UnclaimAsync(Guid userId, Guid deviceId, CancellationToken cancellationToken = default);
+
+    Task<IReadOnlyList<DeviceCapabilityDto>> ListCapabilitiesAsync(Guid userId, Guid deviceId, CancellationToken cancellationToken = default);
 }

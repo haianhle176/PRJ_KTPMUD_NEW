@@ -43,6 +43,12 @@ public sealed class DeviceManagementService(IDeviceManagementRepository reposito
         await WriteAuditAsync(userId, "device.unclaim", "device", deviceId.ToString(), cancellationToken);
     }
 
+    public async Task<IReadOnlyList<DeviceCapabilityDto>> ListCapabilitiesAsync(Guid userId, Guid deviceId, CancellationToken cancellationToken = default)
+    {
+        ValidateUser(userId);
+        return await repository.ListCapabilitiesAsync(userId, deviceId, cancellationToken) ?? throw new DeviceNotFoundException();
+    }
+
     private Task WriteAuditAsync(Guid userId, string action, string entityType, string entityId, CancellationToken cancellationToken = default) =>
         auditLogRepository?.WriteAsync(userId, action, entityType, entityId, cancellationToken: cancellationToken) ?? Task.CompletedTask;
 

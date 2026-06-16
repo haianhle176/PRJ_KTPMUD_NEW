@@ -1,5 +1,8 @@
 using System.Collections.ObjectModel;
+using System.Diagnostics;
+using System.IO;
 using System.Text.Json;
+using System.Windows;
 using System.Windows.Threading;
 using IoTPlatform.Wpf.Services;
 
@@ -10,6 +13,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly IoTPlatformApiClient _api = new();
     private readonly DispatcherTimer _pollTimer;
 
+    private string _currentSection = "Auth";
     private string _statusMessage = "Ready.";
     private string _email = "";
     private string _password = "";
@@ -23,16 +27,20 @@ public sealed class MainViewModel : ObservableObject
         LoginCommand = new RelayCommand(LoginAsync);
         RegisterCommand = new RelayCommand(RegisterAsync);
         LogoutCommand = new RelayCommand(LogoutAsync, () => IsAuthenticated);
+        NavigateCommand = new RelayCommand<string>(NavigateAsync);
         RefreshDevicesCommand = new RelayCommand(RefreshDevicesAsync, () => IsAuthenticated);
         ClaimDeviceCommand = new RelayCommand(ClaimDeviceAsync, () => IsAuthenticated);
         RenameDeviceCommand = new RelayCommand(RenameDeviceAsync, () => IsAuthenticated && SelectedDevice is not null);
         LoadDeviceDetailCommand = new RelayCommand(LoadDeviceDetailAsync, () => IsAuthenticated && SelectedDevice is not null);
         SendCommandCommand = new RelayCommand(SendCommandAsync, () => IsAuthenticated && SelectedDevice is not null);
+        SendActuatorCommand = new RelayCommand<ActuatorControl>(SendActuatorCommandAsync, control => IsAuthenticated && SelectedDevice is not null && control is not null);
         RefreshAutomationRulesCommand = new RelayCommand(RefreshAutomationRulesAsync, () => IsAuthenticated);
         RefreshNotificationsCommand = new RelayCommand(RefreshNotificationsAsync, () => IsAuthenticated);
         SaveAutomationRuleCommand = new RelayCommand(SaveAutomationRuleAsync, () => IsAuthenticated);
         DeleteAutomationRuleCommand = new RelayCommand(DeleteAutomationRuleAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
         LoadAutomationExecutionsCommand = new RelayCommand(LoadAutomationExecutionsAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
+        LaunchWorkerCommand = new RelayCommand(() => LaunchLocalProjectAsync("src\\IoTPlatform.Worker", "Worker"));
+        LaunchDeviceAppCommand = new RelayCommand(() => LaunchLocalProjectAsync("src\\IoTPlatform.DeviceApp", "DeviceApp"));
 
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _pollTimer.Tick += async (_, _) => await PollAsync();
@@ -40,6 +48,9 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public ObservableCollection<DeviceSummary> Devices { get; } = [];
+    public ObservableCollection<DeviceCapability> Capabilities { get; } = [];
+    public ObservableCollection<SensorCard> Sensors { get; } = [];
+    public ObservableCollection<ActuatorControl> Actuators { get; } = [];
     public ObservableCollection<TelemetryValue> LatestValues { get; } = [];
     public ObservableCollection<TelemetryHistoryItem> TelemetryHistory { get; } = [];
     public ObservableCollection<CommandDto> Commands { get; } = [];
@@ -50,16 +61,37 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand LoginCommand { get; }
     public RelayCommand RegisterCommand { get; }
     public RelayCommand LogoutCommand { get; }
+    public RelayCommand<string> NavigateCommand { get; }
     public RelayCommand RefreshDevicesCommand { get; }
     public RelayCommand ClaimDeviceCommand { get; }
     public RelayCommand RenameDeviceCommand { get; }
     public RelayCommand LoadDeviceDetailCommand { get; }
     public RelayCommand SendCommandCommand { get; }
+    public RelayCommand<ActuatorControl> SendActuatorCommand { get; }
     public RelayCommand RefreshAutomationRulesCommand { get; }
     public RelayCommand RefreshNotificationsCommand { get; }
     public RelayCommand SaveAutomationRuleCommand { get; }
     public RelayCommand DeleteAutomationRuleCommand { get; }
     public RelayCommand LoadAutomationExecutionsCommand { get; }
+    public RelayCommand LaunchWorkerCommand { get; }
+    public RelayCommand LaunchDeviceAppCommand { get; }
+
+    public string CurrentSection
+    {
+        get => _currentSection;
+        set
+        {
+            if (SetProperty(ref _currentSection, value))
+            {
+                OnPropertyChanged(nameof(AuthVisibility));
+                OnPropertyChanged(nameof(HomeVisibility));
+                OnPropertyChanged(nameof(DevicesVisibility));
+                OnPropertyChanged(nameof(AutomationVisibility));
+                OnPropertyChanged(nameof(NotificationsVisibility));
+                OnPropertyChanged(nameof(AdvancedVisibility));
+            }
+        }
+    }
 
     public string StatusMessage
     {
@@ -92,6 +124,8 @@ public sealed class MainViewModel : ObservableObject
         {
             if (SetProperty(ref _isAuthenticated, value))
             {
+                OnPropertyChanged(nameof(AuthenticatedVisibility));
+                OnPropertyChanged(nameof(UnauthenticatedVisibility));
                 RaiseCommandStates();
             }
         }
@@ -105,6 +139,10 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _selectedDevice, value))
             {
                 RaiseCommandStates();
+                OnPropertyChanged(nameof(SelectedDeviceName));
+                OnPropertyChanged(nameof(SelectedDeviceStatus));
+                OnPropertyChanged(nameof(HasSelectedDeviceVisibility));
+                OnPropertyChanged(nameof(NoSelectedDeviceVisibility));
                 if (value is not null)
                 {
                     RenameDisplayName = value.DisplayName ?? "";
@@ -145,20 +183,7 @@ public sealed class MainViewModel : ObservableObject
                     AutomationActiveToTime = value.ActiveToTime ?? "";
                     AutomationActiveDaysOfWeek = value.ActiveDaysOfWeek?.ToString() ?? "";
                     AutomationIsEnabled = value.IsEnabled;
-                    OnPropertyChanged(nameof(AutomationName));
-                    OnPropertyChanged(nameof(AutomationSourceDeviceId));
-                    OnPropertyChanged(nameof(AutomationSourceCapabilityKey));
-                    OnPropertyChanged(nameof(AutomationOperator));
-                    OnPropertyChanged(nameof(AutomationThresholdValue));
-                    OnPropertyChanged(nameof(AutomationTargetDeviceId));
-                    OnPropertyChanged(nameof(AutomationTargetCapabilityKey));
-                    OnPropertyChanged(nameof(AutomationCommandName));
-                    OnPropertyChanged(nameof(AutomationDesiredValue));
-                    OnPropertyChanged(nameof(AutomationCooldownSeconds));
-                    OnPropertyChanged(nameof(AutomationActiveFromTime));
-                    OnPropertyChanged(nameof(AutomationActiveToTime));
-                    OnPropertyChanged(nameof(AutomationActiveDaysOfWeek));
-                    OnPropertyChanged(nameof(AutomationIsEnabled));
+                    OnAutomationPropertiesChanged();
                     _ = LoadAutomationExecutionsAsync();
                 }
             }
@@ -190,11 +215,52 @@ public sealed class MainViewModel : ObservableObject
     public string AutomationActiveDaysOfWeek { get; set; } = "";
     public bool AutomationIsEnabled { get; set; } = true;
 
+    public int OnlineDeviceCount => Devices.Count(device => device.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
+    public int OfflineDeviceCount => Devices.Count(device => !device.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
+    public int UnreadNotificationCount => Notifications.Count(notification => !notification.IsRead);
+    public int EnabledAutomationCount => AutomationRules.Count(rule => rule.IsEnabled);
+    public string SelectedDeviceName => SelectedDevice?.NameOrSerial ?? "Select a device";
+    public string SelectedDeviceStatus => SelectedDevice is null ? "No device selected" : $"{SelectedDevice.Status} - Last seen {SelectedDevice.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "never"}";
+    public string WorkerLaunchHelp => "The desktop app only needs the Azure API. These local shortcuts are developer tools and only work on this machine when the source projects and dotnet SDK are available.";
+
+    public Visibility AuthVisibility => Section("Auth");
+    public Visibility HomeVisibility => Section("Home");
+    public Visibility DevicesVisibility => Section("Devices");
+    public Visibility AutomationVisibility => Section("Automation");
+    public Visibility NotificationsVisibility => Section("Notifications");
+    public Visibility AdvancedVisibility => Section("Advanced");
+    public Visibility AuthenticatedVisibility => IsAuthenticated ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility UnauthenticatedVisibility => IsAuthenticated ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility HasSelectedDeviceVisibility => SelectedDevice is null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility NoSelectedDeviceVisibility => SelectedDevice is null ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility EmptyDevicesVisibility => Devices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HasDevicesVisibility => Devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility EmptyNotificationsVisibility => Notifications.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+
+    private async Task NavigateAsync(string? section)
+    {
+        if (string.IsNullOrWhiteSpace(section))
+        {
+            return;
+        }
+
+        CurrentSection = section;
+        if (IsAuthenticated && section is "Home" or "Devices")
+        {
+            await RefreshDevicesAsync();
+        }
+        else if (IsAuthenticated && section == "Notifications")
+        {
+            await RefreshNotificationsAsync();
+        }
+    }
+
     private async Task RestoreSessionAsync()
     {
         if (await _api.TryRestoreAsync())
         {
             IsAuthenticated = true;
+            CurrentSection = "Home";
             StatusMessage = "Restored saved session.";
             _pollTimer.Start();
             await RefreshAllAsync();
@@ -207,9 +273,9 @@ public sealed class MainViewModel : ObservableObject
         {
             var result = await _api.LoginAsync(Email, Password);
             IsAuthenticated = true;
-            StatusMessage = $"Logged in as {result.User.DisplayName}.";
+            CurrentSection = "Home";
             _pollTimer.Start();
-            await RefreshAllAfterAuthenticationAsync($"Logged in as {result.User.DisplayName}.");
+            await RefreshAllAfterAuthenticationAsync($"Signed in as {result.User.DisplayName}.");
         });
     }
 
@@ -219,9 +285,9 @@ public sealed class MainViewModel : ObservableObject
         {
             var result = await _api.RegisterAsync(Email, Password, DisplayName);
             IsAuthenticated = true;
-            StatusMessage = $"Registered and logged in as {result.User.DisplayName}.";
+            CurrentSection = "Home";
             _pollTimer.Start();
-            await RefreshAllAfterAuthenticationAsync($"Registered and logged in as {result.User.DisplayName}.");
+            await RefreshAllAfterAuthenticationAsync($"Created account for {result.User.DisplayName}.");
         });
     }
 
@@ -244,15 +310,20 @@ public sealed class MainViewModel : ObservableObject
         {
             await _api.LogoutAsync();
             IsAuthenticated = false;
+            CurrentSection = "Auth";
             _pollTimer.Stop();
             Devices.Clear();
+            Capabilities.Clear();
+            Sensors.Clear();
+            Actuators.Clear();
             LatestValues.Clear();
             TelemetryHistory.Clear();
             Commands.Clear();
             AutomationRules.Clear();
             AutomationExecutions.Clear();
             Notifications.Clear();
-            StatusMessage = "Logged out.";
+            NotifyDashboardCounts();
+            StatusMessage = "Signed out.";
         });
     }
 
@@ -267,8 +338,13 @@ public sealed class MainViewModel : ObservableObject
     {
         await RunAsync(async () =>
         {
+            var previousSelectedId = SelectedDevice?.Id;
             Replace(Devices, await _api.GetDevicesAsync());
-            StatusMessage = $"Loaded {Devices.Count} devices.";
+            SelectedDevice = Devices.FirstOrDefault(device => device.Id == previousSelectedId) ?? Devices.FirstOrDefault();
+            NotifyDashboardCounts();
+            StatusMessage = Devices.Count == 0
+                ? "No devices yet. Start a DeviceApp and claim it with a pairing code."
+                : $"Loaded {Devices.Count} devices.";
         });
     }
 
@@ -279,7 +355,8 @@ public sealed class MainViewModel : ObservableObject
             var device = await _api.ClaimDeviceAsync(ClaimPairingCode, ClaimDisplayName, EmptyToNull(ClaimCategory));
             await RefreshDevicesAsync();
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == device.Id);
-            StatusMessage = $"Claimed device {device.NameOrSerial}.";
+            CurrentSection = "Home";
+            StatusMessage = $"Claimed {device.NameOrSerial}.";
         });
     }
 
@@ -295,7 +372,7 @@ public sealed class MainViewModel : ObservableObject
             var updated = await _api.UpdateDeviceAsync(SelectedDevice.Id, RenameDisplayName, EmptyToNull(RenameCategory));
             await RefreshDevicesAsync();
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == updated.Id);
-            StatusMessage = "Device updated.";
+            StatusMessage = "Device details saved.";
         });
     }
 
@@ -308,10 +385,13 @@ public sealed class MainViewModel : ObservableObject
 
         await RunAsync(async () =>
         {
+            var capabilities = await _api.GetDeviceCapabilitiesAsync(SelectedDevice.Id);
+            Replace(Capabilities, capabilities);
             Replace(LatestValues, await _api.GetLatestValuesAsync(SelectedDevice.Id));
             var history = await _api.GetTelemetryHistoryAsync(SelectedDevice.Id, EmptyToNull(HistoryCapabilityKey));
             Replace(TelemetryHistory, history.Items);
-            StatusMessage = $"Loaded telemetry for {SelectedDevice.NameOrSerial}.";
+            BuildControlModels();
+            StatusMessage = $"Loaded {SelectedDevice.NameOrSerial}.";
         });
     }
 
@@ -330,7 +410,25 @@ public sealed class MainViewModel : ObservableObject
                 CommandName,
                 ParseDynamicValue(CommandDesiredValue));
             Commands.Insert(0, command);
-            StatusMessage = $"Command {command.CommandName} created: {command.Status}.";
+            StatusMessage = $"Command {command.CommandName} is {command.Status}.";
+        });
+    }
+
+    private async Task SendActuatorCommandAsync(ActuatorControl? control)
+    {
+        if (SelectedDevice is null || control is null)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var commandName = control.NextCommandName;
+            var desiredValue = control.NextDesiredValue;
+            var command = await _api.CreateCommandAsync(SelectedDevice.Id, control.Key, commandName, desiredValue);
+            Commands.Insert(0, command);
+            control.MarkSubmitted(commandName, command.Status);
+            StatusMessage = $"Sent {commandName.ToLowerInvariant()} to {control.DisplayName}.";
         });
     }
 
@@ -339,6 +437,7 @@ public sealed class MainViewModel : ObservableObject
         await RunAsync(async () =>
         {
             Replace(AutomationRules, await _api.GetAutomationRulesAsync());
+            NotifyDashboardCounts();
             StatusMessage = $"Loaded {AutomationRules.Count} automation rules.";
         });
     }
@@ -426,8 +525,43 @@ public sealed class MainViewModel : ObservableObject
         await RunAsync(async () =>
         {
             Replace(Notifications, await _api.GetNotificationsAsync());
-            StatusMessage = $"Loaded {Notifications.Count} notifications.";
+            NotifyDashboardCounts();
+            StatusMessage = Notifications.Count == 0 ? "No notifications." : $"Loaded {Notifications.Count} notifications.";
         });
+    }
+
+    private async Task LaunchLocalProjectAsync(string projectPath, string label)
+    {
+        await Task.CompletedTask;
+        try
+        {
+            var root = FindSolutionRoot();
+            if (root is null)
+            {
+                StatusMessage = $"{label} shortcut is only available from the OmniConnect source workspace.";
+                return;
+            }
+
+            var fullProjectPath = Path.Combine(root, projectPath);
+            if (!Directory.Exists(fullProjectPath))
+            {
+                StatusMessage = $"{label} project was not found on this machine.";
+                return;
+            }
+
+            Process.Start(new ProcessStartInfo
+            {
+                FileName = "dotnet",
+                Arguments = $"run --project \"{projectPath}\"",
+                WorkingDirectory = root,
+                UseShellExecute = true
+            });
+            StatusMessage = $"Opening {label}. If nothing appears, check that the .NET SDK is installed.";
+        }
+        catch (Exception exception)
+        {
+            StatusMessage = $"Could not open {label}: {exception.Message}";
+        }
     }
 
     private async Task PollAsync()
@@ -454,6 +588,37 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private void BuildControlModels()
+    {
+        var latestByCapability = LatestValues.ToDictionary(value => value.CapabilityKey, StringComparer.Ordinal);
+        Replace(Sensors, Capabilities
+            .Where(capability => capability.Kind == "sensor")
+            .Select(capability =>
+            {
+                latestByCapability.TryGetValue(capability.Key, out var latest);
+                return new SensorCard(
+                    capability.Key,
+                    capability.DisplayName,
+                    capability.Unit,
+                    latest?.DisplayValue ?? "No readings yet",
+                    latest?.RecordedAtUtc.ToLocalTime().ToString("g") ?? "Waiting for telemetry");
+            }));
+        Replace(Actuators, Capabilities
+            .Where(capability => capability.Kind == "actuator" && capability.IsWritable)
+            .Select(capability =>
+            {
+                latestByCapability.TryGetValue(capability.Key, out var latest);
+                var isOn = latest?.BooleanValue == true;
+                return new ActuatorControl(
+                    capability.Key,
+                    capability.DisplayName,
+                    capability.DataType,
+                    capability.SupportedCommands,
+                    isOn,
+                    isOn ? "Currently on" : "Currently off");
+            }));
+    }
+
     private async Task RunAsync(Func<Task> action)
     {
         try
@@ -476,12 +641,44 @@ public sealed class MainViewModel : ObservableObject
         RenameDeviceCommand.RaiseCanExecuteChanged();
         LoadDeviceDetailCommand.RaiseCanExecuteChanged();
         SendCommandCommand.RaiseCanExecuteChanged();
+        SendActuatorCommand.RaiseCanExecuteChanged();
         RefreshAutomationRulesCommand.RaiseCanExecuteChanged();
         RefreshNotificationsCommand.RaiseCanExecuteChanged();
         SaveAutomationRuleCommand.RaiseCanExecuteChanged();
         DeleteAutomationRuleCommand.RaiseCanExecuteChanged();
         LoadAutomationExecutionsCommand.RaiseCanExecuteChanged();
     }
+
+    private void NotifyDashboardCounts()
+    {
+        OnPropertyChanged(nameof(OnlineDeviceCount));
+        OnPropertyChanged(nameof(OfflineDeviceCount));
+        OnPropertyChanged(nameof(UnreadNotificationCount));
+        OnPropertyChanged(nameof(EnabledAutomationCount));
+        OnPropertyChanged(nameof(EmptyDevicesVisibility));
+        OnPropertyChanged(nameof(HasDevicesVisibility));
+        OnPropertyChanged(nameof(EmptyNotificationsVisibility));
+    }
+
+    private void OnAutomationPropertiesChanged()
+    {
+        OnPropertyChanged(nameof(AutomationName));
+        OnPropertyChanged(nameof(AutomationSourceDeviceId));
+        OnPropertyChanged(nameof(AutomationSourceCapabilityKey));
+        OnPropertyChanged(nameof(AutomationOperator));
+        OnPropertyChanged(nameof(AutomationThresholdValue));
+        OnPropertyChanged(nameof(AutomationTargetDeviceId));
+        OnPropertyChanged(nameof(AutomationTargetCapabilityKey));
+        OnPropertyChanged(nameof(AutomationCommandName));
+        OnPropertyChanged(nameof(AutomationDesiredValue));
+        OnPropertyChanged(nameof(AutomationCooldownSeconds));
+        OnPropertyChanged(nameof(AutomationActiveFromTime));
+        OnPropertyChanged(nameof(AutomationActiveToTime));
+        OnPropertyChanged(nameof(AutomationActiveDaysOfWeek));
+        OnPropertyChanged(nameof(AutomationIsEnabled));
+    }
+
+    private Visibility Section(string section) => CurrentSection == section ? Visibility.Visible : Visibility.Collapsed;
 
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> values)
     {
@@ -519,4 +716,79 @@ public sealed class MainViewModel : ObservableObject
 
     private static int? ParseNullableInt(string value) =>
         string.IsNullOrWhiteSpace(value) ? null : int.Parse(value.Trim());
+
+    private static string? FindSolutionRoot()
+    {
+        var directory = new DirectoryInfo(AppContext.BaseDirectory);
+        while (directory is not null)
+        {
+            if (directory.GetFiles("IoTPlatform.sln").Length > 0)
+            {
+                return directory.FullName;
+            }
+
+            directory = directory.Parent;
+        }
+
+        return null;
+    }
+}
+
+public sealed record SensorCard(string Key, string DisplayName, string? Unit, string Value, string RecordedAt)
+{
+    public string ValueWithUnit => string.IsNullOrWhiteSpace(Unit) || Value == "No readings yet" ? Value : $"{Value} {Unit}";
+}
+
+public sealed class ActuatorControl(
+    string key,
+    string displayName,
+    string dataType,
+    IReadOnlyList<string> supportedCommands,
+    bool isOn,
+    string lastStatus) : ObservableObject
+{
+    private string _lastStatus = lastStatus;
+    private bool _isOn = isOn;
+
+    public string Key { get; } = key;
+    public string DisplayName { get; } = displayName;
+    public string DataType { get; } = dataType;
+    public IReadOnlyList<string> SupportedCommands { get; } = supportedCommands;
+    public bool IsOn
+    {
+        get => _isOn;
+        private set
+        {
+            if (SetProperty(ref _isOn, value))
+            {
+                OnPropertyChanged(nameof(StateText));
+                OnPropertyChanged(nameof(ButtonText));
+                OnPropertyChanged(nameof(NextCommandName));
+                OnPropertyChanged(nameof(NextDesiredValue));
+            }
+        }
+    }
+
+    public string StateText => IsOn ? "On" : "Off";
+    public string ButtonText => IsOn ? "Turn off" : "Turn on";
+    public string NextCommandName => IsOn && SupportedCommands.Contains("OFF", StringComparer.OrdinalIgnoreCase) ? "OFF" : "ON";
+    public JsonElement NextDesiredValue => DataType == "boolean"
+        ? JsonSerializer.SerializeToElement(!IsOn)
+        : JsonSerializer.SerializeToElement(IsOn ? "OFF" : "ON");
+
+    public string LastStatus
+    {
+        get => _lastStatus;
+        set => SetProperty(ref _lastStatus, value);
+    }
+
+    public void MarkSubmitted(string commandName, string status)
+    {
+        if (DataType == "boolean")
+        {
+            IsOn = !IsOn;
+        }
+
+        LastStatus = $"Command {commandName} is {status}. Waiting for device acknowledgement.";
+    }
 }

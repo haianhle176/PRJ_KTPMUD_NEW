@@ -119,6 +119,24 @@ public sealed class DevicesController(
         }
     }
 
+    [HttpGet("{id:guid}/capabilities")]
+    public async Task<ActionResult<IReadOnlyList<DeviceCapabilityDto>>> ListCapabilities(Guid id, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId, out var unauthorized))
+        {
+            return unauthorized;
+        }
+
+        try
+        {
+            return Ok(await deviceManagementService.ListCapabilitiesAsync(userId, id, cancellationToken));
+        }
+        catch (DeviceNotFoundException exception)
+        {
+            return NotFound(ProblemDetails("device_not_found", exception.Message, StatusCodes.Status404NotFound));
+        }
+    }
+
     [HttpGet("{id:guid}/latest-values")]
     public async Task<ActionResult<IReadOnlyList<TelemetryValueDto>>> GetLatestValues(Guid id, CancellationToken cancellationToken)
     {

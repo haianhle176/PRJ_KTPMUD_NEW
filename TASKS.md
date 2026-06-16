@@ -155,13 +155,25 @@ Ky hieu:
 - [ ] `P8-09` Per-device credential va certificate authentication.
 - [ ] `P8-10` OTA configuration.
 
+## P9 - UI polish
+
+- [x] `P9-01` Chot Impeccable direction: Quiet Control Room, palette xanh control va layout chong AI slop.
+- [x] `P9-02` Them API capability endpoint de WPF render sensor/actuator dong theo manifest.
+- [x] `P9-03` Doi WPF tu TabControl MVP sang shell co sidebar, dashboard, cards, empty states va status bar.
+- [x] `P9-04` Tao Home view de chon device, xem sensor va dieu khien actuator bang control don gian.
+- [x] `P9-05` Giu Devices/Automation/Notifications thanh cac workspace rieng, bot cam giac debug-tool o man hinh chinh.
+- [x] `P9-06` Them Advanced local developer shortcuts de mo Worker/DeviceApp khi app chay tu source workspace.
+- [ ] `P9-07` Mo WPF va visual QA tren may dev: spacing, scroll, empty state, login flow va actuator control.
+- [ ] `P9-08` Sau khi publish API moi, smoke test WPF voi endpoint capabilities tren Azure.
+
 ## Cong viec tiep theo
 
 Bat dau theo thu tu:
 
-1. Publish lai Web API de co `/health/live` va `/health/ready`.
-2. Chay smoke test theo `docs/operations/SMOKE_TEST_CHECKLIST.md`.
-3. Neu dung P8 tren Azure SQL hien tai, publish lai API va chay Worker de apply migration V004.
-4. Hoan thien diagram va test report cho bao cao.
+1. Publish lai Web API de co `/health/live`, `/health/ready` va `/api/v1/devices/{id}/capabilities`.
+2. Mo WPF de visual QA P9 va test login/claim/device detail.
+3. Chay smoke test theo `docs/operations/SMOKE_TEST_CHECKLIST.md`.
+4. Neu dung P8 tren Azure SQL hien tai, publish lai API va chay Worker de apply migration V004.
+5. Hoan thien diagram va test report cho bao cao.
 
 `P0-06` va `P0-07` duoc hoan theo yeu cau, khong chan phan trien khai ky thuat P1.

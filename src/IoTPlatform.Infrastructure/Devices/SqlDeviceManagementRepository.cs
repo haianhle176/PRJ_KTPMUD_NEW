@@ -1,4 +1,5 @@
 using Dapper;
+using System.Text.Json;
 using IoTPlatform.Application.Devices;
 using IoTPlatform.Infrastructure.Persistence;
 
@@ -68,6 +69,30 @@ public sealed class SqlDeviceManagementRepository(IDbConnectionFactory connectio
         return affected == 1;
     }
 
+    public async Task<IReadOnlyList<DeviceCapabilityDto>?> ListCapabilitiesAsync(Guid userId, Guid deviceId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        var exists = await connection.ExecuteScalarAsync<int>(new CommandDefinition(
+            "SELECT COUNT(1) FROM dbo.Devices WHERE Id = @DeviceId AND OwnerUserId = @UserId;",
+            new { DeviceId = deviceId, UserId = userId },
+            cancellationToken: cancellationToken));
+        if (exists == 0)
+        {
+            return null;
+        }
+
+        var rows = await connection.QueryAsync(new CommandDefinition(
+            """
+            SELECT Id, DeviceId, [Key], DisplayName, Kind, DataType, Unit, MinValue, MaxValue, IsWritable, SupportedCommandsJson
+            FROM dbo.Capabilities
+            WHERE DeviceId = @DeviceId AND IsActive = 1
+            ORDER BY Kind, DisplayName, [Key];
+            """,
+            new { DeviceId = deviceId },
+            cancellationToken: cancellationToken));
+        return rows.Select(ToCapability).ToArray();
+    }
+
     private static DeviceSummaryDto ToSummary(dynamic row)
     {
         DateTime? lastSeenAtUtc = row.LastSeenAtUtc;
@@ -82,5 +107,22 @@ public sealed class SqlDeviceManagementRepository(IDbConnectionFactory connectio
             row.ManifestVersion,
             lastSeenAtUtc is null ? null : new DateTimeOffset(DateTime.SpecifyKind(lastSeenAtUtc.Value, DateTimeKind.Utc)),
             claimedAtUtc is null ? null : new DateTimeOffset(DateTime.SpecifyKind(claimedAtUtc.Value, DateTimeKind.Utc)));
+    }
+
+    private static DeviceCapabilityDto ToCapability(dynamic row)
+    {
+        string supportedCommandsJson = row.SupportedCommandsJson;
+        return new DeviceCapabilityDto(
+            row.Id,
+            row.DeviceId,
+            row.Key,
+            row.DisplayName,
+            row.Kind,
+            row.DataType,
+            row.Unit,
+            row.MinValue,
+            row.MaxValue,
+            row.IsWritable,
+            JsonSerializer.Deserialize<string[]>(supportedCommandsJson) ?? []);
     }
 }

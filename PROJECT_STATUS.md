@@ -1,9 +1,9 @@
 # Project Status
 
 **Cap nhat lan cuoi:** 2026-06-16  
-**Trang thai tong the:** P6 functional MVP complete; P7 cloud/test/report hardening in progress  
-**Phase hien tai:** P7 in progress  
-**Muc tieu tiep theo:** Publish lai API de co health endpoints va chay smoke test checklist
+**Trang thai tong the:** P6 functional MVP complete; P7 cloud/test/report hardening va P9 UI polish in progress  
+**Phase hien tai:** P9 UI polish in progress, P7 hardening van dang mo  
+**Muc tieu tiep theo:** Publish lai API de co health/capability endpoints, mo WPF de visual QA va chay smoke test checklist
 
 ## 1. Tien do phase
 
@@ -18,6 +18,7 @@
 | P6 | WPF App | Functional MVP complete; polish deferred | 100% |
 | P7 | Cloud, kiem thu va bao cao | In progress | 35% |
 | P8 | Mo rong sau MVP | P8-03/P8-04/P8-08 backend MVP complete; remaining items deferred | 30% |
+| P9 | UI polish | Impeccable direction implemented in WPF code; visual QA pending | 65% |
 
 Toan bo phan ky thuat P0 da hoan thanh. Phan con lai chi la `P0-06` va `P0-07` ve Architecture/Sequence/ERD/Class/Use Case/State diagrams, duoc hoan theo yeu cau hien tai.
 
@@ -36,6 +37,8 @@ P6 da hoan thanh o muc functional MVP: MVVM shell, typed API client, DPAPI token
 P7 da bat dau: topology Azure F1 + Azure SQL + HiveMQ + Worker local da duoc xac nhan, them API liveness/readiness health checks, tao deployment guide, demo script va smoke test checklist trong `docs/operations`.
 
 P8 da lam dung ba muc duoc yeu cau: automation co schedule/time-window optional, notification backend cho offline/threshold, API rate limiting, Worker maintenance job cho retention va hourly telemetry aggregation. Cac muc P8 khac giu nguyen backlog, chua dong den.
+
+P9 da bat dau theo Impeccable: dung palette xanh control, shell sidebar, dashboard gọn, device detail render theo capability dong, actuator control don gian va Advanced shortcuts cho Worker/DeviceApp chi khi chay tu source workspace. Can mo WPF de visual QA va publish lai API de Azure co endpoint capabilities moi.
 
 ## 2. Da hoan thanh
 
@@ -108,14 +111,17 @@ P8 da lam dung ba muc duoc yeu cau: automation co schedule/time-window optional,
 - [x] Tao typed API client trong WPF voi token refresh va DPAPI token storage theo Windows user.
 - [x] WPF goi API auth/device/telemetry/command/automation va polling 5 giay.
 - [x] WPF build thanh cong trong solution.
+- [x] Them API `GET /api/v1/devices/{id}/capabilities` de WPF render UI dong theo manifest.
+- [x] Polish WPF theo Impeccable: sidebar shell, Home dashboard, sensor/actuator cards, empty states, status bar va Advanced local launchers cho Worker/DeviceApp.
 
 ## 3. Chua bat dau
 
-- [ ] API can publish lai len Azure de co `/health/live` va `/health/ready`.
+- [ ] API can publish lai len Azure de co `/health/live`, `/health/ready` va `/api/v1/devices/{id}/capabilities`.
 - [ ] API/Worker can chay migration V004 tren Azure SQL truoc khi test notification/aggregation.
-- [ ] Test coverage hien bao phu P0-P5 cot loi; P6 moi duoc verify bang build, chua co UI automation test.
+- [ ] Test coverage hien bao phu P0-P5 cot loi; P6/P9 moi duoc verify bang build, chua co UI automation test.
 - [ ] Chua xac minh ket noi runtime tu source hien tai toi HiveMQ Cloud, Azure SQL va App Service F1.
 - [ ] Chua co diagram artifact hoan chinh.
+- [ ] Chua mo WPF de visual QA layout P9 tren man hinh that.
 - [ ] P7 smoke test checklist can duoc chay lai day du truoc demo/bao cao.
 
 ## 4. Verification gan nhat
@@ -123,6 +129,8 @@ P8 da lam dung ba muc duoc yeu cau: automation co schedule/time-window optional,
 - `dotnet build IoTPlatform.sln --configuration Debug`: thanh cong, 0 warnings, 0 errors.
 - `dotnet test IoTPlatform.sln --configuration Debug`: thanh cong; 23 tests passed. `IoTPlatform.Application.Tests` va `IoTPlatform.Api.Tests` hien la scaffold chua co test nen test runner bao `No test is available` nhung exit code thanh cong.
 - `dotnet build IoTPlatform.sln --configuration Debug`: thanh cong sau khi them WPF UI.
+- `dotnet build IoTPlatform.sln --configuration Debug`: thanh cong sau P9 UI polish va capability endpoint, 0 warnings, 0 errors.
+- `dotnet test IoTPlatform.sln --configuration Debug --no-build`: thanh cong sau P9; 25 tests co thuc thi pass, Application/API test projects van la scaffold khong co test.
 - WPF + Worker + DeviceApp demo thuc te: claim device, xem telemetry va gui command actuator thanh cong.
 - `dotnet test IoTPlatform.sln --configuration Debug`: thanh cong sau P8-03/P8-04/P8-08; 25 tests co thuc thi pass, Application/API test projects van la scaffold khong co test.
 - Tat ca JSON schema va example files parse thanh cong nhu JSON.
