@@ -6,10 +6,17 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UseWPF>true</UseWPF>
+    <ApplicationIcon>Assets\OmniConnectLogo.ico</ApplicationIcon>
   </PropertyGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\IoTPlatform.Application\IoTPlatform.Application.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\OmniConnectLogo.png" />
+    <Resource Include="Assets\OmniConnectLogo.ico" />
+    <None Include="Assets\omniconnect.drawio.svg" />
   </ItemGroup>
 
 </Project>

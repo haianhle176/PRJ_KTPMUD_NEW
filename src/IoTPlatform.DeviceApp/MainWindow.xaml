@@ -10,25 +10,19 @@
         MaxHeight="{Binding AppWindowMaxHeight}"
         ResizeMode="NoResize"
         WindowStartupLocation="CenterScreen"
+        Icon="Assets/DeviceAppLogo.ico"
         Closing="Window_OnClosing">
     <Grid>
         <Grid Visibility="{Binding AuthVisibility}">
             <Border Background="{StaticResource SurfaceBrush}"
                     Padding="24">
                 <StackPanel Width="320" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Border Width="68" Height="68" Background="{StaticResource PrimaryBrush}" CornerRadius="20" HorizontalAlignment="Center" Margin="0,0,0,12">
-                        <Path Stroke="White"
-                              StrokeThickness="4.5"
-                              StrokeStartLineCap="Round"
-                              StrokeEndLineCap="Round"
-                              StrokeLineJoin="Round"
-                              Stretch="Fill"
-                              Width="38"
-                              Height="38"
-                              HorizontalAlignment="Center"
-                              VerticalAlignment="Center"
-                              Data="M 12,2 L 3,7 L 3,17 L 12,22 L 21,17 L 21,7 Z M 12,9 A 3,3 0 0 0 9,12 L 9,17 L 15,17 L 15,12 A 3,3 0 0 0 12,9 Z" />
-                    </Border>
+                    <Image Source="Assets/DeviceAppLogo.png"
+                           Width="68"
+                           Height="68"
+                           HorizontalAlignment="Center"
+                           Margin="0,0,0,12"
+                           RenderOptions.BitmapScalingMode="HighQuality" />
                     <TextBlock Text="Đăng nhập"
                                FontSize="28"
                                FontWeight="Bold"
@@ -70,19 +64,11 @@
 
         <Grid Margin="0,0,0,18">
             <StackPanel Orientation="Horizontal">
-                <Border Width="52" Height="52" Background="#2563EB" CornerRadius="16" Margin="0,0,14,0">
-                    <Path Stroke="White"
-                          StrokeThickness="4.5"
-                          StrokeStartLineCap="Round"
-                          StrokeEndLineCap="Round"
-                          StrokeLineJoin="Round"
-                          Stretch="Fill"
-                          Width="30"
-                          Height="30"
-                          HorizontalAlignment="Center"
-                          VerticalAlignment="Center"
-                          Data="M 12,2 L 3,7 L 3,17 L 12,22 L 21,17 L 21,7 Z M 12,9 A 3,3 0 0 0 9,12 L 9,17 L 15,17 L 15,12 A 3,3 0 0 0 12,9 Z" />
-                </Border>
+                <Image Source="Assets/DeviceAppLogo.png"
+                       Width="52"
+                       Height="52"
+                       Margin="0,0,14,0"
+                       RenderOptions.BitmapScalingMode="HighQuality" />
                 <StackPanel>
                     <TextBlock Text="Device Simulator" FontSize="26" FontWeight="Bold" />
                     <TextBlock Text="Create multiple SmartHome devices and publish them to HiveMQ."
