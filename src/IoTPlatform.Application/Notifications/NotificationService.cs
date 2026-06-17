@@ -29,4 +29,14 @@ public sealed class NotificationService(INotificationRepository repository) : IN
             throw new ArgumentException("Notification was not found.", nameof(id));
         }
     }
+
+    public Task<int> MarkAllReadAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        if (userId == Guid.Empty)
+        {
+            throw new ArgumentException("User id is required.", nameof(userId));
+        }
+
+        return repository.MarkAllReadAsync(userId, cancellationToken);
+    }
 }

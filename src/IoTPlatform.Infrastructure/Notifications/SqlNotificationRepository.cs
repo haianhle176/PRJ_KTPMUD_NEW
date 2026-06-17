@@ -41,6 +41,19 @@ public sealed class SqlNotificationRepository(IDbConnectionFactory connectionFac
         return affected == 1;
     }
 
+    public async Task<int> MarkAllReadAsync(Guid userId, CancellationToken cancellationToken = default)
+    {
+        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
+        return await connection.ExecuteAsync(new CommandDefinition(
+            """
+            UPDATE dbo.Notifications
+            SET IsRead = 1
+            WHERE OwnerUserId = @UserId AND IsRead = 0;
+            """,
+            new { UserId = userId },
+            cancellationToken: cancellationToken));
+    }
+
     private static NotificationDto ToNotification(dynamic row)
     {
         DateTime createdAtUtc = row.CreatedAtUtc;

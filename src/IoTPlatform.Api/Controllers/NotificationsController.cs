@@ -51,6 +51,25 @@ public sealed class NotificationsController(
         }
     }
 
+    [HttpPost("read-all")]
+    public async Task<IActionResult> MarkAllRead(CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId, out var unauthorized))
+        {
+            return unauthorized;
+        }
+
+        try
+        {
+            await notificationService.MarkAllReadAsync(userId, cancellationToken);
+            return NoContent();
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(ProblemDetails("notification_validation_error", exception.Message, StatusCodes.Status400BadRequest));
+        }
+    }
+
     private bool TryGetUserId(out Guid userId, out ActionResult unauthorized)
     {
         try

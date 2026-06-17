@@ -77,6 +77,7 @@ public sealed class MainViewModel : ObservableObject
         SendActuatorCommand = new RelayCommand<ActuatorControl>(SendActuatorCommandAsync, control => IsAuthenticated && SelectedDeviceIsOnline && control is not null && control.IsDeviceOnline);
         RefreshAutomationRulesCommand = new RelayCommand(RefreshAutomationRulesAsync, () => IsAuthenticated);
         RefreshNotificationsCommand = new RelayCommand(RefreshNotificationsAsync, () => IsAuthenticated);
+        MarkAllNotificationsReadCommand = new RelayCommand(MarkAllNotificationsReadAsync, () => IsAuthenticated && UnreadNotificationCount > 0);
         ToggleNotificationFlyoutCommand = new RelayCommand(ToggleNotificationFlyoutAsync, () => IsAuthenticated);
         ViewAllNotificationsCommand = new RelayCommand(ViewAllNotificationsAsync, () => IsAuthenticated);
         SelectAutomationRuleCommand = new RelayCommand<AutomationRuleCard>(SelectAutomationRuleAsync, card => IsAuthenticated && card is not null);
@@ -133,6 +134,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand<ActuatorControl> SendActuatorCommand { get; }
     public RelayCommand RefreshAutomationRulesCommand { get; }
     public RelayCommand RefreshNotificationsCommand { get; }
+    public RelayCommand MarkAllNotificationsReadCommand { get; }
     public RelayCommand ToggleNotificationFlyoutCommand { get; }
     public RelayCommand ViewAllNotificationsCommand { get; }
     public RelayCommand<AutomationRuleCard> SelectAutomationRuleCommand { get; }
@@ -1451,6 +1453,17 @@ public sealed class MainViewModel : ObservableObject
         });
     }
 
+    private async Task MarkAllNotificationsReadAsync()
+    {
+        await RunAsync(async () =>
+        {
+            await _api.MarkAllNotificationsReadAsync();
+            Replace(Notifications, await _api.GetNotificationsAsync());
+            NotifyDashboardCounts();
+            StatusMessage = "All alerts marked as read.";
+        });
+    }
+
     private async Task LaunchLocalProjectAsync(string projectPath, string label)
     {
         await Task.CompletedTask;
@@ -1652,6 +1665,7 @@ public sealed class MainViewModel : ObservableObject
         SendActuatorCommand.RaiseCanExecuteChanged();
         RefreshAutomationRulesCommand.RaiseCanExecuteChanged();
         RefreshNotificationsCommand.RaiseCanExecuteChanged();
+        MarkAllNotificationsReadCommand.RaiseCanExecuteChanged();
         ToggleNotificationFlyoutCommand.RaiseCanExecuteChanged();
         ToggleSidebarCommand.RaiseCanExecuteChanged();
         ViewAllNotificationsCommand.RaiseCanExecuteChanged();
@@ -1742,6 +1756,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HasNotificationsVisibility));
         OnPropertyChanged(nameof(EmptyHomeTelemetryLogVisibility));
         OnPropertyChanged(nameof(HasHomeTelemetryLogVisibility));
+        MarkAllNotificationsReadCommand.RaiseCanExecuteChanged();
     }
 
     private void OnAutomationPropertiesChanged()
@@ -2539,6 +2554,7 @@ public sealed class HomeDeviceCard(
             {
                 OnPropertyChanged(nameof(ValueWithUnit));
                 OnPropertyChanged(nameof(PrimaryValue));
+                OnPropertyChanged(nameof(SensorFooterText));
             }
         }
     }
@@ -2560,7 +2576,8 @@ public sealed class HomeDeviceCard(
     public string KindIcon => ResolveKindIcon();
     public string KindIconData => ResolveKindIconData();
     public string ValueWithUnit => string.IsNullOrWhiteSpace(Unit) || Value == "No readings yet" ? Value : $"{Value} {Unit}";
-    public string PrimaryValue => !IsOnline ? "----" : IsActuator ? StateText : ValueWithUnit;
+    public string PrimaryValue => StatusLabel;
+    public string SensorFooterText => Value == "No readings yet" ? "Last value: Waiting" : $"Last value: {ValueWithUnit}";
     public string SecondaryText => !IsOnline ? "Device offline" : IsActuator ? LastStatus : _lastStatus;
     public string SwitchBackground => !IsOnline ? "#CBD5E1" : IsOn ? "#2563EB" : "#CBD5E1";
     public string SwitchKnobAlignment => IsOn ? "Right" : "Left";

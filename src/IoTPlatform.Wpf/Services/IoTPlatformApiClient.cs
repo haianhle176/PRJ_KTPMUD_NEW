@@ -117,6 +117,9 @@ public sealed class IoTPlatformApiClient
     public Task<IReadOnlyList<NotificationDto>> GetNotificationsAsync(bool unreadOnly = false, int take = 50) =>
         GetAsync<IReadOnlyList<NotificationDto>>($"api/v1/notifications?unreadOnly={unreadOnly.ToString().ToLowerInvariant()}&take={take}");
 
+    public Task MarkAllNotificationsReadAsync() =>
+        SendAsync(HttpMethod.Post, "api/v1/notifications/read-all");
+
     private async Task SetTokensAsync(TokenResponse tokens)
     {
         _tokens = new AuthTokens(tokens.AccessToken, tokens.RefreshToken, tokens.AccessTokenExpiresAtUtc, tokens.RefreshTokenExpiresAtUtc);
@@ -339,6 +342,14 @@ public sealed record AutomationExecutionDto(long Id, Guid AutomationRuleId, Guid
 public sealed record NotificationDto(long Id, Guid OwnerUserId, Guid? DeviceId, Guid? CapabilityId, string Type, string Severity, string Title, string Message, bool IsRead, DateTimeOffset CreatedAtUtc)
 {
     public string CreatedText => CreatedAtUtc.ToLocalTime().ToString("t");
+    public string CreatedFullText => CreatedAtUtc.ToLocalTime().ToString("g");
+    public string ReadStateText => IsRead ? "Read" : "Unread";
+    public string ReadStateBrush => IsRead ? "#64748B" : "#2563EB";
+    public string ReadStateBackground => IsRead ? "#F1F5F9" : "#EFF6FF";
+    public string AlertIconBrush => Severity.Equals("error", StringComparison.OrdinalIgnoreCase) ? "#DC2626" :
+        Severity.Equals("warning", StringComparison.OrdinalIgnoreCase) ? "#2563EB" : "#64748B";
+    public string AlertIconBackground => Severity.Equals("error", StringComparison.OrdinalIgnoreCase) ? "#FEF2F2" :
+        Severity.Equals("warning", StringComparison.OrdinalIgnoreCase) ? "#EFF6FF" : "#F8FAFC";
     public string SeverityIcon => Severity.Equals("warning", StringComparison.OrdinalIgnoreCase) ? "\uE7BA" :
         Severity.Equals("error", StringComparison.OrdinalIgnoreCase) ? "\uEA39" : "\uE946";
 }
