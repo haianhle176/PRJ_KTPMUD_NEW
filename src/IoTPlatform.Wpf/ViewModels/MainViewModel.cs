@@ -26,6 +26,7 @@ public sealed class MainViewModel : ObservableObject
     private string _availableDeviceMessage = "Waiting for DeviceApp...";
     private string _availablePairingCode = "";
     private string _availableClaimError = "";
+    private string _homeDeviceFilter = "All";
     private bool _isOnboardingClaimSuccess;
     private DeviceSummary? _selectedDevice;
     private AvailableDevice? _selectedAvailableDevice;
@@ -41,6 +42,8 @@ public sealed class MainViewModel : ObservableObject
         LogoutCommand = new RelayCommand(LogoutAsync, () => IsAuthenticated);
         NavigateCommand = new RelayCommand<string>(NavigateAsync);
         RefreshHomeCommand = new RelayCommand(RefreshHomeAsync, () => IsAuthenticated);
+        SetHomeDeviceFilterCommand = new RelayCommand<string>(SetHomeDeviceFilterAsync, _ => IsAuthenticated);
+        ToggleHomeActuatorCommand = new RelayCommand<HomeDeviceCard>(ToggleHomeActuatorAsync, card => IsAuthenticated && card is not null && card.IsActuator && card.IsOnline);
         SelectDeviceCommand = new RelayCommand<DeviceSummary>(SelectDeviceAsync, device => IsAuthenticated && device is not null);
         SelectAvailableDeviceCommand = new RelayCommand<AvailableDevice>(SelectAvailableDeviceAsync, device => IsAuthenticated && device is not null);
         ClaimSelectedAvailableDeviceCommand = new RelayCommand(ClaimSelectedAvailableDeviceAsync, () => IsAuthenticated && SelectedAvailableDevice is not null);
@@ -67,6 +70,7 @@ public sealed class MainViewModel : ObservableObject
 
     public ObservableCollection<DeviceSummary> Devices { get; } = [];
     public ObservableCollection<AvailableDevice> AvailableDevices { get; } = [];
+    public ObservableCollection<HomeDeviceCard> HomeDeviceCards { get; } = [];
     public ObservableCollection<DeviceCapability> Capabilities { get; } = [];
     public ObservableCollection<SensorCard> Sensors { get; } = [];
     public ObservableCollection<ActuatorControl> Actuators { get; } = [];
@@ -85,6 +89,8 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand LogoutCommand { get; }
     public RelayCommand<string> NavigateCommand { get; }
     public RelayCommand RefreshHomeCommand { get; }
+    public RelayCommand<string> SetHomeDeviceFilterCommand { get; }
+    public RelayCommand<HomeDeviceCard> ToggleHomeActuatorCommand { get; }
     public RelayCommand<DeviceSummary> SelectDeviceCommand { get; }
     public RelayCommand<AvailableDevice> SelectAvailableDeviceCommand { get; }
     public RelayCommand ClaimSelectedAvailableDeviceCommand { get; }
@@ -369,8 +375,50 @@ public sealed class MainViewModel : ObservableObject
     public int UnreadNotificationCount => Notifications.Count(notification => !notification.IsRead);
     public int SelectedSensorCount => Sensors.Count;
     public int SelectedActuatorCount => Actuators.Count;
+    public int HomeSensorCount => HomeDeviceCards.Count(card => card.IsSensor);
+    public int HomeActuatorCount => HomeDeviceCards.Count(card => card.IsActuator);
     public int EnabledAutomationCount => AutomationRules.Count(rule => rule.IsEnabled);
     public string UnreadNotificationBadgeText => UnreadNotificationCount > 99 ? "99+" : UnreadNotificationCount.ToString();
+    public string HomeDeviceFilter
+    {
+        get => _homeDeviceFilter;
+        set
+        {
+            if (SetProperty(ref _homeDeviceFilter, value))
+            {
+                OnPropertyChanged(nameof(FilteredHomeDeviceCards));
+                OnPropertyChanged(nameof(AllFilterBackground));
+                OnPropertyChanged(nameof(OnlineFilterBackground));
+                OnPropertyChanged(nameof(OfflineFilterBackground));
+                OnPropertyChanged(nameof(ActuatorsFilterBackground));
+                OnPropertyChanged(nameof(SensorsFilterBackground));
+                OnPropertyChanged(nameof(AllFilterForeground));
+                OnPropertyChanged(nameof(OnlineFilterForeground));
+                OnPropertyChanged(nameof(OfflineFilterForeground));
+                OnPropertyChanged(nameof(ActuatorsFilterForeground));
+                OnPropertyChanged(nameof(SensorsFilterForeground));
+            }
+        }
+    }
+
+    public IEnumerable<HomeDeviceCard> FilteredHomeDeviceCards => HomeDeviceFilter switch
+    {
+        "Online" => HomeDeviceCards.Where(card => card.IsOnline),
+        "Offline" => HomeDeviceCards.Where(card => !card.IsOnline),
+        "Actuators" => HomeDeviceCards.Where(card => card.IsActuator),
+        "Sensors" => HomeDeviceCards.Where(card => card.IsSensor),
+        _ => HomeDeviceCards
+    };
+    public string AllFilterBackground => FilterBackground("All");
+    public string OnlineFilterBackground => FilterBackground("Online");
+    public string OfflineFilterBackground => FilterBackground("Offline");
+    public string ActuatorsFilterBackground => FilterBackground("Actuators");
+    public string SensorsFilterBackground => FilterBackground("Sensors");
+    public string AllFilterForeground => FilterForeground("All");
+    public string OnlineFilterForeground => FilterForeground("Online");
+    public string OfflineFilterForeground => FilterForeground("Offline");
+    public string ActuatorsFilterForeground => FilterForeground("Actuators");
+    public string SensorsFilterForeground => FilterForeground("Sensors");
     public bool IsHomeNavSelected => CurrentSection == "Home";
     public bool IsAutomationNavSelected => CurrentSection == "Automation";
     public bool IsNotificationsNavSelected => CurrentSection == "Notifications";
@@ -451,11 +499,11 @@ public sealed class MainViewModel : ObservableObject
     public string AuthPrimaryButtonText => IsRegisterMode ? "Đăng ký" : "Đăng nhập";
     public string AuthSwitchPrefix => IsRegisterMode ? "Đã có tài khoản? " : "Chưa có tài khoản? ";
     public string AuthSwitchAction => IsRegisterMode ? "Đăng nhập" : "Đăng ký ngay";
-    public double AppWindowWidth => IsAuthenticated ? 1000 : 420;
+    public double AppWindowWidth => IsAuthenticated ? 1180 : 420;
     public double AppWindowHeight => IsAuthenticated ? 700 : 520;
-    public double AppWindowMinWidth => IsAuthenticated ? 1000 : 420;
+    public double AppWindowMinWidth => IsAuthenticated ? 1180 : 420;
     public double AppWindowMinHeight => IsAuthenticated ? 700 : 520;
-    public double AppWindowMaxWidth => IsAuthenticated ? 1000 : 420;
+    public double AppWindowMaxWidth => IsAuthenticated ? 1180 : 420;
     public double AppWindowMaxHeight => IsAuthenticated ? 700 : 520;
     public ResizeMode AppResizeMode => ResizeMode.NoResize;
     public GridLength SidebarWidth => new(IsSidebarExpanded ? 216 : 72);
@@ -591,6 +639,7 @@ public sealed class MainViewModel : ObservableObject
             _pollTimer.Stop();
             Devices.Clear();
             AvailableDevices.Clear();
+            HomeDeviceCards.Clear();
             Capabilities.Clear();
             Sensors.Clear();
             Actuators.Clear();
@@ -614,6 +663,7 @@ public sealed class MainViewModel : ObservableObject
     private async Task RefreshHomeAsync()
     {
         await RefreshDevicesAsync();
+        await BuildHomeDeviceCardsAsync();
         await RefreshAvailableDevicesSafelyAsync();
         await RefreshNotificationsAsync();
         LastHomeRefreshText = $"Last updated {DateTime.Now:t}";
@@ -684,6 +734,39 @@ public sealed class MainViewModel : ObservableObject
         }
 
         NotifyDashboardCounts();
+    }
+
+    private async Task BuildHomeDeviceCardsAsync()
+    {
+        var cards = new List<HomeDeviceCard>();
+        foreach (var device in Devices)
+        {
+            var capabilities = await _api.GetDeviceCapabilitiesAsync(device.Id);
+            var latestValues = await _api.GetLatestValuesAsync(device.Id);
+            var latestByCapability = latestValues.ToDictionary(value => value.CapabilityKey, StringComparer.OrdinalIgnoreCase);
+            foreach (var capability in capabilities.Where(capability => capability.Kind is "sensor" or "actuator"))
+            {
+                latestByCapability.TryGetValue(capability.Key, out var latest);
+                cards.Add(HomeDeviceCard.From(device, capability, latest));
+            }
+        }
+
+        Replace(HomeDeviceCards, cards
+            .OrderBy(card => card.IsOnline ? 0 : 1)
+            .ThenBy(card => card.DeviceName)
+            .ThenBy(card => card.KindSort)
+            .ThenBy(card => card.CapabilityName));
+        NotifyDashboardCounts();
+    }
+
+    private Task SetHomeDeviceFilterAsync(string? filter)
+    {
+        if (!string.IsNullOrWhiteSpace(filter))
+        {
+            HomeDeviceFilter = filter;
+        }
+
+        return Task.CompletedTask;
     }
 
     private async Task ClaimDeviceAsync()
@@ -830,6 +913,23 @@ public sealed class MainViewModel : ObservableObject
             Commands.Insert(0, command);
             control.MarkSubmitted(commandName, command.Status);
             StatusMessage = $"Sent {commandName.ToLowerInvariant()} to {control.DisplayName}.";
+        });
+    }
+
+    private async Task ToggleHomeActuatorAsync(HomeDeviceCard? card)
+    {
+        if (card is null || !card.IsActuator)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var commandName = card.NextCommandName;
+            var command = await _api.CreateCommandAsync(card.DeviceId, card.CapabilityKey, commandName, card.NextDesiredValue);
+            Commands.Insert(0, command);
+            card.MarkSubmitted(commandName, command.Status);
+            StatusMessage = $"Sent {commandName.ToLowerInvariant()} to {card.CapabilityName}.";
         });
     }
 
@@ -1055,6 +1155,8 @@ public sealed class MainViewModel : ObservableObject
         LogoutCommand.RaiseCanExecuteChanged();
         RefreshDevicesCommand.RaiseCanExecuteChanged();
         RefreshHomeCommand.RaiseCanExecuteChanged();
+        SetHomeDeviceFilterCommand.RaiseCanExecuteChanged();
+        ToggleHomeActuatorCommand.RaiseCanExecuteChanged();
         SelectDeviceCommand.RaiseCanExecuteChanged();
         SelectAvailableDeviceCommand.RaiseCanExecuteChanged();
         ClaimSelectedAvailableDeviceCommand.RaiseCanExecuteChanged();
@@ -1081,6 +1183,9 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(UnreadNotificationCount));
         OnPropertyChanged(nameof(SelectedSensorCount));
         OnPropertyChanged(nameof(SelectedActuatorCount));
+        OnPropertyChanged(nameof(HomeSensorCount));
+        OnPropertyChanged(nameof(HomeActuatorCount));
+        OnPropertyChanged(nameof(FilteredHomeDeviceCards));
         OnPropertyChanged(nameof(UnreadNotificationBadgeText));
         OnPropertyChanged(nameof(UnreadNotificationBadgeVisibility));
         OnPropertyChanged(nameof(SidebarUnreadNotificationBadgeVisibility));
@@ -1149,6 +1254,10 @@ public sealed class MainViewModel : ObservableObject
 
     private static double NavRailOpacity(bool isSelected) => isSelected ? 1 : 0;
 
+    private string FilterBackground(string filter) => HomeDeviceFilter == filter ? "#2563EB" : "#FFFFFF";
+
+    private string FilterForeground(string filter) => HomeDeviceFilter == filter ? "#FFFFFF" : "#64748B";
+
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> values)
     {
         target.Clear();
@@ -1206,6 +1315,162 @@ public sealed class MainViewModel : ObservableObject
 public sealed record SensorCard(string Key, string DisplayName, string? Unit, string Value, string RecordedAt)
 {
     public string ValueWithUnit => string.IsNullOrWhiteSpace(Unit) || Value == "No readings yet" ? Value : $"{Value} {Unit}";
+}
+
+public sealed class HomeDeviceCard(
+    Guid deviceId,
+    string deviceName,
+    string deviceStatus,
+    string capabilityKey,
+    string capabilityName,
+    string kind,
+    string dataType,
+    string? unit,
+    IReadOnlyList<string> supportedCommands,
+    string value,
+    string recordedAt,
+    bool isOn) : ObservableObject
+{
+    private bool _isOn = isOn;
+    private string _lastStatus = recordedAt;
+
+    public Guid DeviceId { get; } = deviceId;
+    public string DeviceName { get; } = deviceName;
+    public string DeviceStatus { get; } = deviceStatus;
+    public string CapabilityKey { get; } = capabilityKey;
+    public string CapabilityName { get; } = capabilityName;
+    public string Kind { get; } = kind;
+    public string DataType { get; } = dataType;
+    public string? Unit { get; } = unit;
+    public IReadOnlyList<string> SupportedCommands { get; } = supportedCommands;
+    public string Value { get; } = value;
+    public bool IsSensor => Kind.Equals("sensor", StringComparison.OrdinalIgnoreCase);
+    public bool IsActuator => Kind.Equals("actuator", StringComparison.OrdinalIgnoreCase);
+    public Visibility ActuatorActionVisibility => IsActuator ? Visibility.Visible : Visibility.Collapsed;
+    public bool IsOnline => DeviceStatus.Equals("online", StringComparison.OrdinalIgnoreCase);
+    public int KindSort => IsActuator ? 0 : 1;
+    public string KindLabel => IsActuator ? "Actuator" : "Sensor";
+    public string StatusLabel => IsOnline ? "Online" : "Offline";
+    public string StatusBrush => IsOnline ? "#16A34A" : "#64748B";
+    public string CardBackground => IsOnline ? "#FFFFFF" : "#F8FAFC";
+    public string CardBorderBrush => IsOnline ? "#D8E0EA" : "#E2E8F0";
+    public string PrimaryBrush => IsOnline ? "#0F172A" : "#94A3B8";
+    public string MutedBrush => IsOnline ? "#64748B" : "#94A3B8";
+    public string IconBrush => IsOnline ? "#2563EB" : "#94A3B8";
+    public string IconBackground => IsOnline ? "#EFF6FF" : "#E2E8F0";
+    public string KindIcon => ResolveKindIcon();
+    public string ValueWithUnit => string.IsNullOrWhiteSpace(Unit) || Value == "No readings yet" ? Value : $"{Value} {Unit}";
+    public string PrimaryValue => !IsOnline ? "----" : IsActuator ? StateText : ValueWithUnit;
+    public string SecondaryText => !IsOnline ? "Device offline" : IsActuator ? LastStatus : _lastStatus;
+    public string SwitchBackground => !IsOnline ? "#CBD5E1" : IsOn ? "#2563EB" : "#CBD5E1";
+    public string SwitchKnobAlignment => IsOn ? "Right" : "Left";
+    public string SwitchLabel => IsOn ? "On" : "Off";
+    public string SwitchLabelBrush => IsOn && IsOnline ? "#2563EB" : "#64748B";
+
+    public bool IsOn
+    {
+        get => _isOn;
+        private set
+        {
+            if (SetProperty(ref _isOn, value))
+            {
+                OnPropertyChanged(nameof(StateText));
+                OnPropertyChanged(nameof(ButtonText));
+                OnPropertyChanged(nameof(NextCommandName));
+                OnPropertyChanged(nameof(NextDesiredValue));
+                OnPropertyChanged(nameof(PrimaryValue));
+                OnPropertyChanged(nameof(SwitchBackground));
+                OnPropertyChanged(nameof(SwitchKnobAlignment));
+                OnPropertyChanged(nameof(SwitchLabel));
+                OnPropertyChanged(nameof(SwitchLabelBrush));
+            }
+        }
+    }
+
+    public string LastStatus
+    {
+        get => _lastStatus;
+        set
+        {
+            if (SetProperty(ref _lastStatus, value))
+            {
+                OnPropertyChanged(nameof(SecondaryText));
+            }
+        }
+    }
+
+    public string StateText => IsOn ? "On" : "Off";
+    public string ButtonText => IsOn ? "Turn off" : "Turn on";
+    public string NextCommandName => IsOn && SupportedCommands.Contains("OFF", StringComparer.OrdinalIgnoreCase) ? "OFF" : "ON";
+    public JsonElement NextDesiredValue => DataType == "boolean"
+        ? JsonSerializer.SerializeToElement(!IsOn)
+        : JsonSerializer.SerializeToElement(IsOn ? "OFF" : "ON");
+
+    public static HomeDeviceCard From(DeviceSummary device, DeviceCapability capability, TelemetryValue? latest)
+    {
+        var isOn = latest?.BooleanValue == true;
+        var value = latest?.DisplayValue ?? "No readings yet";
+        var recordedAt = latest?.RecordedAtUtc.ToLocalTime().ToString("g") ?? "Waiting for telemetry";
+        return new HomeDeviceCard(
+            device.Id,
+            device.NameOrSerial,
+            device.Status,
+            capability.Key,
+            capability.DisplayName,
+            capability.Kind,
+            capability.DataType,
+            capability.Unit,
+            capability.SupportedCommands,
+            value,
+            recordedAt,
+            isOn);
+    }
+
+    public void MarkSubmitted(string commandName, string status)
+    {
+        if (DataType == "boolean")
+        {
+            IsOn = !IsOn;
+        }
+
+        LastStatus = $"Command {commandName} is {status}.";
+    }
+
+    private string ResolveKindIcon()
+    {
+        var key = $"{CapabilityKey} {CapabilityName} {Unit}".ToLowerInvariant();
+        if (key.Contains("temp"))
+        {
+            return "\uE7A3";
+        }
+
+        if (key.Contains("humid") || key.Contains("water") || key.Contains("pump") || key.Contains("moisture"))
+        {
+            return "\uE9D0";
+        }
+
+        if (key.Contains("light") || key.Contains("lux"))
+        {
+            return "\uE706";
+        }
+
+        if (key.Contains("motion"))
+        {
+            return "\uE9D9";
+        }
+
+        if (key.Contains("fan"))
+        {
+            return "\uE9CA";
+        }
+
+        if (key.Contains("lock"))
+        {
+            return "\uE72E";
+        }
+
+        return IsActuator ? "\uE945" : "\uE95B";
+    }
 }
 
 public sealed class ActuatorControl(

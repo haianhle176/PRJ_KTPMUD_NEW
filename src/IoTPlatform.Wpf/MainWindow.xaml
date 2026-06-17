@@ -830,43 +830,59 @@
 
                         <StackPanel Visibility="{Binding HomeDashboardVisibility}">
                             <UniformGrid Columns="4" Margin="0,0,0,10">
-                                <Border Style="{StaticResource CardBorder}">
+                                <Border Style="{StaticResource HomeStatCard}">
                                     <StackPanel>
-                                        <Border Width="46" Height="46" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="23">
-                                            <TextBlock Text="&#xE701;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                                        <Border Width="38" Height="38" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="19">
+                                            <TextBlock Text="&#xE701;" Style="{StaticResource IconGlyph}" FontSize="16" HorizontalAlignment="Center" />
                                         </Border>
-                                        <TextBlock Text="Online" Style="{StaticResource SmallLabel}" Margin="0,14,0,0" />
-                                        <TextBlock Text="{Binding OnlineDeviceCount}" FontSize="32" FontWeight="Bold" />
+                                        <TextBlock Text="Online" Style="{StaticResource SmallLabel}" Margin="0,10,0,0" />
+                                        <TextBlock Text="{Binding OnlineDeviceCount}" FontSize="27" FontWeight="Bold" />
                                         <TextBlock Text="devices" Foreground="{StaticResource MutedInkBrush}" />
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource CardBorder}">
+                                <Border Style="{StaticResource HomeStatCard}">
                                     <StackPanel>
-                                        <Border Width="46" Height="46" Background="#F1F5F9" CornerRadius="23">
-                                            <TextBlock Text="&#xE711;" Style="{StaticResource IconGlyph}" Foreground="{StaticResource MutedInkBrush}" HorizontalAlignment="Center" />
+                                        <Border Width="38" Height="38" Background="#F1F5F9" CornerRadius="19">
+                                            <Grid Width="22" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Path Data="M 4,11 C 8.5,7.5 15.5,7.5 20,11 M 7,14 C 10,12 14,12 17,14 M 10.5,17 C 11.5,16.4 12.5,16.4 13.5,17"
+                                                      Stroke="{StaticResource MutedInkBrush}"
+                                                      StrokeThickness="1.8"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      Fill="Transparent" />
+                                                <Line X1="5" Y1="19" X2="19" Y2="5" Stroke="{StaticResource MutedInkBrush}" StrokeThickness="1.8" StrokeStartLineCap="Round" StrokeEndLineCap="Round" />
+                                            </Grid>
                                         </Border>
-                                        <TextBlock Text="Offline" Style="{StaticResource SmallLabel}" Margin="0,14,0,0" />
-                                        <TextBlock Text="{Binding OfflineDeviceCount}" FontSize="32" FontWeight="Bold" />
+                                        <TextBlock Text="Offline" Style="{StaticResource SmallLabel}" Margin="0,10,0,0" />
+                                        <TextBlock Text="{Binding OfflineDeviceCount}" FontSize="27" FontWeight="Bold" />
                                         <TextBlock Text="devices" Foreground="{StaticResource MutedInkBrush}" />
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource CardBorder}">
+                                <Border Style="{StaticResource HomeStatCard}">
                                     <StackPanel>
-                                        <Border Width="46" Height="46" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="23">
-                                            <TextBlock Text="&#xE95B;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                                        <Border Width="38" Height="38" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="19">
+                                            <Grid Width="26" Height="22" HorizontalAlignment="Center" VerticalAlignment="Center">
+                                                <Ellipse Width="6" Height="6" Stroke="{StaticResource PrimaryBrush}" StrokeThickness="2" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                <Path Data="M 8,7 C 6,10 6,13 8,16 M 18,7 C 20,10 20,13 18,16 M 4,4 C 0,9 0,14 4,19 M 22,4 C 26,9 26,14 22,19"
+                                                      Stroke="{StaticResource PrimaryBrush}"
+                                                      StrokeThickness="2"
+                                                      StrokeStartLineCap="Round"
+                                                      StrokeEndLineCap="Round"
+                                                      Fill="Transparent" />
+                                            </Grid>
                                         </Border>
-                                        <TextBlock Text="Sensors" Style="{StaticResource SmallLabel}" Margin="0,14,0,0" />
-                                        <TextBlock Text="{Binding SelectedSensorCount}" FontSize="32" FontWeight="Bold" />
-                                        <TextBlock Text="on selected device" Foreground="{StaticResource MutedInkBrush}" />
+                                        <TextBlock Text="Sensors" Style="{StaticResource SmallLabel}" Margin="0,10,0,0" />
+                                        <TextBlock Text="{Binding HomeSensorCount}" FontSize="27" FontWeight="Bold" />
+                                        <TextBlock Text="reporting" Foreground="{StaticResource MutedInkBrush}" />
                                     </StackPanel>
                                 </Border>
-                                <Border Style="{StaticResource CardBorder}">
+                                <Border Style="{StaticResource HomeStatCard}">
                                     <StackPanel>
-                                        <Border Width="46" Height="46" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="23">
-                                            <TextBlock Text="&#xE945;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                                        <Border Width="38" Height="38" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="19">
+                                            <TextBlock Text="&#xE945;" Style="{StaticResource IconGlyph}" FontSize="16" HorizontalAlignment="Center" />
                                         </Border>
-                                        <TextBlock Text="Actuators" Style="{StaticResource SmallLabel}" Margin="0,14,0,0" />
-                                        <TextBlock Text="{Binding SelectedActuatorCount}" FontSize="32" FontWeight="Bold" />
+                                        <TextBlock Text="Actuators" Style="{StaticResource SmallLabel}" Margin="0,10,0,0" />
+                                        <TextBlock Text="{Binding HomeActuatorCount}" FontSize="27" FontWeight="Bold" />
                                         <TextBlock Text="controllable" Foreground="{StaticResource MutedInkBrush}" />
                                     </StackPanel>
                                 </Border>
@@ -874,8 +890,8 @@
 
                             <Grid>
                                 <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="1.05*" />
-                                    <ColumnDefinition Width="1.55*" />
+                                    <ColumnDefinition Width="7*" />
+                                    <ColumnDefinition Width="3*" />
                                 </Grid.ColumnDefinitions>
 
                                 <Border Style="{StaticResource CardBorder}">
@@ -883,7 +899,7 @@
                                         <Grid Margin="0,0,0,14">
                                             <StackPanel>
                                                 <TextBlock Text="Devices" FontSize="20" FontWeight="SemiBold" />
-                                                <TextBlock Text="Select one to view its live capabilities."
+                                                <TextBlock Text="Control actuators and monitor sensors from one place."
                                                            Foreground="{StaticResource MutedInkBrush}" />
                                             </StackPanel>
                                             <Button Content="Refresh"
@@ -893,41 +909,69 @@
                                                     VerticalAlignment="Top" />
                                         </Grid>
 
-                                        <ItemsControl ItemsSource="{Binding Devices}">
+                                        <StackPanel Orientation="Horizontal" Margin="0,0,0,14">
+                                            <Button Content="All" Command="{Binding SetHomeDeviceFilterCommand}" CommandParameter="All" Style="{StaticResource PillButton}" Background="{Binding AllFilterBackground}" Foreground="{Binding AllFilterForeground}" />
+                                            <Button Content="Online" Command="{Binding SetHomeDeviceFilterCommand}" CommandParameter="Online" Style="{StaticResource PillButton}" Background="{Binding OnlineFilterBackground}" Foreground="{Binding OnlineFilterForeground}" />
+                                            <Button Content="Offline" Command="{Binding SetHomeDeviceFilterCommand}" CommandParameter="Offline" Style="{StaticResource PillButton}" Background="{Binding OfflineFilterBackground}" Foreground="{Binding OfflineFilterForeground}" />
+                                            <Button Content="Actuators" Command="{Binding SetHomeDeviceFilterCommand}" CommandParameter="Actuators" Style="{StaticResource PillButton}" Background="{Binding ActuatorsFilterBackground}" Foreground="{Binding ActuatorsFilterForeground}" />
+                                            <Button Content="Sensors" Command="{Binding SetHomeDeviceFilterCommand}" CommandParameter="Sensors" Style="{StaticResource PillButton}" Background="{Binding SensorsFilterBackground}" Foreground="{Binding SensorsFilterForeground}" />
+                                        </StackPanel>
+
+                                        <ItemsControl ItemsSource="{Binding FilteredHomeDeviceCards}">
+                                            <ItemsControl.ItemsPanel>
+                                                <ItemsPanelTemplate>
+                                                    <WrapPanel />
+                                                </ItemsPanelTemplate>
+                                            </ItemsControl.ItemsPanel>
                                             <ItemsControl.ItemTemplate>
                                                 <DataTemplate>
-                                                    <Button Command="{Binding DataContext.SelectDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"
-                                                            Style="{StaticResource SecondaryButton}"
-                                                            HorizontalAlignment="Stretch"
-                                                            Padding="0"
-                                                            Margin="0,0,0,10">
-                                                        <Border Padding="14" CornerRadius="16" Background="White">
-                                                            <Grid>
+                                                    <Border Width="210"
+                                                            MinHeight="178"
+                                                            BorderBrush="{Binding CardBorderBrush}"
+                                                            BorderThickness="1"
+                                                            CornerRadius="18"
+                                                            Padding="14"
+                                                            Margin="0,0,12,12"
+                                                            Background="{Binding CardBackground}">
+                                                        <StackPanel>
+                                                            <Grid Margin="0,0,0,12">
                                                                 <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="46" />
+                                                                    <ColumnDefinition Width="38" />
                                                                     <ColumnDefinition Width="*" />
                                                                     <ColumnDefinition Width="Auto" />
                                                                 </Grid.ColumnDefinitions>
-                                                                <Border Width="36" Height="36" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="18">
-                                                                    <TextBlock Text="&#xE8B7;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
+                                                                <Border Width="32" Height="32" Background="{Binding IconBackground}" CornerRadius="12">
+                                                                    <TextBlock Text="{Binding KindIcon}" FontFamily="Segoe MDL2 Assets" Foreground="{Binding IconBrush}" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                                 </Border>
                                                                 <StackPanel Grid.Column="1">
-                                                                    <TextBlock Text="{Binding NameOrSerial}" FontWeight="SemiBold" />
-                                                                    <TextBlock Text="{Binding Category}" Foreground="{StaticResource MutedInkBrush}" />
+                                                                    <TextBlock Text="{Binding CapabilityName}" FontWeight="SemiBold" Foreground="{Binding PrimaryBrush}" TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Text="{Binding DeviceName}" Foreground="{Binding MutedBrush}" FontSize="12" TextTrimming="CharacterEllipsis" />
                                                                 </StackPanel>
-                                                                <Border Grid.Column="2"
-                                                                        Background="{StaticResource SurfaceMutedBrush}"
-                                                                        CornerRadius="10"
-                                                                        Padding="10,4"
-                                                                        VerticalAlignment="Center">
-                                                                    <TextBlock Text="{Binding Status}"
-                                                                               Foreground="{StaticResource PrimaryBrush}"
-                                                                               FontWeight="SemiBold" />
-                                                                </Border>
+                                                                <TextBlock Grid.Column="2" Text="{Binding StatusLabel}" Foreground="{Binding StatusBrush}" FontSize="11" FontWeight="SemiBold" />
                                                             </Grid>
-                                                        </Border>
-                                                    </Button>
+
+                                                            <TextBlock Text="{Binding PrimaryValue}" Foreground="{Binding PrimaryBrush}" FontSize="24" FontWeight="Bold" Margin="0,0,0,4" />
+                                                            <TextBlock Text="{Binding KindLabel}" Foreground="{Binding MutedBrush}" FontSize="12" Margin="0,0,0,10" />
+                                                            <Grid Visibility="{Binding ActuatorActionVisibility}" Margin="0,0,0,8">
+                                                                <Grid.ColumnDefinitions>
+                                                                    <ColumnDefinition Width="Auto" />
+                                                                    <ColumnDefinition Width="*" />
+                                                                </Grid.ColumnDefinitions>
+                                                                <Button Command="{Binding DataContext.ToggleHomeActuatorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                        CommandParameter="{Binding}"
+                                                                        Style="{StaticResource ToggleSwitchButton}"
+                                                                        IsEnabled="{Binding IsOnline}">
+                                                                    <Border Width="58" Height="30" Background="{Binding SwitchBackground}" CornerRadius="15" Padding="3">
+                                                                        <Grid>
+                                                                            <Border Width="24" Height="24" Background="White" CornerRadius="12" HorizontalAlignment="{Binding SwitchKnobAlignment}" />
+                                                                        </Grid>
+                                                                    </Border>
+                                                                </Button>
+                                                                <TextBlock Grid.Column="1" Text="{Binding SwitchLabel}" Foreground="{Binding SwitchLabelBrush}" FontWeight="SemiBold" VerticalAlignment="Center" Margin="10,0,0,0" />
+                                                            </Grid>
+                                                            <TextBlock Text="{Binding SecondaryText}" Foreground="{Binding MutedBrush}" FontSize="12" TextWrapping="Wrap" />
+                                                        </StackPanel>
+                                                    </Border>
                                                 </DataTemplate>
                                             </ItemsControl.ItemTemplate>
                                         </ItemsControl>
@@ -936,123 +980,44 @@
 
                                 <Border Grid.Column="1" Style="{StaticResource CardBorder}">
                                     <StackPanel>
-                                        <Grid>
+                                        <Border Background="#2F2F2C" BorderBrush="#55554F" BorderThickness="1" CornerRadius="8" Padding="18" Margin="0,0,0,16">
                                             <StackPanel>
-                                                <TextBlock Text="{Binding SelectedDeviceName}" FontSize="24" FontWeight="SemiBold" />
-                                                <TextBlock Text="{Binding SelectedDeviceStatus}" Foreground="{StaticResource MutedInkBrush}" Margin="0,4,0,18" />
+                                                <TextBlock Text="Quick actions" Foreground="White" FontSize="20" FontWeight="SemiBold" />
+                                                <Border Background="#30302D" BorderBrush="#595954" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,12,0,10">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="48" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Width="36" Height="36" Background="#252522" CornerRadius="9">
+                                                            <TextBlock Text="+" Foreground="{StaticResource PrimaryBrush}" FontSize="24" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="Add a new device" Foreground="White" FontWeight="SemiBold" />
+                                                            <TextBlock Text="Pair via DeviceApp" Foreground="#B8B8B2" FontSize="12" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
+                                                <Border Background="#30302D" BorderBrush="#595954" BorderThickness="1" CornerRadius="8" Padding="14">
+                                                    <Grid>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="48" />
+                                                            <ColumnDefinition Width="*" />
+                                                        </Grid.ColumnDefinitions>
+                                                        <Border Width="36" Height="36" Background="#252522" CornerRadius="9">
+                                                            <TextBlock Text="&#xE8FD;" FontFamily="Segoe MDL2 Assets" Foreground="{StaticResource PrimaryBrush}" FontSize="16" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                        </Border>
+                                                        <StackPanel Grid.Column="1">
+                                                            <TextBlock Text="Create automation" Foreground="White" FontWeight="SemiBold" />
+                                                            <TextBlock Text="Trigger rules between devices" Foreground="#B8B8B2" FontSize="12" TextWrapping="Wrap" />
+                                                        </StackPanel>
+                                                    </Grid>
+                                                </Border>
                                             </StackPanel>
-                                            <Button Content="Remove device"
-                                                    Command="{Binding UnclaimDeviceCommand}"
-                                                    Style="{StaticResource SecondaryButton}"
-                                                    HorizontalAlignment="Right"
-                                                    VerticalAlignment="Top"
-                                                    Visibility="{Binding HasSelectedDeviceVisibility}" />
-                                        </Grid>
-
-                                        <Border Visibility="{Binding NoSelectedDeviceVisibility}"
-                                                Background="{StaticResource SurfaceMutedBrush}"
-                                                CornerRadius="14"
-                                                Padding="20">
-                                            <TextBlock Text="Choose a device on the left. OmniConnect will build controls from the capabilities this device announces."
-                                                       TextWrapping="Wrap"
-                                                       Foreground="{StaticResource MutedInkBrush}" />
                                         </Border>
 
-                                        <StackPanel Visibility="{Binding HasSelectedDeviceVisibility}">
-                                            <TextBlock Text="Sensors" FontSize="17" FontWeight="SemiBold" />
-                                            <ItemsControl ItemsSource="{Binding Sensors}" Margin="0,8,0,18">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <WrapPanel />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Width="210"
-                                                                Background="{StaticResource SurfaceMutedBrush}"
-                                                                BorderBrush="{StaticResource BorderBrushSoft}"
-                                                                BorderThickness="1"
-                                                                CornerRadius="16"
-                                                                Padding="16"
-                                                                Margin="0,0,12,12">
-                                                            <StackPanel>
-                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                                <TextBlock Text="{Binding ValueWithUnit}" FontSize="24" FontWeight="Bold" Margin="0,8,0,2" />
-                                                                <TextBlock Text="{Binding RecordedAt}" Foreground="{StaticResource MutedInkBrush}" />
-                                                            </StackPanel>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-
-                                            <TextBlock Text="Actuators" FontSize="17" FontWeight="SemiBold" />
-                                            <ItemsControl ItemsSource="{Binding Actuators}" Margin="0,8,0,0">
-                                                <ItemsControl.ItemsPanel>
-                                                    <ItemsPanelTemplate>
-                                                        <WrapPanel />
-                                                    </ItemsPanelTemplate>
-                                                </ItemsControl.ItemsPanel>
-                                                <ItemsControl.ItemTemplate>
-                                                    <DataTemplate>
-                                                        <Border Width="240"
-                                                                BorderBrush="{StaticResource BorderBrushSoft}"
-                                                                BorderThickness="1"
-                                                                CornerRadius="16"
-                                                                Padding="16"
-                                                                Margin="0,0,12,12">
-                                                            <StackPanel>
-                                                                <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                                <TextBlock Text="{Binding StateText}" Foreground="{StaticResource MutedInkBrush}" Margin="0,4,0,12" />
-                                                                <Button Content="{Binding ButtonText}"
-                                                                        Command="{Binding DataContext.SendActuatorCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                        CommandParameter="{Binding}"
-                                                                        HorizontalAlignment="Stretch" />
-                                                                <TextBlock Text="{Binding LastStatus}" Foreground="{StaticResource MutedInkBrush}" TextWrapping="Wrap" />
-                                                            </StackPanel>
-                                                        </Border>
-                                                    </DataTemplate>
-                                                </ItemsControl.ItemTemplate>
-                                            </ItemsControl>
-                                        </StackPanel>
-                                    </StackPanel>
-                                </Border>
-                            </Grid>
-
-                            <Grid>
-                                <Grid.ColumnDefinitions>
-                                    <ColumnDefinition Width="*" />
-                                    <ColumnDefinition Width="*" />
-                                </Grid.ColumnDefinitions>
-                                <Border Style="{StaticResource CardBorder}">
-                                    <StackPanel>
-                                        <TextBlock Text="Latest sensor readings" FontSize="20" FontWeight="SemiBold" />
-                                        <ItemsControl ItemsSource="{Binding LatestValues}" Margin="0,12,0,0">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Grid Margin="0,0,0,10">
-                                                        <Grid.ColumnDefinitions>
-                                                            <ColumnDefinition Width="*" />
-                                                            <ColumnDefinition Width="Auto" />
-                                                        </Grid.ColumnDefinitions>
-                                                        <StackPanel>
-                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" />
-                                                            <TextBlock Text="{Binding CapabilityKey}" Foreground="{StaticResource MutedInkBrush}" />
-                                                        </StackPanel>
-                                                        <TextBlock Grid.Column="1"
-                                                                   Text="{Binding DisplayValue}"
-                                                                   FontSize="18"
-                                                                   FontWeight="SemiBold" />
-                                                    </Grid>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </StackPanel>
-                                </Border>
-
-                                <Border Grid.Column="1" Style="{StaticResource CardBorder}">
-                                    <StackPanel>
                                         <Grid>
-                                            <TextBlock Text="Recent activity" FontSize="20" FontWeight="SemiBold" />
+                                            <TextBlock Text="Recent activities" FontSize="20" FontWeight="SemiBold" />
                                             <Button Content="View all"
                                                     Command="{Binding ViewAllNotificationsCommand}"
                                                     Style="{StaticResource LinkButton}"
