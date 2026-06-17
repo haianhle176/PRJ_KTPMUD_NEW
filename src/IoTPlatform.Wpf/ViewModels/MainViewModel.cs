@@ -25,6 +25,7 @@ public sealed class MainViewModel : ObservableObject
     private string _availableDeviceMessage = "Waiting for DeviceApp...";
     private string _availablePairingCode = "";
     private string _availableClaimError = "";
+    private bool _isOnboardingClaimSuccess;
     private DeviceSummary? _selectedDevice;
     private AvailableDevice? _selectedAvailableDevice;
     private AutomationRuleDto? _selectedAutomationRule;
@@ -115,6 +116,10 @@ public sealed class MainViewModel : ObservableObject
                 OnPropertyChanged(nameof(AutomationVisibility));
                 OnPropertyChanged(nameof(NotificationsVisibility));
                 OnPropertyChanged(nameof(AdvancedVisibility));
+                OnPropertyChanged(nameof(IsHomeNavSelected));
+                OnPropertyChanged(nameof(IsAutomationNavSelected));
+                OnPropertyChanged(nameof(IsNotificationsNavSelected));
+                OnPropertyChanged(nameof(IsAdvancedNavSelected));
             }
         }
     }
@@ -313,6 +318,18 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    public bool IsOnboardingClaimSuccess
+    {
+        get => _isOnboardingClaimSuccess;
+        set
+        {
+            if (SetProperty(ref _isOnboardingClaimSuccess, value))
+            {
+                NotifyDashboardCounts();
+            }
+        }
+    }
+
     public int OnlineDeviceCount => Devices.Count(device => device.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
     public int OfflineDeviceCount => Devices.Count(device => !device.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
     public int UnreadNotificationCount => Notifications.Count(notification => !notification.IsRead);
@@ -320,6 +337,10 @@ public sealed class MainViewModel : ObservableObject
     public int SelectedActuatorCount => Actuators.Count;
     public int EnabledAutomationCount => AutomationRules.Count(rule => rule.IsEnabled);
     public string UnreadNotificationBadgeText => UnreadNotificationCount > 99 ? "99+" : UnreadNotificationCount.ToString();
+    public bool IsHomeNavSelected => CurrentSection == "Home";
+    public bool IsAutomationNavSelected => CurrentSection == "Automation";
+    public bool IsNotificationsNavSelected => CurrentSection == "Notifications";
+    public bool IsAdvancedNavSelected => CurrentSection == "Advanced";
     public string LastHomeRefreshText
     {
         get => _lastHomeRefreshText;
@@ -345,6 +366,34 @@ public sealed class MainViewModel : ObservableObject
     }
 
     public IEnumerable<NotificationDto> RecentHomeNotifications => Notifications.Take(5);
+    public string OnboardingTitle => IsOnboardingClaimSuccess ? "You are all set!" :
+        AvailableDevices.Count == 0 ? "Start DeviceApp to connect your first device." : "Device found";
+    public string OnboardingSubtitle => IsOnboardingClaimSuccess
+        ? "Your device has been added and is ready to use."
+        : AvailableDevices.Count == 0
+        ? "DeviceApp runs locally and publishes your simulated SmartHome devices to OmniConnect."
+        : "Enter the pairing code shown in DeviceApp to claim this device.";
+    public string OnboardingHeroIcon => IsOnboardingClaimSuccess ? "\uE73E" : "\uE8B7";
+    public string OnboardingHeroIconForeground => IsOnboardingClaimSuccess ? "#16A34A" : "#2563EB";
+    public string OnboardingHeroIconBackground => IsOnboardingClaimSuccess ? "#DCFCE7" : "#EFF6FF";
+    public bool IsOnboardingDeviceDetected => AvailableDevices.Count > 0;
+    public string Step2DotText => IsOnboardingDeviceDetected || IsOnboardingClaimSuccess ? "\uE73E" : "2";
+    public string Step3DotText => IsOnboardingClaimSuccess ? "\uE73E" : "3";
+    public string Step4DotText => IsOnboardingClaimSuccess ? "\uE73E" : "4";
+    public string Step2Background => IsOnboardingDeviceDetected || IsOnboardingClaimSuccess ? "#DCFCE7" : "#2563EB";
+    public string Step2Border => IsOnboardingDeviceDetected || IsOnboardingClaimSuccess ? "#22C55E" : "#2563EB";
+    public string Step2Foreground => IsOnboardingDeviceDetected || IsOnboardingClaimSuccess ? "#16A34A" : "#FFFFFF";
+    public string Step3Background => IsOnboardingClaimSuccess ? "#DCFCE7" : IsOnboardingDeviceDetected ? "#2563EB" : "#FFFFFF";
+    public string Step3Border => IsOnboardingClaimSuccess ? "#22C55E" : IsOnboardingDeviceDetected ? "#2563EB" : "#D8E0EA";
+    public string Step3Foreground => IsOnboardingClaimSuccess ? "#16A34A" : IsOnboardingDeviceDetected ? "#FFFFFF" : "#64748B";
+    public string Step4Background => IsOnboardingClaimSuccess ? "#2563EB" : "#FFFFFF";
+    public string Step4Border => IsOnboardingClaimSuccess ? "#2563EB" : "#D8E0EA";
+    public string Step4Foreground => IsOnboardingClaimSuccess ? "#FFFFFF" : "#64748B";
+    public string Step2LabelForeground => "#2563EB";
+    public string Step3LabelForeground => IsOnboardingDeviceDetected || IsOnboardingClaimSuccess ? "#2563EB" : "#64748B";
+    public string Step4LabelForeground => IsOnboardingClaimSuccess ? "#2563EB" : "#64748B";
+    public string Step2ConnectorBrush => IsOnboardingDeviceDetected || IsOnboardingClaimSuccess ? "#2563EB" : "#D8E0EA";
+    public string Step3ConnectorBrush => IsOnboardingClaimSuccess ? "#2563EB" : "#D8E0EA";
     public string SelectedAvailableDeviceName => SelectedAvailableDevice?.Serial ?? "selected device";
     public string SelectedDeviceName => SelectedDevice?.NameOrSerial ?? "Select a device";
     public string SelectedDeviceStatus => SelectedDevice is null ? "No device selected" : $"{SelectedDevice.Status} - Last seen {SelectedDevice.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "never"}";
@@ -376,15 +425,19 @@ public sealed class MainViewModel : ObservableObject
     public Visibility NoSelectedDeviceVisibility => SelectedDevice is null ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyDevicesVisibility => Devices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasDevicesVisibility => Devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility HomeEmptyVisibility => Devices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility HomeDashboardVisibility => Devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HomeEmptyVisibility => Devices.Count == 0 || IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HomeDashboardVisibility => Devices.Count > 0 && !IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyAvailableDevicesVisibility => AvailableDevices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasAvailableDevicesVisibility => AvailableDevices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility OnboardingWaitingVisibility => AvailableDevices.Count == 0 && !IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility OnboardingClaimVisibility => AvailableDevices.Count > 0 && !IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility OnboardingSuccessVisibility => IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SelectedAvailableDeviceVisibility => SelectedAvailableDevice is null ? Visibility.Collapsed : Visibility.Visible;
     public Visibility AvailableClaimErrorVisibility => string.IsNullOrWhiteSpace(AvailableClaimError) ? Visibility.Collapsed : Visibility.Visible;
     public Visibility EmptyNotificationsVisibility => Notifications.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasNotificationsVisibility => Notifications.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NotificationFlyoutVisibility => IsNotificationFlyoutOpen ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility UnreadNotificationBadgeVisibility => UnreadNotificationCount > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RegisterFieldVisibility => IsRegisterMode ? Visibility.Visible : Visibility.Collapsed;
 
     private Task ToggleAuthModeAsync()
@@ -557,6 +610,10 @@ public sealed class MainViewModel : ObservableObject
                 SelectedAvailableDevice = null;
                 AvailablePairingCode = "";
             }
+            if (SelectedAvailableDevice is null && AvailableDevices.Count > 0)
+            {
+                SelectedAvailableDevice = AvailableDevices[0];
+            }
         }
         catch
         {
@@ -604,7 +661,10 @@ public sealed class MainViewModel : ObservableObject
             await RefreshAvailableDevicesSafelyAsync();
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == device.Id);
             CurrentSection = "Home";
+            IsOnboardingClaimSuccess = true;
             StatusMessage = $"Claimed {device.NameOrSerial}.";
+            await Task.Delay(TimeSpan.FromMilliseconds(1400));
+            IsOnboardingClaimSuccess = false;
         }
         catch
         {
@@ -959,6 +1019,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedSensorCount));
         OnPropertyChanged(nameof(SelectedActuatorCount));
         OnPropertyChanged(nameof(UnreadNotificationBadgeText));
+        OnPropertyChanged(nameof(UnreadNotificationBadgeVisibility));
         OnPropertyChanged(nameof(RecentHomeNotifications));
         OnPropertyChanged(nameof(EnabledAutomationCount));
         OnPropertyChanged(nameof(EmptyDevicesVisibility));
@@ -967,6 +1028,32 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HomeDashboardVisibility));
         OnPropertyChanged(nameof(EmptyAvailableDevicesVisibility));
         OnPropertyChanged(nameof(HasAvailableDevicesVisibility));
+        OnPropertyChanged(nameof(OnboardingWaitingVisibility));
+        OnPropertyChanged(nameof(OnboardingClaimVisibility));
+        OnPropertyChanged(nameof(OnboardingSuccessVisibility));
+        OnPropertyChanged(nameof(OnboardingTitle));
+        OnPropertyChanged(nameof(OnboardingSubtitle));
+        OnPropertyChanged(nameof(OnboardingHeroIcon));
+        OnPropertyChanged(nameof(OnboardingHeroIconForeground));
+        OnPropertyChanged(nameof(OnboardingHeroIconBackground));
+        OnPropertyChanged(nameof(IsOnboardingDeviceDetected));
+        OnPropertyChanged(nameof(Step2DotText));
+        OnPropertyChanged(nameof(Step3DotText));
+        OnPropertyChanged(nameof(Step4DotText));
+        OnPropertyChanged(nameof(Step2Background));
+        OnPropertyChanged(nameof(Step2Border));
+        OnPropertyChanged(nameof(Step2Foreground));
+        OnPropertyChanged(nameof(Step3Background));
+        OnPropertyChanged(nameof(Step3Border));
+        OnPropertyChanged(nameof(Step3Foreground));
+        OnPropertyChanged(nameof(Step4Background));
+        OnPropertyChanged(nameof(Step4Border));
+        OnPropertyChanged(nameof(Step4Foreground));
+        OnPropertyChanged(nameof(Step2LabelForeground));
+        OnPropertyChanged(nameof(Step3LabelForeground));
+        OnPropertyChanged(nameof(Step4LabelForeground));
+        OnPropertyChanged(nameof(Step2ConnectorBrush));
+        OnPropertyChanged(nameof(Step3ConnectorBrush));
         OnPropertyChanged(nameof(SelectedAvailableDeviceVisibility));
         OnPropertyChanged(nameof(EmptyNotificationsVisibility));
         OnPropertyChanged(nameof(HasNotificationsVisibility));

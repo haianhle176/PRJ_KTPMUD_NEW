@@ -158,10 +158,54 @@
             <Setter Property="BorderBrush" Value="{StaticResource BorderBrushSoft}" />
         </Style>
 
-        <Style x:Key="NavButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
-            <Setter Property="HorizontalContentAlignment" Value="Left" />
-            <Setter Property="Margin" Value="0,0,0,8" />
-            <Setter Property="Padding" Value="12,10" />
+        <Style x:Key="NavButton" TargetType="Button">
+            <Setter Property="Height" Value="46" />
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="Padding" Value="20,0,12,0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource MutedInkBrush}" />
+            <Setter Property="BorderBrush" Value="Transparent" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Border x:Name="ActiveRail"
+                                    Width="3"
+                                    HorizontalAlignment="Left"
+                                    VerticalAlignment="Stretch"
+                                    Background="{StaticResource PrimaryBrush}"
+                                    CornerRadius="0,3,3,0"
+                                    Opacity="0" />
+                            <Border x:Name="NavBackground"
+                                    Margin="4,0,0,0"
+                                    Background="{TemplateBinding Background}"
+                                    CornerRadius="8">
+                                <ContentPresenter Margin="{TemplateBinding Padding}"
+                                                  HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
+                                                  VerticalAlignment="Center" />
+                            </Border>
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="NavBackground" Property="Background" Value="#F1F5F9" />
+                            </Trigger>
+                            <Trigger Property="Tag" Value="True">
+                                <Setter TargetName="NavBackground" Property="Background" Value="#EFF6FF" />
+                                <Setter TargetName="ActiveRail" Property="Opacity" Value="1" />
+                                <Setter Property="Foreground" Value="{StaticResource PrimaryBrush}" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter Property="Opacity" Value="0.45" />
+                                <Setter Property="Cursor" Value="Arrow" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
         </Style>
 
         <Style x:Key="PillButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">

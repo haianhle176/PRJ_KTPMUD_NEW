@@ -194,9 +194,15 @@
                     Background="{StaticResource SurfaceBrush}"
                     BorderBrush="{StaticResource BorderBrushSoft}"
                     BorderThickness="0,0,1,0"
-                    Padding="24">
-                <DockPanel LastChildFill="True">
-                    <StackPanel DockPanel.Dock="Top">
+                    Padding="0">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
+                    </Grid.RowDefinitions>
+
+                    <StackPanel Grid.Row="0" Margin="24,26,24,0">
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,30">
                             <Border Width="44"
                                     Height="44"
@@ -227,56 +233,164 @@
                                 <TextBlock Text="SmartHome Platform" Foreground="{StaticResource MutedInkBrush}" />
                             </StackPanel>
                         </StackPanel>
+                    </StackPanel>
 
-                        <Button Style="{StaticResource NavButton}" Command="{Binding NavigateCommand}" CommandParameter="Home">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE80F;" Style="{StaticResource IconGlyph}" Margin="0,0,12,0" />
-                                <TextBlock Text="Home" VerticalAlignment="Center" />
-                            </StackPanel>
+                    <StackPanel Grid.Row="1" Margin="20,0,20,0">
+                        <Button Style="{StaticResource NavButton}"
+                                Command="{Binding NavigateCommand}"
+                                CommandParameter="Home"
+                                Tag="{Binding IsHomeNavSelected}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="&#xE80F;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Home"
+                                           VerticalAlignment="Center" />
+                            </Grid>
                         </Button>
-                        <Button Style="{StaticResource NavButton}" Command="{Binding NavigateCommand}" CommandParameter="Devices">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE8B7;" Style="{StaticResource IconGlyph}" Margin="0,0,12,0" />
-                                <TextBlock Text="Devices" VerticalAlignment="Center" />
-                            </StackPanel>
+                        <Button Style="{StaticResource NavButton}"
+                                Command="{Binding NavigateCommand}"
+                                CommandParameter="Automation"
+                                Tag="{Binding IsAutomationNavSelected}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="&#xE713;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Automation"
+                                           VerticalAlignment="Center" />
+                            </Grid>
                         </Button>
-                        <Button Style="{StaticResource NavButton}" Command="{Binding NavigateCommand}" CommandParameter="Automation">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE713;" Style="{StaticResource IconGlyph}" Margin="0,0,12,0" />
-                                <TextBlock Text="Automation" VerticalAlignment="Center" />
-                            </StackPanel>
-                        </Button>
-                        <Button Style="{StaticResource NavButton}" Command="{Binding NavigateCommand}" CommandParameter="Notifications">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE7F4;" Style="{StaticResource IconGlyph}" Margin="0,0,12,0" />
-                                <TextBlock Text="Notifications" VerticalAlignment="Center" />
-                            </StackPanel>
+                        <Button Style="{StaticResource NavButton}"
+                                Command="{Binding NavigateCommand}"
+                                CommandParameter="Notifications"
+                                Tag="{Binding IsNotificationsNavSelected}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="&#xE7ED;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Alerts"
+                                           VerticalAlignment="Center" />
+                                <Border Grid.Column="2"
+                                        MinWidth="20"
+                                        Height="20"
+                                        Background="{StaticResource PrimaryBrush}"
+                                        CornerRadius="10"
+                                        Padding="5,0"
+                                        Visibility="{Binding UnreadNotificationBadgeVisibility}">
+                                    <TextBlock Text="{Binding UnreadNotificationBadgeText}"
+                                               Foreground="White"
+                                               FontSize="11"
+                                               FontWeight="Bold"
+                                               HorizontalAlignment="Center"
+                                               VerticalAlignment="Center" />
+                                </Border>
+                            </Grid>
                         </Button>
 
-                        <Separator Margin="0,18,0,18" />
-                        <Button Style="{StaticResource NavButton}" Command="{Binding NavigateCommand}" CommandParameter="Advanced">
-                            <StackPanel Orientation="Horizontal">
-                                <TextBlock Text="&#xE7BE;" Style="{StaticResource IconGlyph}" Margin="0,0,12,0" />
-                                <TextBlock Text="Advanced" VerticalAlignment="Center" />
-                            </StackPanel>
+                        <Border Height="1" Background="{StaticResource BorderBrushSoft}" Margin="4,18,4,18" />
+                        <Button Style="{StaticResource NavButton}"
+                                Command="{Binding NavigateCommand}"
+                                CommandParameter="Advanced"
+                                Tag="{Binding IsAdvancedNavSelected}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="28" />
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <TextBlock Grid.Column="0"
+                                           Text="&#xE713;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="18"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="1"
+                                           Text="Settings"
+                                           VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2"
+                                           Text="&#xE76C;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="13"
+                                           VerticalAlignment="Center" />
+                            </Grid>
                         </Button>
                     </StackPanel>
 
-                    <StackPanel DockPanel.Dock="Bottom">
-                        <StackPanel Orientation="Horizontal" Margin="0,0,0,16">
-                            <Border Width="34" Height="34" Background="{StaticResource PrimaryBrush}" CornerRadius="17" Margin="0,0,10,0">
-                                <TextBlock Text="AU" Foreground="White" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                    <StackPanel Grid.Row="2" Margin="24,0,24,24">
+                        <Border Height="1" Background="{StaticResource BorderBrushSoft}" Margin="0,0,0,18" />
+                        <Grid Margin="0,0,0,14">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <Border Grid.Column="0"
+                                    Width="38"
+                                    Height="38"
+                                    Background="{StaticResource PrimaryBrush}"
+                                    CornerRadius="19"
+                                    Margin="0,0,10,0">
+                                <TextBlock Text="AU"
+                                           Foreground="White"
+                                           FontWeight="SemiBold"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
                             </Border>
-                            <StackPanel>
+                            <StackPanel Grid.Column="1" VerticalAlignment="Center">
                                 <TextBlock Text="Admin User" FontWeight="SemiBold" />
-                                <TextBlock Text="Cloud account" Foreground="{StaticResource MutedInkBrush}" />
+                                <TextBlock Text="Cloud account"
+                                           Foreground="{StaticResource MutedInkBrush}"
+                                           FontSize="12" />
                             </StackPanel>
+                            <Button Grid.Column="2"
+                                    Command="{Binding LogoutCommand}"
+                                    Style="{StaticResource NavButton}"
+                                    Width="36"
+                                    Height="36"
+                                    Padding="0"
+                                    Margin="0"
+                                    ToolTip="Logout">
+                                <TextBlock Text="&#xE8AC;"
+                                           FontFamily="Segoe MDL2 Assets"
+                                           FontSize="16"
+                                           HorizontalAlignment="Center"
+                                           VerticalAlignment="Center" />
+                            </Button>
+                        </Grid>
+                        <StackPanel Orientation="Horizontal">
+                            <Ellipse Width="8"
+                                     Height="8"
+                                     Fill="#16A34A"
+                                     VerticalAlignment="Center"
+                                     Margin="0,0,8,0" />
+                            <TextBlock Text="Connected"
+                                       Foreground="{StaticResource MutedInkBrush}"
+                                       FontSize="12"
+                                       VerticalAlignment="Center" />
                         </StackPanel>
-                        <TextBlock Text="Cloud connection" Style="{StaticResource SmallLabel}" />
-                        <TextBlock Text="Connected" Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" Margin="0,0,0,12" />
-                        <Button Content="Logout" Command="{Binding LogoutCommand}" Style="{StaticResource SecondaryButton}" />
                     </StackPanel>
-                </DockPanel>
+                </Grid>
             </Border>
 
             <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="34,28,28,0">
@@ -396,161 +510,226 @@
                             </Border>
                         </Grid>
 
-                        <Grid Visibility="{Binding HomeEmptyVisibility}">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="1.2*" />
-                                <ColumnDefinition Width="0.8*" />
-                            </Grid.ColumnDefinitions>
+                        <Grid Visibility="{Binding HomeEmptyVisibility}"
+                              HorizontalAlignment="Center"
+                              Margin="0,18,0,0"
+                              MaxWidth="560">
+                            <StackPanel>
+                                <Grid Margin="0,0,0,22">
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                        <ColumnDefinition Width="Auto" />
+                                    </Grid.ColumnDefinitions>
 
-                            <Border Style="{StaticResource CardBorder}" Padding="24">
-                                <StackPanel>
-                                    <TextBlock Text="Welcome to OmniConnect" FontSize="28" FontWeight="Bold" />
-                                    <TextBlock Text="Connect your first dynamic IoT device."
-                                               Foreground="{StaticResource MutedInkBrush}"
-                                               FontSize="15"
-                                               Margin="0,6,0,24" />
-
-                                    <UniformGrid Columns="4" Margin="0,0,0,24">
-                                        <StackPanel>
-                                            <Border Width="42" Height="42" Background="{StaticResource PrimaryBrush}" CornerRadius="21">
-                                                <TextBlock Text="1" Foreground="White" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
-                                            <TextBlock Text="Connect your device" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,8,10,0" />
-                                        </StackPanel>
-                                        <StackPanel>
-                                            <Border Width="42" Height="42" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="21">
-                                                <TextBlock Text="2" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
-                                            <TextBlock Text="Enter pairing code" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,8,10,0" />
-                                        </StackPanel>
-                                        <StackPanel>
-                                            <Border Width="42" Height="42" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="21">
-                                                <TextBlock Text="3" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
-                                            <TextBlock Text="Claim your device" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,8,10,0" />
-                                        </StackPanel>
-                                        <StackPanel>
-                                            <Border Width="42" Height="42" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="21">
-                                                <TextBlock Text="4" Foreground="{StaticResource PrimaryBrush}" FontWeight="Bold" HorizontalAlignment="Center" VerticalAlignment="Center" />
-                                            </Border>
-                                            <TextBlock Text="You're all set" TextWrapping="Wrap" FontWeight="SemiBold" Margin="0,8,10,0" />
-                                        </StackPanel>
-                                    </UniformGrid>
-
-                                    <Border Background="{StaticResource SurfaceMutedBrush}" CornerRadius="18" Padding="18" Margin="0,0,0,18">
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="52" />
-                                                <ColumnDefinition Width="*" />
-                                            </Grid.ColumnDefinitions>
-                                            <Border Width="42" Height="42" Background="{StaticResource SurfaceBrush}" CornerRadius="21">
-                                                <TextBlock Text="&#xE8B7;" Style="{StaticResource IconGlyph}" HorizontalAlignment="Center" />
-                                            </Border>
-                                            <StackPanel Grid.Column="1">
-                                                <TextBlock Text="Start Worker and DeviceApp locally" FontWeight="SemiBold" />
-                                                <TextBlock Text="When the device sends its manifest, it will appear as available here. Copy the pairing code from DeviceApp to claim it."
-                                                           Foreground="{StaticResource MutedInkBrush}"
-                                                           TextWrapping="Wrap"
-                                                           Margin="0,4,0,0" />
-                                            </StackPanel>
-                                        </Grid>
-                                    </Border>
-
-                                    <TextBlock Text="{Binding LastHomeRefreshText}" Foreground="{StaticResource MutedInkBrush}" />
-                                </StackPanel>
-                            </Border>
-
-                            <StackPanel Grid.Column="1">
-                                <Border Style="{StaticResource CardBorder}">
-                                    <StackPanel>
-                                        <TextBlock Text="Available devices" FontSize="20" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding AvailableDeviceMessage}"
-                                                   Foreground="{StaticResource MutedInkBrush}"
-                                                   Margin="0,4,0,12" />
-                                        <Border Visibility="{Binding EmptyAvailableDevicesVisibility}"
-                                                Background="{StaticResource SurfaceMutedBrush}"
-                                                CornerRadius="14"
-                                                Padding="16">
-                                            <TextBlock Text="Waiting for DeviceApp..."
-                                                       Foreground="{StaticResource MutedInkBrush}" />
+                                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                        <Border Width="30" Height="30" Background="#DCFCE7" BorderBrush="#22C55E" BorderThickness="1" CornerRadius="15">
+                                            <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" Foreground="#16A34A" FontSize="12" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                         </Border>
-                                        <ItemsControl ItemsSource="{Binding AvailableDevices}"
-                                                      Visibility="{Binding HasAvailableDevicesVisibility}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                    <Button Command="{Binding DataContext.SelectAvailableDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                            CommandParameter="{Binding}"
-                                                            Style="{StaticResource SecondaryButton}"
-                                                            HorizontalAlignment="Stretch"
-                                                            Padding="0"
-                                                            Margin="0,0,0,10">
-                                                        <Border Background="White"
-                                                                BorderBrush="{StaticResource BorderBrushSoft}"
-                                                                BorderThickness="1"
-                                                                CornerRadius="16"
-                                                                Padding="14">
-                                                            <Grid>
-                                                                <Grid.ColumnDefinitions>
-                                                                    <ColumnDefinition Width="42" />
-                                                                    <ColumnDefinition Width="*" />
-                                                                    <ColumnDefinition Width="Auto" />
-                                                                </Grid.ColumnDefinitions>
-                                                                <Border Width="32"
-                                                                        Height="32"
-                                                                        Background="{StaticResource SurfaceMutedBrush}"
-                                                                        CornerRadius="16">
-                                                                    <TextBlock Text="{Binding KindIcon}"
-                                                                               FontFamily="Segoe UI Emoji"
-                                                                               Foreground="{StaticResource PrimaryBrush}"
-                                                                               HorizontalAlignment="Center"
-                                                                               VerticalAlignment="Center"
-                                                                               FontSize="16" />
-                                                                </Border>
-                                                                <StackPanel Grid.Column="1">
-                                                                    <TextBlock Text="{Binding Serial}" FontWeight="SemiBold" />
-                                                                    <TextBlock Text="{Binding KindLabel}"
-                                                                               Foreground="{StaticResource MutedInkBrush}" />
-                                                                </StackPanel>
-                                                                <TextBlock Grid.Column="2"
-                                                                           Text="Online"
-                                                                           Foreground="{StaticResource PrimaryBrush}"
-                                                                           FontWeight="SemiBold"
-                                                                           VerticalAlignment="Center" />
-                                                            </Grid>
-                                                        </Border>
-                                                    </Button>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
+                                        <TextBlock Text="Sign in" Foreground="{StaticResource PrimaryBrush}" FontSize="11" FontWeight="SemiBold" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="1" Height="2" Background="{StaticResource PrimaryBrush}" Margin="8,15" />
 
-                                        <Border Visibility="{Binding SelectedAvailableDeviceVisibility}"
-                                                Background="{StaticResource SurfaceMutedBrush}"
-                                                CornerRadius="14"
-                                                Padding="14"
-                                                Margin="0,4,0,0">
-                                            <StackPanel>
-                                                <TextBlock Text="{Binding SelectedAvailableDeviceName}"
-                                                           FontWeight="SemiBold" />
-                                                <TextBlock Text="Enter the pairing code shown in DeviceApp."
-                                                           Foreground="{StaticResource MutedInkBrush}"
-                                                           Margin="0,2,0,8" />
+                                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                        <Border Width="30" Height="30" Background="{Binding Step2Background}" BorderBrush="{Binding Step2Border}" BorderThickness="1" CornerRadius="15">
+                                            <TextBlock Text="{Binding Step2DotText}" FontFamily="Segoe MDL2 Assets" Foreground="{Binding Step2Foreground}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="Connect device" Foreground="{Binding Step2LabelForeground}" FontSize="11" FontWeight="SemiBold" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="3" Height="2" Background="{Binding Step2ConnectorBrush}" Margin="8,15" />
+
+                                    <StackPanel Grid.Column="4" HorizontalAlignment="Center">
+                                        <Border Width="30" Height="30" Background="{Binding Step3Background}" BorderBrush="{Binding Step3Border}" BorderThickness="1" CornerRadius="15">
+                                            <TextBlock Text="{Binding Step3DotText}" FontFamily="Segoe MDL2 Assets" Foreground="{Binding Step3Foreground}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="Claim device" Foreground="{Binding Step3LabelForeground}" FontSize="11" FontWeight="SemiBold" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                    <Border Grid.Column="5" Height="2" Background="{Binding Step3ConnectorBrush}" Margin="8,15" />
+
+                                    <StackPanel Grid.Column="6" HorizontalAlignment="Center">
+                                        <Border Width="30" Height="30" Background="{Binding Step4Background}" BorderBrush="{Binding Step4Border}" BorderThickness="1" CornerRadius="15">
+                                            <TextBlock Text="{Binding Step4DotText}" FontFamily="Segoe MDL2 Assets" Foreground="{Binding Step4Foreground}" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="You're all set" Foreground="{Binding Step4LabelForeground}" FontSize="11" FontWeight="SemiBold" Margin="0,6,0,0" />
+                                    </StackPanel>
+                                </Grid>
+
+                                <Border Background="{StaticResource SurfaceBrush}"
+                                        BorderBrush="{StaticResource BorderBrushSoft}"
+                                        BorderThickness="1"
+                                        CornerRadius="18"
+                                        Padding="24"
+                                        Margin="0,0,0,14">
+                                    <StackPanel>
+                                        <Border Width="64"
+                                                Height="64"
+                                                Background="{Binding OnboardingHeroIconBackground}"
+                                                CornerRadius="20"
+                                                HorizontalAlignment="Center"
+                                                Margin="0,0,0,16">
+                                            <TextBlock Text="{Binding OnboardingHeroIcon}"
+                                                       FontFamily="Segoe MDL2 Assets"
+                                                       Foreground="{Binding OnboardingHeroIconForeground}"
+                                                       FontSize="26"
+                                                       HorizontalAlignment="Center"
+                                                       VerticalAlignment="Center" />
+                                        </Border>
+                                        <TextBlock Text="{Binding OnboardingTitle}"
+                                                   FontSize="20"
+                                                   FontWeight="SemiBold"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap" />
+                                        <TextBlock Text="{Binding OnboardingSubtitle}"
+                                                   Foreground="{StaticResource MutedInkBrush}"
+                                                   TextAlignment="Center"
+                                                   TextWrapping="Wrap"
+                                                   LineHeight="22"
+                                                   Margin="0,6,0,18" />
+
+                                        <StackPanel Visibility="{Binding OnboardingWaitingVisibility}">
+                                            <Border Background="{StaticResource AppBackgroundBrush}" CornerRadius="12" Padding="12" Margin="0,0,0,10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="28" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Width="22" Height="22" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="11">
+                                                        <TextBlock Text="1" Foreground="{StaticResource PrimaryBrush}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1" Text="Open Worker and DeviceApp on this machine." Foreground="{StaticResource MutedInkBrush}" TextWrapping="Wrap" />
+                                                </Grid>
+                                            </Border>
+                                            <Border Background="{StaticResource AppBackgroundBrush}" CornerRadius="12" Padding="12" Margin="0,0,0,10">
+                                                <Grid>
+                                                    <Grid.ColumnDefinitions>
+                                                        <ColumnDefinition Width="28" />
+                                                        <ColumnDefinition Width="*" />
+                                                    </Grid.ColumnDefinitions>
+                                                    <Border Width="22" Height="22" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="11">
+                                                        <TextBlock Text="2" Foreground="{StaticResource PrimaryBrush}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                    </Border>
+                                                    <TextBlock Grid.Column="1" Text="Add a simulated device, then click Start." Foreground="{StaticResource MutedInkBrush}" TextWrapping="Wrap" />
+                                                </Grid>
+                                            </Border>
+                                            <Border Background="#EFF6FF" BorderBrush="#BFDBFE" BorderThickness="1" CornerRadius="12" Padding="12" Margin="0,4,0,0">
+                                                <StackPanel Orientation="Horizontal">
+                                                    <Ellipse Width="8" Height="8" Fill="{StaticResource PrimaryBrush}" Margin="0,0,10,0" VerticalAlignment="Center" />
+                                                    <TextBlock Text="Waiting for a device to appear..." Foreground="{StaticResource PrimaryBrush}" FontWeight="SemiBold" />
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+
+                                        <StackPanel Visibility="{Binding OnboardingClaimVisibility}">
+                                            <ItemsControl ItemsSource="{Binding AvailableDevices}">
+                                                <ItemsControl.ItemTemplate>
+                                                    <DataTemplate>
+                                                        <Grid Margin="0,0,0,10"
+                                                              HorizontalAlignment="Stretch">
+                                                            <Border Background="{StaticResource AppBackgroundBrush}"
+                                                                    BorderBrush="{StaticResource BorderBrushSoft}"
+                                                                    BorderThickness="1"
+                                                                    CornerRadius="14"
+                                                                    Padding="12"
+                                                                    HorizontalAlignment="Stretch">
+                                                                <Grid>
+                                                                    <Grid.ColumnDefinitions>
+                                                                        <ColumnDefinition Width="44" />
+                                                                        <ColumnDefinition Width="*" />
+                                                                        <ColumnDefinition Width="Auto" />
+                                                                    </Grid.ColumnDefinitions>
+                                                                    <Border Width="34" Height="34" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="11">
+                                                                        <TextBlock Text="{Binding KindIcon}" FontFamily="Segoe UI Emoji" Foreground="{StaticResource PrimaryBrush}" FontSize="17" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                                                    </Border>
+                                                                    <StackPanel Grid.Column="1">
+                                                                        <TextBlock Text="{Binding KindLabel}" FontWeight="SemiBold" />
+                                                                        <TextBlock Text="{Binding Serial}" Foreground="{StaticResource MutedInkBrush}" FontSize="12" />
+                                                                    </StackPanel>
+                                                                    <Border Grid.Column="2" Background="#DCFCE7" CornerRadius="10" Padding="8,3" VerticalAlignment="Center">
+                                                                        <TextBlock Text="Found" Foreground="#16A34A" FontSize="11" FontWeight="SemiBold" />
+                                                                    </Border>
+                                                                </Grid>
+                                                            </Border>
+                                                            <Button Command="{Binding DataContext.SelectAvailableDeviceCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                                    CommandParameter="{Binding}"
+                                                                    Background="Transparent"
+                                                                    BorderBrush="Transparent"
+                                                                    Padding="0"
+                                                                    Margin="0"
+                                                                    HorizontalAlignment="Stretch"
+                                                                    VerticalAlignment="Stretch"
+                                                                    Opacity="0" />
+                                                        </Grid>
+                                                    </DataTemplate>
+                                                </ItemsControl.ItemTemplate>
+                                            </ItemsControl>
+
+                                            <TextBlock Text="Pairing code shown in DeviceApp" Style="{StaticResource SmallLabel}" />
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="110" />
+                                                </Grid.ColumnDefinitions>
                                                 <TextBox Text="{Binding AvailablePairingCode, UpdateSourceTrigger=PropertyChanged}"
-                                                         Tag="Pairing code"
-                                                         Style="{StaticResource PlaceholderTextBox}" />
-                                                <TextBlock Text="{Binding AvailableClaimError}"
-                                                           Visibility="{Binding AvailableClaimErrorVisibility}"
-                                                           Foreground="#DC2626"
-                                                           FontWeight="SemiBold"
-                                                           TextWrapping="Wrap"
-                                                           Margin="0,-4,0,10" />
-                                                <Button Content="Claim"
+                                                         Tag="e.g. HD3KVGPA"
+                                                         CharacterCasing="Upper"
+                                                         Style="{StaticResource PlaceholderTextBox}"
+                                                         Margin="0,4,8,8" />
+                                                <Button Grid.Column="1"
+                                                        Content="Claim"
                                                         Command="{Binding ClaimSelectedAvailableDeviceCommand}"
                                                         HorizontalAlignment="Stretch"
-                                                        Margin="0,0,0,0" />
-                                            </StackPanel>
-                                        </Border>
+                                                        Height="44"
+                                                        Margin="0,4,0,8" />
+                                            </Grid>
+                                            <TextBlock Text="{Binding AvailableClaimError}"
+                                                       Visibility="{Binding AvailableClaimErrorVisibility}"
+                                                       Foreground="#DC2626"
+                                                       FontWeight="SemiBold"
+                                                       TextWrapping="Wrap"
+                                                       Margin="0,0,0,4" />
+                                        </StackPanel>
+
+                                        <StackPanel Visibility="{Binding OnboardingSuccessVisibility}">
+                                            <Border Background="#DCFCE7" CornerRadius="36" Width="72" Height="72" HorizontalAlignment="Center" Margin="0,2,0,14">
+                                                <TextBlock Text="&#xE73E;" FontFamily="Segoe MDL2 Assets" Foreground="#16A34A" FontSize="30" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <TextBlock Text="Taking you to the dashboard..."
+                                                       Foreground="{StaticResource MutedInkBrush}"
+                                                       TextAlignment="Center"
+                                                       FontWeight="SemiBold"
+                                                       Margin="0,0,0,4" />
+                                        </StackPanel>
                                     </StackPanel>
                                 </Border>
+
+                                <UniformGrid Columns="2">
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" CornerRadius="14" Padding="14" Margin="0,0,8,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="30" Height="30" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="9" Margin="0,0,10,0">
+                                                <TextBlock Text="&#xE768;" Style="{StaticResource IconGlyph}" FontSize="15" HorizontalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel>
+                                                <TextBlock Text="Open DeviceApp" FontWeight="SemiBold" />
+                                                <TextBlock Text="Use Advanced shortcuts" Foreground="{StaticResource MutedInkBrush}" FontSize="12" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                    <Border Background="{StaticResource SurfaceBrush}" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" CornerRadius="14" Padding="14" Margin="8,0,0,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Border Width="30" Height="30" Background="#FEF3C7" CornerRadius="9" Margin="0,0,10,0">
+                                                <TextBlock Text="&#xE897;" FontFamily="Segoe MDL2 Assets" Foreground="#D97706" FontSize="15" HorizontalAlignment="Center" VerticalAlignment="Center" />
+                                            </Border>
+                                            <StackPanel>
+                                                <TextBlock Text="Troubleshooting" FontWeight="SemiBold" />
+                                                <TextBlock Text="Device not showing up?" Foreground="{StaticResource MutedInkBrush}" FontSize="12" />
+                                            </StackPanel>
+                                        </StackPanel>
+                                    </Border>
+                                </UniformGrid>
                             </StackPanel>
                         </Grid>
 
