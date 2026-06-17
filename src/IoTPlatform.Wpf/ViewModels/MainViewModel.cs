@@ -387,6 +387,7 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _homeDeviceFilter, value))
             {
                 OnPropertyChanged(nameof(FilteredHomeDeviceCards));
+                OnPropertyChanged(nameof(HomeViewAllDevicesVisibility));
                 OnPropertyChanged(nameof(AllFilterBackground));
                 OnPropertyChanged(nameof(OnlineFilterBackground));
                 OnPropertyChanged(nameof(OfflineFilterBackground));
@@ -409,6 +410,7 @@ public sealed class MainViewModel : ObservableObject
         "Sensors" => HomeDeviceCards.Where(card => card.IsSensor),
         _ => HomeDeviceCards
     };
+    public Visibility HomeViewAllDevicesVisibility => FilteredHomeDeviceCards.Count() > 6 ? Visibility.Visible : Visibility.Collapsed;
     public string AllFilterBackground => FilterBackground("All");
     public string OnlineFilterBackground => FilterBackground("Online");
     public string OfflineFilterBackground => FilterBackground("Offline");
@@ -662,11 +664,14 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task RefreshHomeAsync()
     {
-        await RefreshDevicesAsync();
-        await BuildHomeDeviceCardsAsync();
-        await RefreshAvailableDevicesSafelyAsync();
-        await RefreshNotificationsAsync();
-        LastHomeRefreshText = $"Last updated {DateTime.Now:t}";
+        await RunAsync(async () =>
+        {
+            await RefreshDevicesAsync();
+            await BuildHomeDeviceCardsAsync();
+            await RefreshAvailableDevicesSafelyAsync();
+            await RefreshNotificationsAsync();
+            LastHomeRefreshText = $"Last updated {DateTime.Now:t}";
+        });
     }
 
     private Task SelectDeviceAsync(DeviceSummary? device)
@@ -1186,6 +1191,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HomeSensorCount));
         OnPropertyChanged(nameof(HomeActuatorCount));
         OnPropertyChanged(nameof(FilteredHomeDeviceCards));
+        OnPropertyChanged(nameof(HomeViewAllDevicesVisibility));
         OnPropertyChanged(nameof(UnreadNotificationBadgeText));
         OnPropertyChanged(nameof(UnreadNotificationBadgeVisibility));
         OnPropertyChanged(nameof(SidebarUnreadNotificationBadgeVisibility));
@@ -1347,6 +1353,7 @@ public sealed class HomeDeviceCard(
     public bool IsSensor => Kind.Equals("sensor", StringComparison.OrdinalIgnoreCase);
     public bool IsActuator => Kind.Equals("actuator", StringComparison.OrdinalIgnoreCase);
     public Visibility ActuatorActionVisibility => IsActuator ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SensorInfoVisibility => IsSensor ? Visibility.Visible : Visibility.Collapsed;
     public bool IsOnline => DeviceStatus.Equals("online", StringComparison.OrdinalIgnoreCase);
     public int KindSort => IsActuator ? 0 : 1;
     public string KindLabel => IsActuator ? "Actuator" : "Sensor";

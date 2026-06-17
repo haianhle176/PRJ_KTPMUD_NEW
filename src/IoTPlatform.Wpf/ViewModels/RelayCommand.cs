@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Windows.Input;
 
 namespace IoTPlatform.Wpf.ViewModels;
@@ -22,6 +23,11 @@ public sealed class RelayCommand(Func<Task> execute, Func<bool>? canExecute = nu
             _isRunning = true;
             RaiseCanExecuteChanged();
             await execute();
+        }
+        catch (Exception exception)
+        {
+            // Keep command failures from terminating the WPF dispatcher.
+            Debug.WriteLine(exception);
         }
         finally
         {
@@ -53,6 +59,11 @@ public sealed class RelayCommand<T>(Func<T?, Task> execute, Func<T?, bool>? canE
             _isRunning = true;
             RaiseCanExecuteChanged();
             await execute((T?)parameter);
+        }
+        catch (Exception exception)
+        {
+            // Keep command failures from terminating the WPF dispatcher.
+            Debug.WriteLine(exception);
         }
         finally
         {
