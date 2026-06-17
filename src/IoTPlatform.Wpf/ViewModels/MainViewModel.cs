@@ -120,6 +120,18 @@ public sealed class MainViewModel : ObservableObject
                 OnPropertyChanged(nameof(IsAutomationNavSelected));
                 OnPropertyChanged(nameof(IsNotificationsNavSelected));
                 OnPropertyChanged(nameof(IsAdvancedNavSelected));
+                OnPropertyChanged(nameof(HomeNavBackground));
+                OnPropertyChanged(nameof(HomeNavForeground));
+                OnPropertyChanged(nameof(HomeNavRailOpacity));
+                OnPropertyChanged(nameof(AutomationNavBackground));
+                OnPropertyChanged(nameof(AutomationNavForeground));
+                OnPropertyChanged(nameof(AutomationNavRailOpacity));
+                OnPropertyChanged(nameof(NotificationsNavBackground));
+                OnPropertyChanged(nameof(NotificationsNavForeground));
+                OnPropertyChanged(nameof(NotificationsNavRailOpacity));
+                OnPropertyChanged(nameof(AdvancedNavBackground));
+                OnPropertyChanged(nameof(AdvancedNavForeground));
+                OnPropertyChanged(nameof(AdvancedNavRailOpacity));
             }
         }
     }
@@ -341,6 +353,18 @@ public sealed class MainViewModel : ObservableObject
     public bool IsAutomationNavSelected => CurrentSection == "Automation";
     public bool IsNotificationsNavSelected => CurrentSection == "Notifications";
     public bool IsAdvancedNavSelected => CurrentSection == "Advanced";
+    public string HomeNavBackground => NavBackground(IsHomeNavSelected);
+    public string HomeNavForeground => NavForeground(IsHomeNavSelected);
+    public double HomeNavRailOpacity => NavRailOpacity(IsHomeNavSelected);
+    public string AutomationNavBackground => NavBackground(IsAutomationNavSelected);
+    public string AutomationNavForeground => NavForeground(IsAutomationNavSelected);
+    public double AutomationNavRailOpacity => NavRailOpacity(IsAutomationNavSelected);
+    public string NotificationsNavBackground => NavBackground(IsNotificationsNavSelected);
+    public string NotificationsNavForeground => NavForeground(IsNotificationsNavSelected);
+    public double NotificationsNavRailOpacity => NavRailOpacity(IsNotificationsNavSelected);
+    public string AdvancedNavBackground => NavBackground(IsAdvancedNavSelected);
+    public string AdvancedNavForeground => NavForeground(IsAdvancedNavSelected);
+    public double AdvancedNavRailOpacity => NavRailOpacity(IsAdvancedNavSelected);
     public string LastHomeRefreshText
     {
         get => _lastHomeRefreshText;
@@ -407,11 +431,11 @@ public sealed class MainViewModel : ObservableObject
     public string AuthSwitchAction => IsRegisterMode ? "Đăng nhập" : "Đăng ký ngay";
     public double AppWindowWidth => IsAuthenticated ? 1280 : 420;
     public double AppWindowHeight => IsAuthenticated ? 820 : 520;
-    public double AppWindowMinWidth => IsAuthenticated ? 1080 : 420;
-    public double AppWindowMinHeight => IsAuthenticated ? 720 : 520;
-    public double AppWindowMaxWidth => IsAuthenticated ? double.PositiveInfinity : 420;
-    public double AppWindowMaxHeight => IsAuthenticated ? double.PositiveInfinity : 520;
-    public ResizeMode AppResizeMode => IsAuthenticated ? ResizeMode.CanResize : ResizeMode.NoResize;
+    public double AppWindowMinWidth => IsAuthenticated ? 1280 : 420;
+    public double AppWindowMinHeight => IsAuthenticated ? 820 : 520;
+    public double AppWindowMaxWidth => IsAuthenticated ? 1280 : 420;
+    public double AppWindowMaxHeight => IsAuthenticated ? 820 : 520;
+    public ResizeMode AppResizeMode => ResizeMode.NoResize;
 
     public Visibility AuthVisibility => Section("Auth");
     public Visibility HomeVisibility => Section("Home");
@@ -1078,6 +1102,12 @@ public sealed class MainViewModel : ObservableObject
     }
 
     private Visibility Section(string section) => CurrentSection == section ? Visibility.Visible : Visibility.Collapsed;
+
+    private static string NavBackground(bool isSelected) => isSelected ? "#EFF6FF" : "Transparent";
+
+    private static string NavForeground(bool isSelected) => isSelected ? "#2563EB" : "#64748B";
+
+    private static double NavRailOpacity(bool isSelected) => isSelected ? 1 : 0;
 
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> values)
     {

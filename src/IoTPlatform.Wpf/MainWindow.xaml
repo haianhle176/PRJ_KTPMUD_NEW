@@ -182,7 +182,7 @@
 
         <Grid Visibility="{Binding AuthenticatedVisibility}">
             <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="260" />
+                <ColumnDefinition Width="224" />
                 <ColumnDefinition Width="*" />
             </Grid.ColumnDefinitions>
             <Grid.RowDefinitions>
@@ -202,7 +202,7 @@
                         <RowDefinition Height="Auto" />
                     </Grid.RowDefinitions>
 
-                    <StackPanel Grid.Row="0" Margin="24,26,24,0">
+                    <StackPanel Grid.Row="0" Margin="20,26,18,0">
                         <StackPanel Orientation="Horizontal" Margin="0,0,0,30">
                             <Border Width="44"
                                     Height="44"
@@ -235,21 +235,31 @@
                         </StackPanel>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="1" Margin="20,0,20,0">
+                    <StackPanel Grid.Row="1" Margin="8,0,14,0">
                         <Button Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}"
                                 CommandParameter="Home"
-                                Tag="{Binding IsHomeNavSelected}">
+                                Background="{Binding HomeNavBackground}"
+                                Foreground="{Binding HomeNavForeground}"
+                                Tag="{Binding HomeNavRailOpacity}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="28" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0"
-                                           Text="&#xE80F;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="18"
-                                           VerticalAlignment="Center" />
+                                <Viewbox Grid.Column="0"
+                                         Width="19"
+                                         Height="19"
+                                         HorizontalAlignment="Left"
+                                         VerticalAlignment="Center">
+                                    <Path Data="M 3,10 L 12,3 L 21,10 M 5,10 L 5,20 L 10,20 L 10,14 L 14,14 L 14,20 L 19,20 L 19,10"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent" />
+                                </Viewbox>
                                 <TextBlock Grid.Column="1"
                                            Text="Home"
                                            VerticalAlignment="Center" />
@@ -258,17 +268,34 @@
                         <Button Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}"
                                 CommandParameter="Automation"
-                                Tag="{Binding IsAutomationNavSelected}">
+                                Background="{Binding AutomationNavBackground}"
+                                Foreground="{Binding AutomationNavForeground}"
+                                Tag="{Binding AutomationNavRailOpacity}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="28" />
                                     <ColumnDefinition Width="*" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0"
-                                           Text="&#xE713;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="18"
-                                           VerticalAlignment="Center" />
+                                <Viewbox Grid.Column="0"
+                                         Width="19"
+                                         Height="19"
+                                         HorizontalAlignment="Left"
+                                         VerticalAlignment="Center">
+                                    <Grid Width="24" Height="24">
+                                        <Ellipse Width="6" Height="6"
+                                                 Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                 StrokeThickness="2"
+                                                 Fill="Transparent"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center" />
+                                        <Path Data="M 12,2 L 12,5 M 12,19 L 12,22 M 4.9,4.9 L 7,7 M 17,17 L 19.1,19.1 M 2,12 L 5,12 M 19,12 L 22,12 M 4.9,19.1 L 7,17 M 17,7 L 19.1,4.9"
+                                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              Fill="Transparent" />
+                                    </Grid>
+                                </Viewbox>
                                 <TextBlock Grid.Column="1"
                                            Text="Automation"
                                            VerticalAlignment="Center" />
@@ -277,18 +304,28 @@
                         <Button Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}"
                                 CommandParameter="Notifications"
-                                Tag="{Binding IsNotificationsNavSelected}">
+                                Background="{Binding NotificationsNavBackground}"
+                                Foreground="{Binding NotificationsNavForeground}"
+                                Tag="{Binding NotificationsNavRailOpacity}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="28" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0"
-                                           Text="&#xE7ED;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="18"
-                                           VerticalAlignment="Center" />
+                                <Viewbox Grid.Column="0"
+                                         Width="19"
+                                         Height="19"
+                                         HorizontalAlignment="Left"
+                                         VerticalAlignment="Center">
+                                    <Path Data="M 6,10 C 6,6.7 8.4,4 12,4 C 15.6,4 18,6.7 18,10 L 18,15 L 20,18 L 4,18 L 6,15 Z M 10,20 C 10.4,21.2 11.1,22 12,22 C 12.9,22 13.6,21.2 14,20"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent" />
+                                </Viewbox>
                                 <TextBlock Grid.Column="1"
                                            Text="Alerts"
                                            VerticalAlignment="Center" />
@@ -313,18 +350,37 @@
                         <Button Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}"
                                 CommandParameter="Advanced"
-                                Tag="{Binding IsAdvancedNavSelected}">
+                                Background="{Binding AdvancedNavBackground}"
+                                Foreground="{Binding AdvancedNavForeground}"
+                                Tag="{Binding AdvancedNavRailOpacity}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="28" />
                                     <ColumnDefinition Width="*" />
                                     <ColumnDefinition Width="Auto" />
                                 </Grid.ColumnDefinitions>
-                                <TextBlock Grid.Column="0"
-                                           Text="&#xE713;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="18"
-                                           VerticalAlignment="Center" />
+                                <Viewbox Grid.Column="0"
+                                         Width="19"
+                                         Height="19"
+                                         HorizontalAlignment="Left"
+                                         VerticalAlignment="Center">
+                                    <Grid Width="24" Height="24">
+                                        <Ellipse Width="8"
+                                                 Height="8"
+                                                 Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                                 StrokeThickness="2"
+                                                 Fill="Transparent"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center" />
+                                        <Path Data="M 12,3 L 13.4,5.7 L 16.4,6.1 L 16.9,9.1 L 19.2,11 L 17.8,13.7 L 18.5,16.6 L 15.8,18 L 14.7,20.8 L 11.7,20.3 L 9.1,21.8 L 7.2,19.4 L 4.2,18.7 L 3.9,15.7 L 1.8,13.5 L 3.5,11 L 2.8,8.1 L 5.6,6.9 L 6.9,4.2 L 9.8,4.9 Z"
+                                              Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                              StrokeThickness="2"
+                                              StrokeStartLineCap="Round"
+                                              StrokeEndLineCap="Round"
+                                              StrokeLineJoin="Round"
+                                              Fill="Transparent" />
+                                    </Grid>
+                                </Viewbox>
                                 <TextBlock Grid.Column="1"
                                            Text="Settings"
                                            VerticalAlignment="Center" />
@@ -337,7 +393,7 @@
                         </Button>
                     </StackPanel>
 
-                    <StackPanel Grid.Row="2" Margin="24,0,24,24">
+                    <StackPanel Grid.Row="2" Margin="20,0,20,24">
                         <Border Height="1" Background="{StaticResource BorderBrushSoft}" Margin="0,0,0,18" />
                         <Grid Margin="0,0,0,14">
                             <Grid.ColumnDefinitions>
@@ -365,17 +421,17 @@
                             </StackPanel>
                             <Button Grid.Column="2"
                                     Command="{Binding LogoutCommand}"
-                                    Style="{StaticResource NavButton}"
-                                    Width="36"
-                                    Height="36"
-                                    Padding="0"
-                                    Margin="0"
+                                    Style="{StaticResource IconOnlyButton}"
                                     ToolTip="Logout">
-                                <TextBlock Text="&#xE8AC;"
-                                           FontFamily="Segoe MDL2 Assets"
-                                           FontSize="16"
-                                           HorizontalAlignment="Center"
-                                           VerticalAlignment="Center" />
+                                <Viewbox Width="18" Height="18">
+                                    <Path Data="M 10,5 L 5,5 L 5,19 L 10,19 M 13,8 L 17,12 L 13,16 M 8,12 L 17,12"
+                                          Stroke="{Binding Foreground, RelativeSource={RelativeSource AncestorType=Button}}"
+                                          StrokeThickness="2"
+                                          StrokeStartLineCap="Round"
+                                          StrokeEndLineCap="Round"
+                                          StrokeLineJoin="Round"
+                                          Fill="Transparent" />
+                                </Viewbox>
                             </Button>
                         </Grid>
                         <StackPanel Orientation="Horizontal">
