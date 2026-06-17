@@ -20,6 +20,7 @@ public sealed class MainViewModel : ObservableObject
     private string _displayName = "";
     private bool _isAuthenticated;
     private bool _isRegisterMode;
+    private bool _isSidebarExpanded = true;
     private bool _isNotificationFlyoutOpen;
     private string _lastHomeRefreshText = "Not refreshed yet";
     private string _availableDeviceMessage = "Waiting for DeviceApp...";
@@ -36,6 +37,7 @@ public sealed class MainViewModel : ObservableObject
         RegisterCommand = new RelayCommand(RegisterAsync);
         SubmitAuthCommand = new RelayCommand(SubmitAuthAsync);
         ToggleAuthModeCommand = new RelayCommand(ToggleAuthModeAsync);
+        ToggleSidebarCommand = new RelayCommand(ToggleSidebarAsync, () => IsAuthenticated);
         LogoutCommand = new RelayCommand(LogoutAsync, () => IsAuthenticated);
         NavigateCommand = new RelayCommand<string>(NavigateAsync);
         RefreshHomeCommand = new RelayCommand(RefreshHomeAsync, () => IsAuthenticated);
@@ -80,6 +82,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand RegisterCommand { get; }
     public RelayCommand SubmitAuthCommand { get; }
     public RelayCommand ToggleAuthModeCommand { get; }
+    public RelayCommand ToggleSidebarCommand { get; }
     public RelayCommand LogoutCommand { get; }
     public RelayCommand<string> NavigateCommand { get; }
     public RelayCommand RefreshHomeCommand { get; }
@@ -194,6 +197,27 @@ public sealed class MainViewModel : ObservableObject
                 OnPropertyChanged(nameof(AuthSwitchPrefix));
                 OnPropertyChanged(nameof(AuthSwitchAction));
                 OnPropertyChanged(nameof(RegisterFieldVisibility));
+            }
+        }
+    }
+
+    public bool IsSidebarExpanded
+    {
+        get => _isSidebarExpanded;
+        set
+        {
+            if (SetProperty(ref _isSidebarExpanded, value))
+            {
+                OnPropertyChanged(nameof(SidebarWidth));
+                OnPropertyChanged(nameof(SidebarTextVisibility));
+                OnPropertyChanged(nameof(SidebarExpandedVisibility));
+                OnPropertyChanged(nameof(SidebarCollapsedVisibility));
+                OnPropertyChanged(nameof(SidebarUnreadNotificationBadgeVisibility));
+                OnPropertyChanged(nameof(SidebarToggleIcon));
+                OnPropertyChanged(nameof(SidebarNavMargin));
+                OnPropertyChanged(nameof(SidebarHeaderMargin));
+                OnPropertyChanged(nameof(SidebarFooterMargin));
+                OnPropertyChanged(nameof(SidebarNavPadding));
             }
         }
     }
@@ -429,13 +453,22 @@ public sealed class MainViewModel : ObservableObject
     public string AuthPrimaryButtonText => IsRegisterMode ? "Đăng ký" : "Đăng nhập";
     public string AuthSwitchPrefix => IsRegisterMode ? "Đã có tài khoản? " : "Chưa có tài khoản? ";
     public string AuthSwitchAction => IsRegisterMode ? "Đăng nhập" : "Đăng ký ngay";
-    public double AppWindowWidth => IsAuthenticated ? 1280 : 420;
-    public double AppWindowHeight => IsAuthenticated ? 820 : 520;
-    public double AppWindowMinWidth => IsAuthenticated ? 1280 : 420;
-    public double AppWindowMinHeight => IsAuthenticated ? 820 : 520;
-    public double AppWindowMaxWidth => IsAuthenticated ? 1280 : 420;
-    public double AppWindowMaxHeight => IsAuthenticated ? 820 : 520;
+    public double AppWindowWidth => IsAuthenticated ? 1000 : 420;
+    public double AppWindowHeight => IsAuthenticated ? 700 : 520;
+    public double AppWindowMinWidth => IsAuthenticated ? 1000 : 420;
+    public double AppWindowMinHeight => IsAuthenticated ? 700 : 520;
+    public double AppWindowMaxWidth => IsAuthenticated ? 1000 : 420;
+    public double AppWindowMaxHeight => IsAuthenticated ? 700 : 520;
     public ResizeMode AppResizeMode => ResizeMode.NoResize;
+    public GridLength SidebarWidth => new(IsSidebarExpanded ? 216 : 72);
+    public Thickness SidebarHeaderMargin => IsSidebarExpanded ? new Thickness(18, 22, 16, 0) : new Thickness(14, 22, 14, 0);
+    public Thickness SidebarNavMargin => IsSidebarExpanded ? new Thickness(8, 0, 12, 0) : new Thickness(8, 0, 8, 0);
+    public Thickness SidebarFooterMargin => IsSidebarExpanded ? new Thickness(18, 0, 18, 20) : new Thickness(14, 0, 14, 20);
+    public Thickness SidebarNavPadding => IsSidebarExpanded ? new Thickness(18, 0, 12, 0) : new Thickness(18, 0, 0, 0);
+    public Visibility SidebarTextVisibility => IsSidebarExpanded ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SidebarExpandedVisibility => IsSidebarExpanded ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SidebarCollapsedVisibility => IsSidebarExpanded ? Visibility.Collapsed : Visibility.Visible;
+    public string SidebarToggleIcon => IsSidebarExpanded ? "\uE76B" : "\uE76C";
 
     public Visibility AuthVisibility => Section("Auth");
     public Visibility HomeVisibility => Section("Home");
@@ -462,11 +495,18 @@ public sealed class MainViewModel : ObservableObject
     public Visibility HasNotificationsVisibility => Notifications.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NotificationFlyoutVisibility => IsNotificationFlyoutOpen ? Visibility.Visible : Visibility.Collapsed;
     public Visibility UnreadNotificationBadgeVisibility => UnreadNotificationCount > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility SidebarUnreadNotificationBadgeVisibility => IsSidebarExpanded && UnreadNotificationCount > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility RegisterFieldVisibility => IsRegisterMode ? Visibility.Visible : Visibility.Collapsed;
 
     private Task ToggleAuthModeAsync()
     {
         IsRegisterMode = !IsRegisterMode;
+        return Task.CompletedTask;
+    }
+
+    private Task ToggleSidebarAsync()
+    {
+        IsSidebarExpanded = !IsSidebarExpanded;
         return Task.CompletedTask;
     }
 
@@ -1029,6 +1069,7 @@ public sealed class MainViewModel : ObservableObject
         RefreshAutomationRulesCommand.RaiseCanExecuteChanged();
         RefreshNotificationsCommand.RaiseCanExecuteChanged();
         ToggleNotificationFlyoutCommand.RaiseCanExecuteChanged();
+        ToggleSidebarCommand.RaiseCanExecuteChanged();
         ViewAllNotificationsCommand.RaiseCanExecuteChanged();
         SaveAutomationRuleCommand.RaiseCanExecuteChanged();
         DeleteAutomationRuleCommand.RaiseCanExecuteChanged();
@@ -1044,6 +1085,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedActuatorCount));
         OnPropertyChanged(nameof(UnreadNotificationBadgeText));
         OnPropertyChanged(nameof(UnreadNotificationBadgeVisibility));
+        OnPropertyChanged(nameof(SidebarUnreadNotificationBadgeVisibility));
         OnPropertyChanged(nameof(RecentHomeNotifications));
         OnPropertyChanged(nameof(EnabledAutomationCount));
         OnPropertyChanged(nameof(EmptyDevicesVisibility));
