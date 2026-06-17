@@ -1,5 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Media;
 using System.Windows.Threading;
 using IoTPlatform.Wpf.ViewModels;
 
@@ -121,5 +123,37 @@ public partial class MainWindow : Window
     {
         _notificationCloseTimer.Stop();
         _notificationCloseTimer.Start();
+    }
+
+    private void HomeDeviceCard_OnMouseLeftButtonUp(object sender, MouseButtonEventArgs e)
+    {
+        if (e.OriginalSource is DependencyObject source && FindAncestor<Button>(source) is not null)
+        {
+            return;
+        }
+
+        if (DataContext is not MainViewModel viewModel ||
+            sender is not FrameworkElement { Tag: HomeDeviceCard card } ||
+            !viewModel.OpenHomeDeviceCommand.CanExecute(card))
+        {
+            return;
+        }
+
+        viewModel.OpenHomeDeviceCommand.Execute(card);
+    }
+
+    private static T? FindAncestor<T>(DependencyObject? source) where T : DependencyObject
+    {
+        while (source is not null)
+        {
+            if (source is T match)
+            {
+                return match;
+            }
+
+            source = VisualTreeHelper.GetParent(source);
+        }
+
+        return null;
     }
 }

@@ -27,8 +27,11 @@ public sealed class MainViewModel : ObservableObject
     private string _availablePairingCode = "";
     private string _availableClaimError = "";
     private string _homeDeviceFilter = "All";
+    private string _homeMode = "Dashboard";
     private bool _isOnboardingClaimSuccess;
+    private bool _isHomeDeviceRenaming;
     private DeviceSummary? _selectedDevice;
+    private HomeDeviceCard? _selectedHomeDeviceCard;
     private AvailableDevice? _selectedAvailableDevice;
     private AutomationRuleDto? _selectedAutomationRule;
 
@@ -43,6 +46,12 @@ public sealed class MainViewModel : ObservableObject
         NavigateCommand = new RelayCommand<string>(NavigateAsync);
         RefreshHomeCommand = new RelayCommand(RefreshHomeAsync, () => IsAuthenticated);
         SetHomeDeviceFilterCommand = new RelayCommand<string>(SetHomeDeviceFilterAsync, _ => IsAuthenticated);
+        OpenHomeDeviceCommand = new RelayCommand<HomeDeviceCard>(OpenHomeDeviceAsync, card => IsAuthenticated && card is not null);
+        BackToHomeDashboardCommand = new RelayCommand(BackToHomeDashboardAsync, () => IsAuthenticated);
+        OpenAddDeviceCommand = new RelayCommand(OpenAddDeviceAsync, () => IsAuthenticated);
+        OpenCreateAutomationCommand = new RelayCommand(OpenCreateAutomationAsync, () => IsAuthenticated);
+        StartHomeDeviceRenameCommand = new RelayCommand(StartHomeDeviceRenameAsync, () => IsAuthenticated && SelectedDevice is not null);
+        CancelHomeDeviceRenameCommand = new RelayCommand(CancelHomeDeviceRenameAsync, () => IsAuthenticated && SelectedDevice is not null);
         ToggleHomeActuatorCommand = new RelayCommand<HomeDeviceCard>(ToggleHomeActuatorAsync, card => IsAuthenticated && card is not null && card.IsActuator && card.IsOnline);
         SelectDeviceCommand = new RelayCommand<DeviceSummary>(SelectDeviceAsync, device => IsAuthenticated && device is not null);
         SelectAvailableDeviceCommand = new RelayCommand<AvailableDevice>(SelectAvailableDeviceAsync, device => IsAuthenticated && device is not null);
@@ -53,7 +62,7 @@ public sealed class MainViewModel : ObservableObject
         UnclaimDeviceCommand = new RelayCommand(UnclaimDeviceAsync, () => IsAuthenticated && SelectedDevice is not null);
         LoadDeviceDetailCommand = new RelayCommand(LoadDeviceDetailAsync, () => IsAuthenticated && SelectedDevice is not null);
         SendCommandCommand = new RelayCommand(SendCommandAsync, () => IsAuthenticated && SelectedDevice is not null);
-        SendActuatorCommand = new RelayCommand<ActuatorControl>(SendActuatorCommandAsync, control => IsAuthenticated && SelectedDevice is not null && control is not null);
+        SendActuatorCommand = new RelayCommand<ActuatorControl>(SendActuatorCommandAsync, control => IsAuthenticated && SelectedDeviceIsOnline && control is not null && control.IsDeviceOnline);
         RefreshAutomationRulesCommand = new RelayCommand(RefreshAutomationRulesAsync, () => IsAuthenticated);
         RefreshNotificationsCommand = new RelayCommand(RefreshNotificationsAsync, () => IsAuthenticated);
         ToggleNotificationFlyoutCommand = new RelayCommand(ToggleNotificationFlyoutAsync, () => IsAuthenticated);
@@ -76,6 +85,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<ActuatorControl> Actuators { get; } = [];
     public ObservableCollection<TelemetryValue> LatestValues { get; } = [];
     public ObservableCollection<TelemetryHistoryItem> TelemetryHistory { get; } = [];
+    public ObservableCollection<HomeDeviceTelemetryLogItem> HomeDeviceTelemetryLog { get; } = [];
     public ObservableCollection<CommandDto> Commands { get; } = [];
     public ObservableCollection<AutomationRuleDto> AutomationRules { get; } = [];
     public ObservableCollection<AutomationExecutionDto> AutomationExecutions { get; } = [];
@@ -90,6 +100,12 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand<string> NavigateCommand { get; }
     public RelayCommand RefreshHomeCommand { get; }
     public RelayCommand<string> SetHomeDeviceFilterCommand { get; }
+    public RelayCommand<HomeDeviceCard> OpenHomeDeviceCommand { get; }
+    public RelayCommand BackToHomeDashboardCommand { get; }
+    public RelayCommand OpenAddDeviceCommand { get; }
+    public RelayCommand OpenCreateAutomationCommand { get; }
+    public RelayCommand StartHomeDeviceRenameCommand { get; }
+    public RelayCommand CancelHomeDeviceRenameCommand { get; }
     public RelayCommand<HomeDeviceCard> ToggleHomeActuatorCommand { get; }
     public RelayCommand<DeviceSummary> SelectDeviceCommand { get; }
     public RelayCommand<AvailableDevice> SelectAvailableDeviceCommand { get; }
@@ -242,8 +258,20 @@ public sealed class MainViewModel : ObservableObject
                 RaiseCommandStates();
                 OnPropertyChanged(nameof(SelectedDeviceName));
                 OnPropertyChanged(nameof(SelectedDeviceStatus));
+                OnPropertyChanged(nameof(SelectedDeviceTitle));
+                OnPropertyChanged(nameof(SelectedDeviceSubtitle));
+                OnPropertyChanged(nameof(SelectedDeviceStatusBrush));
+                OnPropertyChanged(nameof(SelectedDeviceStatusBackground));
+                OnPropertyChanged(nameof(SelectedDeviceIsOnline));
+                OnPropertyChanged(nameof(SelectedDeviceContentBrush));
+                OnPropertyChanged(nameof(SelectedDeviceMutedBrush));
+                OnPropertyChanged(nameof(SelectedDeviceSurfaceBrush));
+                OnPropertyChanged(nameof(SelectedDeviceIconBrush));
+                OnPropertyChanged(nameof(SelectedDeviceTypeLabel));
+                OnPropertyChanged(nameof(SelectedDeviceIconData));
                 OnPropertyChanged(nameof(HasSelectedDeviceVisibility));
                 OnPropertyChanged(nameof(NoSelectedDeviceVisibility));
+                OnPropertyChanged(nameof(HomeDeviceDetailVisibility));
                 if (value is not null)
                 {
                     RenameDisplayName = value.DisplayName ?? "";
@@ -258,11 +286,14 @@ public sealed class MainViewModel : ObservableObject
                 }
                 else
                 {
+                    SelectedHomeDeviceCard = null;
+                    IsHomeDeviceRenaming = false;
                     Capabilities.Clear();
                     Sensors.Clear();
                     Actuators.Clear();
                     LatestValues.Clear();
                     TelemetryHistory.Clear();
+                    HomeDeviceTelemetryLog.Clear();
                     NotifyDashboardCounts();
                 }
             }
@@ -408,6 +439,48 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    public string HomeMode
+    {
+        get => _homeMode;
+        set
+        {
+            if (SetProperty(ref _homeMode, value))
+            {
+                OnPropertyChanged(nameof(HomeEmptyVisibility));
+                OnPropertyChanged(nameof(HomeDashboardVisibility));
+                OnPropertyChanged(nameof(HomeAddDeviceVisibility));
+                OnPropertyChanged(nameof(HomeDeviceDetailVisibility));
+                OnPropertyChanged(nameof(HomeNotificationFlyoutVisibility));
+            }
+        }
+    }
+
+    public bool IsHomeDeviceRenaming
+    {
+        get => _isHomeDeviceRenaming;
+        set
+        {
+            if (SetProperty(ref _isHomeDeviceRenaming, value))
+            {
+                OnPropertyChanged(nameof(HomeDeviceNameTextVisibility));
+                OnPropertyChanged(nameof(HomeDeviceRenameEditorVisibility));
+            }
+        }
+    }
+
+    public HomeDeviceCard? SelectedHomeDeviceCard
+    {
+        get => _selectedHomeDeviceCard;
+        set
+        {
+            if (SetProperty(ref _selectedHomeDeviceCard, value))
+            {
+                OnPropertyChanged(nameof(SelectedDeviceTypeLabel));
+                OnPropertyChanged(nameof(SelectedDeviceIconData));
+            }
+        }
+    }
+
     public IEnumerable<HomeDeviceCard> FilteredHomeDeviceCards => HomeDeviceFilter switch
     {
         "Online" => HomeDeviceCards.Where(card => card.IsOnline),
@@ -501,6 +574,20 @@ public sealed class MainViewModel : ObservableObject
     public string SelectedAvailableDeviceName => SelectedAvailableDevice?.Serial ?? "selected device";
     public string SelectedDeviceName => SelectedDevice?.NameOrSerial ?? "Select a device";
     public string SelectedDeviceStatus => SelectedDevice is null ? "No device selected" : $"{SelectedDevice.Status} - Last seen {SelectedDevice.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "never"}";
+    public string SelectedDeviceTitle => SelectedDevice?.NameOrSerial ?? "Device";
+    public string SelectedDeviceSubtitle => SelectedDevice is null
+        ? "No device selected"
+        : $"{SelectedDevice.Status} - Last seen {SelectedDevice.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "never"}";
+    public string SelectedDeviceStatusBrush => SelectedDevice?.Status.Equals("online", StringComparison.OrdinalIgnoreCase) == true ? "#16A34A" : "#64748B";
+    public string SelectedDeviceStatusBackground => SelectedDeviceIsOnline ? "#DCFCE7" : "#F1F5F9";
+    public bool SelectedDeviceIsOnline => SelectedDevice?.Status.Equals("online", StringComparison.OrdinalIgnoreCase) == true;
+    public string SelectedDeviceContentBrush => SelectedDeviceIsOnline ? "#0F172A" : "#94A3B8";
+    public string SelectedDeviceMutedBrush => SelectedDeviceIsOnline ? "#64748B" : "#94A3B8";
+    public string SelectedDeviceSurfaceBrush => SelectedDeviceIsOnline ? "#EFF6FF" : "#E2E8F0";
+    public string SelectedDeviceIconBrush => SelectedDeviceIsOnline ? "#2563EB" : "#94A3B8";
+    public string SelectedDeviceTypeLabel => ResolveSelectedDeviceTypeLabel();
+    public string SelectedDeviceIconData => SelectedHomeDeviceCard?.KindIconData ?? ResolveDeviceIconData(ResolveSelectedDeviceSeed());
+    public int SelectedDeviceLatestCount => LatestValues.Count;
     public string LocalToolsHelp => "OmniConnect runs from the cloud. Open DeviceApp locally when you want to simulate devices from this machine.";
     public string AuthTitle => IsRegisterMode ? "Tạo tài khoản" : "Đăng nhập";
     public string AuthSubtitle => IsRegisterMode
@@ -538,8 +625,12 @@ public sealed class MainViewModel : ObservableObject
     public Visibility NoSelectedDeviceVisibility => SelectedDevice is null ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyDevicesVisibility => Devices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasDevicesVisibility => Devices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility HomeEmptyVisibility => Devices.Count == 0 || IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility HomeDashboardVisibility => Devices.Count > 0 && !IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HomeEmptyVisibility => HomeAddDeviceVisibility;
+    public Visibility HomeDashboardVisibility => HomeMode == "Dashboard" && Devices.Count > 0 && !IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HomeAddDeviceVisibility => HomeMode == "AddDevice" || Devices.Count == 0 || IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HomeDeviceDetailVisibility => HomeMode == "DeviceDetail" && SelectedDevice is not null && !IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HomeDeviceNameTextVisibility => IsHomeDeviceRenaming ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility HomeDeviceRenameEditorVisibility => IsHomeDeviceRenaming ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyAvailableDevicesVisibility => AvailableDevices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasAvailableDevicesVisibility => AvailableDevices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility OnboardingWaitingVisibility => AvailableDevices.Count == 0 && !IsOnboardingClaimSuccess ? Visibility.Visible : Visibility.Collapsed;
@@ -549,8 +640,10 @@ public sealed class MainViewModel : ObservableObject
     public Visibility AvailableClaimErrorVisibility => string.IsNullOrWhiteSpace(AvailableClaimError) ? Visibility.Collapsed : Visibility.Visible;
     public Visibility EmptyNotificationsVisibility => Notifications.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasNotificationsVisibility => Notifications.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility EmptyHomeTelemetryLogVisibility => HomeDeviceTelemetryLog.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HasHomeTelemetryLogVisibility => HomeDeviceTelemetryLog.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NotificationFlyoutVisibility => IsNotificationFlyoutOpen ? Visibility.Visible : Visibility.Collapsed;
-    public Visibility HomeNotificationFlyoutVisibility => IsNotificationFlyoutOpen && CurrentSection == "Home" && Devices.Count > 0 && !IsOnboardingClaimSuccess
+    public Visibility HomeNotificationFlyoutVisibility => IsNotificationFlyoutOpen && CurrentSection == "Home" && HomeMode == "Dashboard" && Devices.Count > 0 && !IsOnboardingClaimSuccess
         ? Visibility.Visible
         : Visibility.Collapsed;
     public Visibility UnreadNotificationBadgeVisibility => UnreadNotificationCount > 0 ? Visibility.Visible : Visibility.Collapsed;
@@ -581,6 +674,7 @@ public sealed class MainViewModel : ObservableObject
         CurrentSection = section;
         if (IsAuthenticated && section == "Home")
         {
+            HomeMode = Devices.Count == 0 ? "AddDevice" : "Dashboard";
             await RefreshHomeAsync();
         }
         else if (IsAuthenticated && section == "Devices")
@@ -681,6 +775,11 @@ public sealed class MainViewModel : ObservableObject
             await BuildHomeDeviceCardsAsync();
             await RefreshAvailableDevicesSafelyAsync();
             await RefreshNotificationsAsync();
+            if (HomeMode == "DeviceDetail" && SelectedDevice is not null)
+            {
+                await LoadDeviceDetailAsync();
+            }
+
             LastHomeRefreshText = $"Last updated {DateTime.Now:t}";
         });
     }
@@ -754,6 +853,8 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task BuildHomeDeviceCardsAsync()
     {
+        var selectedCapabilityKey = SelectedHomeDeviceCard?.CapabilityKey;
+        var selectedDeviceId = SelectedHomeDeviceCard?.DeviceId;
         var cards = new List<HomeDeviceCard>();
         foreach (var device in Devices)
         {
@@ -772,6 +873,12 @@ public sealed class MainViewModel : ObservableObject
             .ThenBy(card => card.DeviceName)
             .ThenBy(card => card.KindSort)
             .ThenBy(card => card.CapabilityName));
+        if (selectedDeviceId is not null && !string.IsNullOrWhiteSpace(selectedCapabilityKey))
+        {
+            SelectedHomeDeviceCard = HomeDeviceCards.FirstOrDefault(card =>
+                card.DeviceId == selectedDeviceId && card.CapabilityKey.Equals(selectedCapabilityKey, StringComparison.OrdinalIgnoreCase));
+        }
+
         NotifyDashboardCounts();
     }
 
@@ -785,6 +892,82 @@ public sealed class MainViewModel : ObservableObject
         return Task.CompletedTask;
     }
 
+    private async Task OpenHomeDeviceAsync(HomeDeviceCard? card)
+    {
+        if (card is null)
+        {
+            return;
+        }
+
+        var device = Devices.FirstOrDefault(item => item.Id == card.DeviceId);
+        if (device is null)
+        {
+            await RefreshDevicesAsync();
+            device = Devices.FirstOrDefault(item => item.Id == card.DeviceId);
+        }
+
+        if (device is null)
+        {
+            StatusMessage = "Device is no longer available.";
+            return;
+        }
+
+        IsNotificationFlyoutOpen = false;
+        CurrentSection = "Home";
+        SelectedHomeDeviceCard = card;
+        IsHomeDeviceRenaming = false;
+        SelectedDevice = device;
+        HomeMode = "DeviceDetail";
+        await LoadDeviceDetailAsync();
+    }
+
+    private Task BackToHomeDashboardAsync()
+    {
+        IsNotificationFlyoutOpen = false;
+        HomeMode = "Dashboard";
+        IsHomeDeviceRenaming = false;
+        return Task.CompletedTask;
+    }
+
+    private Task StartHomeDeviceRenameAsync()
+    {
+        if (SelectedDevice is not null)
+        {
+            RenameDisplayName = SelectedDevice.DisplayName ?? SelectedDevice.NameOrSerial;
+            OnPropertyChanged(nameof(RenameDisplayName));
+            IsHomeDeviceRenaming = true;
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task CancelHomeDeviceRenameAsync()
+    {
+        if (SelectedDevice is not null)
+        {
+            RenameDisplayName = SelectedDevice.DisplayName ?? "";
+            OnPropertyChanged(nameof(RenameDisplayName));
+        }
+
+        IsHomeDeviceRenaming = false;
+        return Task.CompletedTask;
+    }
+
+    private async Task OpenAddDeviceAsync()
+    {
+        IsNotificationFlyoutOpen = false;
+        CurrentSection = "Home";
+        HomeMode = "AddDevice";
+        await RefreshAvailableDevicesSafelyAsync();
+    }
+
+    private async Task OpenCreateAutomationAsync()
+    {
+        IsNotificationFlyoutOpen = false;
+        CurrentSection = "Automation";
+        await RefreshAutomationRulesAsync();
+    }
+
     private async Task ClaimDeviceAsync()
     {
         await RunAsync(async () =>
@@ -794,6 +977,7 @@ public sealed class MainViewModel : ObservableObject
             await RefreshAvailableDevicesSafelyAsync();
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == device.Id);
             CurrentSection = "Home";
+            HomeMode = "DeviceDetail";
             StatusMessage = $"Claimed {device.NameOrSerial}.";
         });
     }
@@ -826,6 +1010,7 @@ public sealed class MainViewModel : ObservableObject
             StatusMessage = $"Claimed {device.NameOrSerial}.";
             await Task.Delay(TimeSpan.FromMilliseconds(1400));
             IsOnboardingClaimSuccess = false;
+            HomeMode = "DeviceDetail";
         }
         catch
         {
@@ -845,6 +1030,7 @@ public sealed class MainViewModel : ObservableObject
             var updated = await _api.UpdateDeviceAsync(SelectedDevice.Id, RenameDisplayName, EmptyToNull(RenameCategory));
             await RefreshDevicesAsync();
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == updated.Id);
+            IsHomeDeviceRenaming = false;
             StatusMessage = "Device details saved.";
         });
     }
@@ -872,6 +1058,7 @@ public sealed class MainViewModel : ObservableObject
             await _api.UnclaimDeviceAsync(device.Id);
             SelectedDevice = null;
             await RefreshHomeAsync();
+            HomeMode = Devices.Count == 0 ? "AddDevice" : "Dashboard";
             StatusMessage = $"Removed {device.NameOrSerial} from your account.";
         });
     }
@@ -888,9 +1075,10 @@ public sealed class MainViewModel : ObservableObject
             var capabilities = await _api.GetDeviceCapabilitiesAsync(SelectedDevice.Id);
             Replace(Capabilities, capabilities);
             Replace(LatestValues, await _api.GetLatestValuesAsync(SelectedDevice.Id));
-            var history = await _api.GetTelemetryHistoryAsync(SelectedDevice.Id, EmptyToNull(HistoryCapabilityKey));
+            var history = await _api.GetTelemetryHistoryAsync(SelectedDevice.Id, EmptyToNull(HistoryCapabilityKey), pageSize: 100);
             Replace(TelemetryHistory, history.Items);
             BuildControlModels();
+            BuildHomeDeviceTelemetryLog();
             StatusMessage = $"Loaded {SelectedDevice.NameOrSerial}.";
         });
     }
@@ -916,7 +1104,7 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task SendActuatorCommandAsync(ActuatorControl? control)
     {
-        if (SelectedDevice is null || control is null)
+        if (SelectedDevice is null || control is null || !SelectedDeviceIsOnline)
         {
             return;
         }
@@ -1132,7 +1320,8 @@ public sealed class MainViewModel : ObservableObject
                     capability.DisplayName,
                     capability.Unit,
                     latest?.DisplayValue ?? "No readings yet",
-                    latest?.RecordedAtUtc.ToLocalTime().ToString("g") ?? "Waiting for telemetry");
+                    latest?.RecordedAtUtc.ToLocalTime().ToString("g") ?? "Waiting for telemetry",
+                    SelectedDeviceIsOnline);
             }));
         Replace(Actuators, Capabilities
             .Where(capability => capability.Kind == "actuator" && capability.IsWritable)
@@ -1146,10 +1335,74 @@ public sealed class MainViewModel : ObservableObject
                     capability.DataType,
                     capability.SupportedCommands,
                     isOn,
-                    isOn ? "Currently on" : "Currently off");
+                    isOn ? "Currently on" : "Currently off",
+                    SelectedDeviceIsOnline);
             }));
         OnPropertyChanged(nameof(SelectedSensorCount));
         OnPropertyChanged(nameof(SelectedActuatorCount));
+        OnPropertyChanged(nameof(SelectedDeviceLatestCount));
+        OnPropertyChanged(nameof(SelectedDeviceTypeLabel));
+        OnPropertyChanged(nameof(SelectedDeviceIconData));
+    }
+
+    private void BuildHomeDeviceTelemetryLog()
+    {
+        var capabilitiesByKey = Capabilities.ToDictionary(capability => capability.Key, StringComparer.OrdinalIgnoreCase);
+        var previousActuatorValues = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+        var seenSensorBuckets = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+        var filtered = new List<HomeDeviceTelemetryLogItem>();
+
+        foreach (var item in TelemetryHistory.OrderBy(item => item.RecordedAtUtc))
+        {
+            if (!capabilitiesByKey.TryGetValue(item.CapabilityKey, out var capability))
+            {
+                continue;
+            }
+
+            if (capability.Kind == "actuator")
+            {
+                var stateValue = item.DisplayValue;
+                if (previousActuatorValues.TryGetValue(item.CapabilityKey, out var previousValue) &&
+                    !string.Equals(previousValue, stateValue, StringComparison.OrdinalIgnoreCase))
+                {
+                    filtered.Add(HomeDeviceTelemetryLogItem.From(item, capability, FormatHomeLogValue(item, capability)));
+                }
+
+                previousActuatorValues[item.CapabilityKey] = stateValue;
+                continue;
+            }
+
+            if (capability.Kind == "sensor")
+            {
+                var bucket = item.RecordedAtUtc.UtcDateTime.Ticks / TimeSpan.FromMinutes(5).Ticks;
+                var bucketKey = $"{item.CapabilityKey}:{bucket}";
+                if (seenSensorBuckets.Add(bucketKey))
+                {
+                    filtered.Add(HomeDeviceTelemetryLogItem.From(item, capability, FormatHomeLogValue(item, capability)));
+                }
+            }
+        }
+
+        Replace(HomeDeviceTelemetryLog, filtered
+            .OrderByDescending(item => item.RecordedAtUtc)
+            .Take(100));
+        OnPropertyChanged(nameof(EmptyHomeTelemetryLogVisibility));
+        OnPropertyChanged(nameof(HasHomeTelemetryLogVisibility));
+    }
+
+    private static string FormatHomeLogValue(TelemetryHistoryItem item, DeviceCapability capability)
+    {
+        if (capability.Kind == "actuator" && item.ValueType == "boolean")
+        {
+            return item.BooleanValue == true ? "On" : "Off";
+        }
+
+        if (capability.Kind == "sensor" && !string.IsNullOrWhiteSpace(capability.Unit) && !string.IsNullOrWhiteSpace(item.DisplayValue))
+        {
+            return $"{item.DisplayValue} {capability.Unit}";
+        }
+
+        return item.DisplayValue;
     }
 
     private async Task RunAsync(Func<Task> action)
@@ -1172,6 +1425,12 @@ public sealed class MainViewModel : ObservableObject
         RefreshDevicesCommand.RaiseCanExecuteChanged();
         RefreshHomeCommand.RaiseCanExecuteChanged();
         SetHomeDeviceFilterCommand.RaiseCanExecuteChanged();
+        OpenHomeDeviceCommand.RaiseCanExecuteChanged();
+        BackToHomeDashboardCommand.RaiseCanExecuteChanged();
+        OpenAddDeviceCommand.RaiseCanExecuteChanged();
+        OpenCreateAutomationCommand.RaiseCanExecuteChanged();
+        StartHomeDeviceRenameCommand.RaiseCanExecuteChanged();
+        CancelHomeDeviceRenameCommand.RaiseCanExecuteChanged();
         ToggleHomeActuatorCommand.RaiseCanExecuteChanged();
         SelectDeviceCommand.RaiseCanExecuteChanged();
         SelectAvailableDeviceCommand.RaiseCanExecuteChanged();
@@ -1213,6 +1472,8 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HasDevicesVisibility));
         OnPropertyChanged(nameof(HomeEmptyVisibility));
         OnPropertyChanged(nameof(HomeDashboardVisibility));
+        OnPropertyChanged(nameof(HomeAddDeviceVisibility));
+        OnPropertyChanged(nameof(HomeDeviceDetailVisibility));
         OnPropertyChanged(nameof(HomeNotificationFlyoutVisibility));
         OnPropertyChanged(nameof(EmptyAvailableDevicesVisibility));
         OnPropertyChanged(nameof(HasAvailableDevicesVisibility));
@@ -1245,6 +1506,8 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedAvailableDeviceVisibility));
         OnPropertyChanged(nameof(EmptyNotificationsVisibility));
         OnPropertyChanged(nameof(HasNotificationsVisibility));
+        OnPropertyChanged(nameof(EmptyHomeTelemetryLogVisibility));
+        OnPropertyChanged(nameof(HasHomeTelemetryLogVisibility));
     }
 
     private void OnAutomationPropertiesChanged()
@@ -1276,6 +1539,99 @@ public sealed class MainViewModel : ObservableObject
     private string FilterBackground(string filter) => HomeDeviceFilter == filter ? "#2563EB" : "#FFFFFF";
 
     private string FilterForeground(string filter) => HomeDeviceFilter == filter ? "#FFFFFF" : "#64748B";
+
+    private string ResolveSelectedDeviceTypeLabel()
+    {
+        if (!string.IsNullOrWhiteSpace(SelectedHomeDeviceCard?.CapabilityName))
+        {
+            return SelectedHomeDeviceCard.CapabilityName;
+        }
+
+        var seed = ResolveSelectedDeviceSeed();
+        if (seed.Contains("pump"))
+        {
+            return "Pump";
+        }
+
+        if (seed.Contains("fan"))
+        {
+            return "Fan";
+        }
+
+        if (seed.Contains("light") || seed.Contains("lamp"))
+        {
+            return "Light";
+        }
+
+        if (seed.Contains("door") || seed.Contains("lock"))
+        {
+            return "Door lock";
+        }
+
+        if (seed.Contains("switch") || seed.Contains("power"))
+        {
+            return "Power switch";
+        }
+
+        if (Capabilities.Any(capability => capability.Kind == "sensor") && Capabilities.All(capability => capability.Kind != "actuator"))
+        {
+            return "Sensor";
+        }
+
+        return "Device";
+    }
+
+    private string ResolveSelectedDeviceSeed()
+    {
+        if (SelectedHomeDeviceCard is not null)
+        {
+            return $"{SelectedHomeDeviceCard.CapabilityKey} {SelectedHomeDeviceCard.CapabilityName} {SelectedHomeDeviceCard.Kind}".ToLowerInvariant();
+        }
+
+        var capabilityText = string.Join(' ', Capabilities.Select(capability => $"{capability.Key} {capability.DisplayName} {capability.Unit}"));
+        return $"{SelectedDevice?.Category} {SelectedDevice?.NameOrSerial} {capabilityText}".ToLowerInvariant();
+    }
+
+    private static string ResolveDeviceIconData(string seed)
+    {
+        if (seed.Contains("pump") || seed.Contains("water"))
+        {
+            return "M2,7 A2,2 0 0 1 4,5 L13,5 A2,2 0 0 1 15,7 L15,17 A2,2 0 0 1 13,19 L4,19 A2,2 0 0 1 2,17 Z M2,8 A4,4 0 0 0 2,16 M5,8 L12,8 M5,11 L12,11 M5,14 L12,14 M5,16 L12,16 M15,8 L18,9 L18,15 L15,16 M18,10 L20,10 L20,14 L18,14 M20,12 L23,12";
+        }
+
+        if (seed.Contains("fan"))
+        {
+            return "M10.827,16.379 A6.082,6.082 0 0 1 2.209,9.377 L7.621,10.827 A6.082,6.082 0 0 1 14.623,2.209 L13.173,7.621 A6.082,6.082 0 0 1 21.791,14.623 L16.379,13.173 A6.082,6.082 0 0 1 9.377,21.791 Z M12,12 L12,12.01";
+        }
+
+        if (seed.Contains("light") || seed.Contains("lamp"))
+        {
+            return "M15,14 C15.2,13 15.7,12.3 16.5,11.5 C17.5,10.6 18,9.3 18,8 A6,6 0 0 0 6,8 C6,9 6.2,10.2 7.5,11.5 C8.2,12.2 8.8,13 9,14 M9,18 L15,18 M10,22 L14,22";
+        }
+
+        if (seed.Contains("door") || seed.Contains("lock"))
+        {
+            return "M10,12 L10.01,12 M18,9 L18,6 A2,2 0 0 0 16,4 L8,4 A2,2 0 0 0 6,6 L6,20 M2,20 L10,20 M20,17 L20,15 A2,2 0 1 0 16,15 L16,17 M15,17 L21,17 A1,1 0 0 1 22,18 L22,21 A1,1 0 0 1 21,22 L15,22 A1,1 0 0 1 14,21 L14,18 A1,1 0 0 1 15,17";
+        }
+
+        if (seed.Contains("switch") || seed.Contains("power"))
+        {
+            return "M12,2 A10,10 0 1 1 11.99,2 M12,7 L12,11 M7.998,9.003 A5,5 0 1 0 15.998,8.998";
+        }
+
+        return "M8.464,15.536 C6.512,13.583 6.512,10.417 8.464,8.464 M5.636,18.364 C2.121,14.849 2.121,9.151 5.636,5.636 M15.536,15.536 C17.488,13.583 17.488,10.417 15.536,8.464 M18.364,18.364 C21.879,14.849 21.879,9.151 18.364,5.636 M13,12 C13,12.552 12.552,13 12,13 C11.448,13 11,12.552 11,12 C11,11.448 11.448,11 12,11 C12.552,11 13,11.448 13,12";
+    }
+
+    private static string ToTitleLabel(string value)
+    {
+        var words = value.Replace('_', ' ').Replace('-', ' ').Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 0)
+        {
+            return "Device";
+        }
+
+        return string.Join(' ', words.Select(word => char.ToUpperInvariant(word[0]) + word[1..].ToLowerInvariant()));
+    }
 
     private static void Replace<T>(ObservableCollection<T> target, IEnumerable<T> values)
     {
@@ -1331,9 +1687,25 @@ public sealed class MainViewModel : ObservableObject
     }
 }
 
-public sealed record SensorCard(string Key, string DisplayName, string? Unit, string Value, string RecordedAt)
+public sealed record HomeDeviceTelemetryLogItem(string Recorded, string CapabilityName, string Value, DateTimeOffset RecordedAtUtc)
+{
+    public static HomeDeviceTelemetryLogItem From(TelemetryHistoryItem item, DeviceCapability capability, string value) =>
+        new(
+            item.RecordedAtUtc.ToLocalTime().ToString("g"),
+            capability.DisplayName,
+            value,
+            item.RecordedAtUtc);
+}
+
+public sealed record SensorCard(string Key, string DisplayName, string? Unit, string Value, string RecordedAt, bool IsDeviceOnline)
 {
     public string ValueWithUnit => string.IsNullOrWhiteSpace(Unit) || Value == "No readings yet" ? Value : $"{Value} {Unit}";
+    public string CardBackground => IsDeviceOnline ? "#F8FAFC" : "#F1F5F9";
+    public string CardBorderBrush => IsDeviceOnline ? "#D8E0EA" : "#E2E8F0";
+    public string ContentBrush => IsDeviceOnline ? "#0F172A" : "#94A3B8";
+    public string MutedBrush => "#94A3B8";
+    public string IconBrush => IsDeviceOnline ? "#2563EB" : "#94A3B8";
+    public string IconBackground => IsDeviceOnline ? "#EFF6FF" : "#E2E8F0";
 }
 
 public sealed class HomeDeviceCard(
@@ -1550,7 +1922,8 @@ public sealed class ActuatorControl(
     string dataType,
     IReadOnlyList<string> supportedCommands,
     bool isOn,
-    string lastStatus) : ObservableObject
+    string lastStatus,
+    bool isDeviceOnline) : ObservableObject
 {
     private string _lastStatus = lastStatus;
     private bool _isOn = isOn;
@@ -1559,6 +1932,7 @@ public sealed class ActuatorControl(
     public string DisplayName { get; } = displayName;
     public string DataType { get; } = dataType;
     public IReadOnlyList<string> SupportedCommands { get; } = supportedCommands;
+    public bool IsDeviceOnline { get; } = isDeviceOnline;
     public bool IsOn
     {
         get => _isOn;
@@ -1570,12 +1944,22 @@ public sealed class ActuatorControl(
                 OnPropertyChanged(nameof(ButtonText));
                 OnPropertyChanged(nameof(NextCommandName));
                 OnPropertyChanged(nameof(NextDesiredValue));
+                OnPropertyChanged(nameof(SwitchBackground));
+                OnPropertyChanged(nameof(SwitchKnobAlignment));
             }
         }
     }
 
     public string StateText => IsOn ? "On" : "Off";
     public string ButtonText => IsOn ? "Turn off" : "Turn on";
+    public string CardBackground => IsDeviceOnline ? "#F8FAFC" : "#F1F5F9";
+    public string CardBorderBrush => IsDeviceOnline ? "#D8E0EA" : "#E2E8F0";
+    public string ContentBrush => IsDeviceOnline ? "#0F172A" : "#94A3B8";
+    public string MutedBrush => "#94A3B8";
+    public string IconBrush => IsDeviceOnline ? "#2563EB" : "#94A3B8";
+    public string IconBackground => IsDeviceOnline ? "#EFF6FF" : "#E2E8F0";
+    public string SwitchBackground => !IsDeviceOnline ? "#CBD5E1" : IsOn ? "#2563EB" : "#E2E8F0";
+    public HorizontalAlignment SwitchKnobAlignment => IsOn ? HorizontalAlignment.Right : HorizontalAlignment.Left;
     public string NextCommandName => IsOn && SupportedCommands.Contains("OFF", StringComparer.OrdinalIgnoreCase) ? "OFF" : "ON";
     public JsonElement NextDesiredValue => DataType == "boolean"
         ? JsonSerializer.SerializeToElement(!IsOn)

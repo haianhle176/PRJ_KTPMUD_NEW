@@ -80,11 +80,19 @@ public sealed class IoTPlatformApiClient
     public Task<IReadOnlyList<TelemetryValue>> GetLatestValuesAsync(Guid deviceId) =>
         GetAsync<IReadOnlyList<TelemetryValue>>($"api/v1/devices/{deviceId}/latest-values");
 
-    public Task<TelemetryHistoryPage> GetTelemetryHistoryAsync(Guid deviceId, string? capabilityKey = null)
+    public Task<TelemetryHistoryPage> GetTelemetryHistoryAsync(Guid deviceId, string? capabilityKey = null, int page = 1, int pageSize = 50)
     {
-        var suffix = string.IsNullOrWhiteSpace(capabilityKey)
-            ? string.Empty
-            : $"?capabilityKey={Uri.EscapeDataString(capabilityKey)}";
+        var query = new List<string>
+        {
+            $"page={page}",
+            $"pageSize={pageSize}"
+        };
+        if (!string.IsNullOrWhiteSpace(capabilityKey))
+        {
+            query.Add($"capabilityKey={Uri.EscapeDataString(capabilityKey)}");
+        }
+
+        var suffix = $"?{string.Join("&", query)}";
         return GetAsync<TelemetryHistoryPage>($"api/v1/devices/{deviceId}/telemetry{suffix}");
     }
 
