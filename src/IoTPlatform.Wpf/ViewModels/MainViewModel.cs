@@ -22,6 +22,7 @@ public sealed class MainViewModel : ObservableObject
     private bool _isRegisterMode;
     private bool _isSidebarExpanded = true;
     private bool _isNotificationFlyoutOpen;
+    private bool _isRefreshingDeviceDetail;
     private string _lastHomeRefreshText = "Not refreshed yet";
     private string _availableDeviceMessage = "Waiting for DeviceApp...";
     private string _availablePairingCode = "";
@@ -256,22 +257,7 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _selectedDevice, value))
             {
                 RaiseCommandStates();
-                OnPropertyChanged(nameof(SelectedDeviceName));
-                OnPropertyChanged(nameof(SelectedDeviceStatus));
-                OnPropertyChanged(nameof(SelectedDeviceTitle));
-                OnPropertyChanged(nameof(SelectedDeviceSubtitle));
-                OnPropertyChanged(nameof(SelectedDeviceStatusBrush));
-                OnPropertyChanged(nameof(SelectedDeviceStatusBackground));
-                OnPropertyChanged(nameof(SelectedDeviceIsOnline));
-                OnPropertyChanged(nameof(SelectedDeviceContentBrush));
-                OnPropertyChanged(nameof(SelectedDeviceMutedBrush));
-                OnPropertyChanged(nameof(SelectedDeviceSurfaceBrush));
-                OnPropertyChanged(nameof(SelectedDeviceIconBrush));
-                OnPropertyChanged(nameof(SelectedDeviceTypeLabel));
-                OnPropertyChanged(nameof(SelectedDeviceIconData));
-                OnPropertyChanged(nameof(HasSelectedDeviceVisibility));
-                OnPropertyChanged(nameof(NoSelectedDeviceVisibility));
-                OnPropertyChanged(nameof(HomeDeviceDetailVisibility));
+                NotifySelectedDeviceChanged();
                 if (value is not null)
                 {
                     RenameDisplayName = value.DisplayName ?? "";
@@ -810,8 +796,19 @@ public sealed class MainViewModel : ObservableObject
         await RunAsync(async () =>
         {
             var previousSelectedId = SelectedDevice?.Id;
-            Replace(Devices, await _api.GetDevicesAsync());
-            SelectedDevice = Devices.FirstOrDefault(device => device.Id == previousSelectedId) ?? Devices.FirstOrDefault();
+            var devices = await _api.GetDevicesAsync();
+            SyncByKey(Devices, devices, device => device.Id);
+            var nextSelectedDevice = Devices.FirstOrDefault(device => device.Id == previousSelectedId) ?? Devices.FirstOrDefault();
+            if (SelectedDevice?.Id == nextSelectedDevice?.Id)
+            {
+                _selectedDevice = nextSelectedDevice;
+                NotifySelectedDeviceChanged();
+            }
+            else
+            {
+                SelectedDevice = nextSelectedDevice;
+            }
+
             NotifyDashboardCounts();
             StatusMessage = Devices.Count == 0
                 ? "No devices yet. Start a DeviceApp and claim it with a pairing code."
@@ -868,11 +865,15 @@ public sealed class MainViewModel : ObservableObject
             }
         }
 
-        Replace(HomeDeviceCards, cards
+        SyncByKey(
+            HomeDeviceCards,
+            cards
             .OrderBy(card => card.IsOnline ? 0 : 1)
             .ThenBy(card => card.DeviceName)
             .ThenBy(card => card.KindSort)
-            .ThenBy(card => card.CapabilityName));
+            .ThenBy(card => card.CapabilityName),
+            card => $"{card.DeviceId:N}:{card.CapabilityKey}",
+            (existing, incoming) => existing.UpdateFrom(incoming));
         if (selectedDeviceId is not null && !string.IsNullOrWhiteSpace(selectedCapabilityKey))
         {
             SelectedHomeDeviceCard = HomeDeviceCards.FirstOrDefault(card =>
@@ -1065,22 +1066,30 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task LoadDeviceDetailAsync()
     {
-        if (SelectedDevice is null || !IsAuthenticated)
+        if (SelectedDevice is null || !IsAuthenticated || _isRefreshingDeviceDetail)
         {
             return;
         }
 
-        await RunAsync(async () =>
+        _isRefreshingDeviceDetail = true;
+        try
         {
-            var capabilities = await _api.GetDeviceCapabilitiesAsync(SelectedDevice.Id);
-            Replace(Capabilities, capabilities);
-            Replace(LatestValues, await _api.GetLatestValuesAsync(SelectedDevice.Id));
-            var history = await _api.GetTelemetryHistoryAsync(SelectedDevice.Id, EmptyToNull(HistoryCapabilityKey), pageSize: 100);
-            Replace(TelemetryHistory, history.Items);
-            BuildControlModels();
-            BuildHomeDeviceTelemetryLog();
-            StatusMessage = $"Loaded {SelectedDevice.NameOrSerial}.";
-        });
+            await RunAsync(async () =>
+            {
+                var capabilities = await _api.GetDeviceCapabilitiesAsync(SelectedDevice.Id);
+                SyncByKey(Capabilities, capabilities, capability => capability.Key);
+                SyncByKey(LatestValues, await _api.GetLatestValuesAsync(SelectedDevice.Id), value => value.CapabilityKey);
+                var history = await _api.GetTelemetryHistoryAsync(SelectedDevice.Id, EmptyToNull(HistoryCapabilityKey), pageSize: 100);
+                SyncByKey(TelemetryHistory, history.Items, item => item.Id);
+                BuildControlModels();
+                BuildHomeDeviceTelemetryLog();
+                StatusMessage = $"Loaded {SelectedDevice.NameOrSerial}.";
+            });
+        }
+        finally
+        {
+            _isRefreshingDeviceDetail = false;
+        }
     }
 
     private async Task SendCommandAsync()
@@ -1310,7 +1319,7 @@ public sealed class MainViewModel : ObservableObject
     private void BuildControlModels()
     {
         var latestByCapability = LatestValues.ToDictionary(value => value.CapabilityKey, StringComparer.Ordinal);
-        Replace(Sensors, Capabilities
+        SyncByKey(Sensors, Capabilities
             .Where(capability => capability.Kind == "sensor")
             .Select(capability =>
             {
@@ -1322,8 +1331,10 @@ public sealed class MainViewModel : ObservableObject
                     latest?.DisplayValue ?? "No readings yet",
                     latest?.RecordedAtUtc.ToLocalTime().ToString("g") ?? "Waiting for telemetry",
                     SelectedDeviceIsOnline);
-            }));
-        Replace(Actuators, Capabilities
+            }),
+            card => card.Key,
+            (existing, incoming) => existing.UpdateFrom(incoming));
+        SyncByKey(Actuators, Capabilities
             .Where(capability => capability.Kind == "actuator" && capability.IsWritable)
             .Select(capability =>
             {
@@ -1337,7 +1348,9 @@ public sealed class MainViewModel : ObservableObject
                     isOn,
                     isOn ? "Currently on" : "Currently off",
                     SelectedDeviceIsOnline);
-            }));
+            }),
+            control => control.Key,
+            (existing, incoming) => existing.UpdateFrom(incoming));
         OnPropertyChanged(nameof(SelectedSensorCount));
         OnPropertyChanged(nameof(SelectedActuatorCount));
         OnPropertyChanged(nameof(SelectedDeviceLatestCount));
@@ -1383,9 +1396,11 @@ public sealed class MainViewModel : ObservableObject
             }
         }
 
-        Replace(HomeDeviceTelemetryLog, filtered
+        SyncByKey(HomeDeviceTelemetryLog, filtered
             .OrderByDescending(item => item.RecordedAtUtc)
-            .Take(100));
+            .Take(100),
+            item => $"{item.RecordedAtUtc:O}:{item.CapabilityName}:{item.Value}",
+            (existing, incoming) => existing.UpdateFrom(incoming));
         OnPropertyChanged(nameof(EmptyHomeTelemetryLogVisibility));
         OnPropertyChanged(nameof(HasHomeTelemetryLogVisibility));
     }
@@ -1449,6 +1464,27 @@ public sealed class MainViewModel : ObservableObject
         SaveAutomationRuleCommand.RaiseCanExecuteChanged();
         DeleteAutomationRuleCommand.RaiseCanExecuteChanged();
         LoadAutomationExecutionsCommand.RaiseCanExecuteChanged();
+    }
+
+    private void NotifySelectedDeviceChanged()
+    {
+        RaiseCommandStates();
+        OnPropertyChanged(nameof(SelectedDeviceName));
+        OnPropertyChanged(nameof(SelectedDeviceStatus));
+        OnPropertyChanged(nameof(SelectedDeviceTitle));
+        OnPropertyChanged(nameof(SelectedDeviceSubtitle));
+        OnPropertyChanged(nameof(SelectedDeviceStatusBrush));
+        OnPropertyChanged(nameof(SelectedDeviceStatusBackground));
+        OnPropertyChanged(nameof(SelectedDeviceIsOnline));
+        OnPropertyChanged(nameof(SelectedDeviceContentBrush));
+        OnPropertyChanged(nameof(SelectedDeviceMutedBrush));
+        OnPropertyChanged(nameof(SelectedDeviceSurfaceBrush));
+        OnPropertyChanged(nameof(SelectedDeviceIconBrush));
+        OnPropertyChanged(nameof(SelectedDeviceTypeLabel));
+        OnPropertyChanged(nameof(SelectedDeviceIconData));
+        OnPropertyChanged(nameof(HasSelectedDeviceVisibility));
+        OnPropertyChanged(nameof(NoSelectedDeviceVisibility));
+        OnPropertyChanged(nameof(HomeDeviceDetailVisibility));
     }
 
     private void NotifyDashboardCounts()
@@ -1642,6 +1678,73 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
+    private static void SyncByKey<T, TKey>(
+        ObservableCollection<T> target,
+        IEnumerable<T> values,
+        Func<T, TKey> keySelector)
+        where TKey : notnull
+    {
+        SyncByKey(target, values, keySelector, null);
+    }
+
+    private static void SyncByKey<T, TKey>(
+        ObservableCollection<T> target,
+        IEnumerable<T> values,
+        Func<T, TKey> keySelector,
+        Action<T, T>? updateExisting)
+        where TKey : notnull
+    {
+        var desired = values.ToList();
+        var desiredKeys = new HashSet<TKey>(desired.Select(keySelector));
+
+        for (var index = target.Count - 1; index >= 0; index--)
+        {
+            if (!desiredKeys.Contains(keySelector(target[index])))
+            {
+                target.RemoveAt(index);
+            }
+        }
+
+        for (var desiredIndex = 0; desiredIndex < desired.Count; desiredIndex++)
+        {
+            var incoming = desired[desiredIndex];
+            var key = keySelector(incoming);
+            var existingIndex = IndexOfKey(target, keySelector, key);
+            if (existingIndex < 0)
+            {
+                target.Insert(desiredIndex, incoming);
+                continue;
+            }
+
+            var existing = target[existingIndex];
+            updateExisting?.Invoke(existing, incoming);
+            if (updateExisting is null && !EqualityComparer<T>.Default.Equals(existing, incoming))
+            {
+                target[existingIndex] = incoming;
+                existing = incoming;
+            }
+
+            if (existingIndex != desiredIndex)
+            {
+                target.Move(existingIndex, desiredIndex);
+            }
+        }
+    }
+
+    private static int IndexOfKey<T, TKey>(ObservableCollection<T> target, Func<T, TKey> keySelector, TKey key)
+        where TKey : notnull
+    {
+        for (var index = 0; index < target.Count; index++)
+        {
+            if (EqualityComparer<TKey>.Default.Equals(keySelector(target[index]), key))
+            {
+                return index;
+            }
+        }
+
+        return -1;
+    }
+
     private static JsonElement ParseDynamicValue(string value)
     {
         if (bool.TryParse(value, out var boolean))
@@ -1687,18 +1790,119 @@ public sealed class MainViewModel : ObservableObject
     }
 }
 
-public sealed record HomeDeviceTelemetryLogItem(string Recorded, string CapabilityName, string Value, DateTimeOffset RecordedAtUtc)
+public sealed class HomeDeviceTelemetryLogItem(
+    string recorded,
+    string capabilityName,
+    string value,
+    DateTimeOffset recordedAtUtc) : ObservableObject
 {
+    private string _recorded = recorded;
+    private string _capabilityName = capabilityName;
+    private string _value = value;
+
+    public string Recorded
+    {
+        get => _recorded;
+        private set => SetProperty(ref _recorded, value);
+    }
+
+    public string CapabilityName
+    {
+        get => _capabilityName;
+        private set => SetProperty(ref _capabilityName, value);
+    }
+
+    public string Value
+    {
+        get => _value;
+        private set => SetProperty(ref _value, value);
+    }
+
+    public DateTimeOffset RecordedAtUtc { get; } = recordedAtUtc;
+
     public static HomeDeviceTelemetryLogItem From(TelemetryHistoryItem item, DeviceCapability capability, string value) =>
         new(
             item.RecordedAtUtc.ToLocalTime().ToString("g"),
             capability.DisplayName,
             value,
             item.RecordedAtUtc);
+
+    public void UpdateFrom(HomeDeviceTelemetryLogItem incoming)
+    {
+        Recorded = incoming.Recorded;
+        CapabilityName = incoming.CapabilityName;
+        Value = incoming.Value;
+    }
 }
 
-public sealed record SensorCard(string Key, string DisplayName, string? Unit, string Value, string RecordedAt, bool IsDeviceOnline)
+public sealed class SensorCard(
+    string key,
+    string displayName,
+    string? unit,
+    string value,
+    string recordedAt,
+    bool isDeviceOnline) : ObservableObject
 {
+    private string _displayName = displayName;
+    private string? _unit = unit;
+    private string _value = value;
+    private string _recordedAt = recordedAt;
+    private bool _isDeviceOnline = isDeviceOnline;
+
+    public string Key { get; } = key;
+
+    public string DisplayName
+    {
+        get => _displayName;
+        private set => SetProperty(ref _displayName, value);
+    }
+
+    public string? Unit
+    {
+        get => _unit;
+        private set
+        {
+            if (SetProperty(ref _unit, value))
+            {
+                OnPropertyChanged(nameof(ValueWithUnit));
+            }
+        }
+    }
+
+    public string Value
+    {
+        get => _value;
+        private set
+        {
+            if (SetProperty(ref _value, value))
+            {
+                OnPropertyChanged(nameof(ValueWithUnit));
+            }
+        }
+    }
+
+    public string RecordedAt
+    {
+        get => _recordedAt;
+        private set => SetProperty(ref _recordedAt, value);
+    }
+
+    public bool IsDeviceOnline
+    {
+        get => _isDeviceOnline;
+        private set
+        {
+            if (SetProperty(ref _isDeviceOnline, value))
+            {
+                OnPropertyChanged(nameof(CardBackground));
+                OnPropertyChanged(nameof(CardBorderBrush));
+                OnPropertyChanged(nameof(ContentBrush));
+                OnPropertyChanged(nameof(IconBrush));
+                OnPropertyChanged(nameof(IconBackground));
+            }
+        }
+    }
+
     public string ValueWithUnit => string.IsNullOrWhiteSpace(Unit) || Value == "No readings yet" ? Value : $"{Value} {Unit}";
     public string CardBackground => IsDeviceOnline ? "#F8FAFC" : "#F1F5F9";
     public string CardBorderBrush => IsDeviceOnline ? "#D8E0EA" : "#E2E8F0";
@@ -1706,6 +1910,15 @@ public sealed record SensorCard(string Key, string DisplayName, string? Unit, st
     public string MutedBrush => "#94A3B8";
     public string IconBrush => IsDeviceOnline ? "#2563EB" : "#94A3B8";
     public string IconBackground => IsDeviceOnline ? "#EFF6FF" : "#E2E8F0";
+
+    public void UpdateFrom(SensorCard incoming)
+    {
+        DisplayName = incoming.DisplayName;
+        Unit = incoming.Unit;
+        Value = incoming.Value;
+        RecordedAt = incoming.RecordedAt;
+        IsDeviceOnline = incoming.IsDeviceOnline;
+    }
 }
 
 public sealed class HomeDeviceCard(
@@ -1724,17 +1937,71 @@ public sealed class HomeDeviceCard(
 {
     private bool _isOn = isOn;
     private string _lastStatus = recordedAt;
+    private string _deviceName = deviceName;
+    private string _deviceStatus = deviceStatus;
+    private string _value = value;
+    private IReadOnlyList<string> _supportedCommands = supportedCommands;
 
     public Guid DeviceId { get; } = deviceId;
-    public string DeviceName { get; } = deviceName;
-    public string DeviceStatus { get; } = deviceStatus;
+    public string DeviceName
+    {
+        get => _deviceName;
+        private set => SetProperty(ref _deviceName, value);
+    }
+
+    public string DeviceStatus
+    {
+        get => _deviceStatus;
+        private set
+        {
+            if (SetProperty(ref _deviceStatus, value))
+            {
+                OnPropertyChanged(nameof(IsOnline));
+                OnPropertyChanged(nameof(StatusLabel));
+                OnPropertyChanged(nameof(StatusBrush));
+                OnPropertyChanged(nameof(CardBackground));
+                OnPropertyChanged(nameof(CardBorderBrush));
+                OnPropertyChanged(nameof(PrimaryBrush));
+                OnPropertyChanged(nameof(MutedBrush));
+                OnPropertyChanged(nameof(IconBrush));
+                OnPropertyChanged(nameof(IconBackground));
+                OnPropertyChanged(nameof(PrimaryValue));
+                OnPropertyChanged(nameof(SecondaryText));
+                OnPropertyChanged(nameof(SwitchBackground));
+                OnPropertyChanged(nameof(SwitchLabelBrush));
+            }
+        }
+    }
+
     public string CapabilityKey { get; } = capabilityKey;
     public string CapabilityName { get; } = capabilityName;
     public string Kind { get; } = kind;
     public string DataType { get; } = dataType;
     public string? Unit { get; } = unit;
-    public IReadOnlyList<string> SupportedCommands { get; } = supportedCommands;
-    public string Value { get; } = value;
+    public IReadOnlyList<string> SupportedCommands
+    {
+        get => _supportedCommands;
+        private set
+        {
+            if (SetProperty(ref _supportedCommands, value))
+            {
+                OnPropertyChanged(nameof(NextCommandName));
+            }
+        }
+    }
+
+    public string Value
+    {
+        get => _value;
+        private set
+        {
+            if (SetProperty(ref _value, value))
+            {
+                OnPropertyChanged(nameof(ValueWithUnit));
+                OnPropertyChanged(nameof(PrimaryValue));
+            }
+        }
+    }
     public bool IsSensor => Kind.Equals("sensor", StringComparison.OrdinalIgnoreCase);
     public bool IsActuator => Kind.Equals("actuator", StringComparison.OrdinalIgnoreCase);
     public Visibility ActuatorActionVisibility => IsActuator ? Visibility.Visible : Visibility.Collapsed;
@@ -1827,6 +2094,16 @@ public sealed class HomeDeviceCard(
         }
 
         LastStatus = $"Command {commandName} is {status}.";
+    }
+
+    public void UpdateFrom(HomeDeviceCard incoming)
+    {
+        DeviceName = incoming.DeviceName;
+        DeviceStatus = incoming.DeviceStatus;
+        SupportedCommands = incoming.SupportedCommands;
+        Value = incoming.Value;
+        LastStatus = incoming.LastStatus;
+        IsOn = incoming.IsOn;
     }
 
     private string ResolveKindIcon()
@@ -1927,12 +2204,47 @@ public sealed class ActuatorControl(
 {
     private string _lastStatus = lastStatus;
     private bool _isOn = isOn;
+    private string _displayName = displayName;
+    private IReadOnlyList<string> _supportedCommands = supportedCommands;
+    private bool _isDeviceOnline = isDeviceOnline;
 
     public string Key { get; } = key;
-    public string DisplayName { get; } = displayName;
+    public string DisplayName
+    {
+        get => _displayName;
+        private set => SetProperty(ref _displayName, value);
+    }
+
     public string DataType { get; } = dataType;
-    public IReadOnlyList<string> SupportedCommands { get; } = supportedCommands;
-    public bool IsDeviceOnline { get; } = isDeviceOnline;
+    public IReadOnlyList<string> SupportedCommands
+    {
+        get => _supportedCommands;
+        private set
+        {
+            if (SetProperty(ref _supportedCommands, value))
+            {
+                OnPropertyChanged(nameof(NextCommandName));
+            }
+        }
+    }
+
+    public bool IsDeviceOnline
+    {
+        get => _isDeviceOnline;
+        private set
+        {
+            if (SetProperty(ref _isDeviceOnline, value))
+            {
+                OnPropertyChanged(nameof(CardBackground));
+                OnPropertyChanged(nameof(CardBorderBrush));
+                OnPropertyChanged(nameof(ContentBrush));
+                OnPropertyChanged(nameof(IconBrush));
+                OnPropertyChanged(nameof(IconBackground));
+                OnPropertyChanged(nameof(SwitchBackground));
+            }
+        }
+    }
+
     public bool IsOn
     {
         get => _isOn;
@@ -1979,5 +2291,14 @@ public sealed class ActuatorControl(
         }
 
         LastStatus = $"Command {commandName} is {status}. Waiting for device acknowledgement.";
+    }
+
+    public void UpdateFrom(ActuatorControl incoming)
+    {
+        DisplayName = incoming.DisplayName;
+        SupportedCommands = incoming.SupportedCommands;
+        IsDeviceOnline = incoming.IsDeviceOnline;
+        IsOn = incoming.IsOn;
+        LastStatus = incoming.LastStatus;
     }
 }
