@@ -4,7 +4,7 @@
 
 ```text
 WPF (local) -> Web API (Azure App Service F1) -> Azure SQL
-DeviceApp (local) <-> HiveMQ Cloud <-> Worker (local) -> Azure SQL
+DeviceApp (local) <-> HiveMQ Cloud <-> API-hosted Worker -> Azure SQL
 ```
 
 ## Azure Web API
@@ -25,6 +25,12 @@ Jwt__SigningKey=<at-least-32-character-secret>
 Jwt__AccessTokenMinutes=15
 Jwt__RefreshTokenDays=30
 ConnectionStrings__IoTPlatform=<Azure SQL connection string>
+Worker__Enabled=true
+HiveMq__Host=f1f0f565b8564081b04217852589bb65.s1.eu.hivemq.cloud
+HiveMq__Port=8883
+HiveMq__Username=<HiveMQ credential username>
+HiveMq__Password=<HiveMQ credential password>
+HiveMq__ClientIdPrefix=api-worker
 ```
 
 Health endpoints:
@@ -35,25 +41,20 @@ GET /health/live  checks that the API process is alive
 GET /health/ready checks dependencies required for requests, currently Azure SQL
 ```
 
-## Worker Local
+## API-Hosted Worker
 
-The Worker is not deployed to Azure in the MVP. It runs on the laptop and uses the same Azure SQL database as the API.
+The Worker runs inside the Web API process when `Worker__Enabled=true`. It uses the same Azure SQL database as the API, connects to HiveMQ Cloud, subscribes to device messages, dispatches pending commands, and runs operations maintenance.
 
-Required local secrets or environment variables:
+Required App Service configuration:
 
 ```text
+Worker__Enabled=true
 ConnectionStrings:IoTPlatform=<Azure SQL connection string>
 HiveMq:Host=f1f0f565b8564081b04217852589bb65.s1.eu.hivemq.cloud
 HiveMq:Port=8883
 HiveMq:Username=<HiveMQ credential username>
 HiveMq:Password=<HiveMQ credential password>
-HiveMq:ClientIdPrefix=worker
-```
-
-Run:
-
-```powershell
-dotnet run --project src\IoTPlatform.Worker
+HiveMq:ClientIdPrefix=api-worker
 ```
 
 Expected log:
@@ -64,6 +65,8 @@ Connected to HiveMQ ...
 Registered manifest ...
 Telemetry ...
 ```
+
+For local API development, leave `Worker:Enabled` as `false` unless you intentionally want the API process to connect to HiveMQ.
 
 ## DeviceApp Local
 

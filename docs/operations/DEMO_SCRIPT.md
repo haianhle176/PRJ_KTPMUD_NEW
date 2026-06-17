@@ -17,20 +17,7 @@ Healthy
 
 `/health/ready` confirms that the API can reach Azure SQL.
 
-## 2. Start Worker
-
-```powershell
-dotnet run --project src\IoTPlatform.Worker
-```
-
-Expected:
-
-```text
-Database migrations are current.
-Connected to HiveMQ ...
-```
-
-## 3. Start DeviceApp
+## 2. Start DeviceApp
 
 ```powershell
 dotnet run --project src\IoTPlatform.DeviceApp
@@ -43,7 +30,7 @@ In the simulator:
 3. Click `Start` on that device card.
 4. Copy the pairing code shown on the card.
 
-## 4. Start WPF
+## 3. Start WPF
 
 ```powershell
 dotnet run --project src\IoTPlatform.Wpf
@@ -74,11 +61,11 @@ THEN power ON true
 
 9. Use a sensor preset and verify automation execution when telemetry crosses the threshold.
 
-## 5. Disconnect/Reconnect Test
+## 4. Disconnect/Reconnect Test
 
 Click `Stop` on the simulated device card, or close DeviceApp.
 
-Expected Worker log:
+Expected API-hosted Worker log:
 
 ```text
 Device <serial> is offline.
@@ -86,7 +73,7 @@ Device <serial> is offline.
 
 Click `Start` on the simulated device card again.
 
-Expected Worker log:
+Expected API-hosted Worker log:
 
 ```text
 Registered manifest ...

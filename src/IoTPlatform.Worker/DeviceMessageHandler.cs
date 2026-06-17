@@ -3,6 +3,7 @@ using IoTPlatform.Domain.Messaging;
 using IoTPlatform.Infrastructure.Devices;
 using IoTPlatform.Infrastructure.Telemetry;
 using IoTPlatform.Infrastructure.Commands;
+using Microsoft.Extensions.Logging;
 
 namespace IoTPlatform.Worker;
 

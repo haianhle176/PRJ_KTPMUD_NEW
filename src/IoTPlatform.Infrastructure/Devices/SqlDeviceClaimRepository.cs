@@ -21,9 +21,10 @@ public sealed class SqlDeviceClaimRepository(ISqlTransactionScopeFactory transac
             INNER JOIN dbo.Devices d WITH (UPDLOCK, HOLDLOCK) ON d.Id = pc.DeviceId
             WHERE pc.CodeHash = @CodeHash
               AND pc.UsedAtUtc IS NULL
-              AND pc.ExpiresAtUtc > SYSUTCDATETIME();
+              AND pc.ExpiresAtUtc > SYSUTCDATETIME()
+              AND (d.AvailableToUserId IS NULL OR d.AvailableToUserId = @UserId);
             """,
-            new { CodeHash = pairingCodeHash },
+            new { CodeHash = pairingCodeHash, UserId = userId },
             scope.Transaction,
             cancellationToken: cancellationToken));
 
@@ -51,6 +52,7 @@ public sealed class SqlDeviceClaimRepository(ISqlTransactionScopeFactory transac
             """
             UPDATE dbo.Devices
             SET OwnerUserId = @UserId,
+                AvailableToUserId = NULL,
                 DisplayName = @DisplayName,
                 Category = @Category,
                 ClaimedAtUtc = COALESCE(ClaimedAtUtc, @Now),

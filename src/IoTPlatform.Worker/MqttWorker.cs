@@ -3,6 +3,8 @@ using IoTPlatform.Infrastructure.Commands;
 using IoTPlatform.Infrastructure.Configuration;
 using IoTPlatform.Infrastructure.Devices;
 using IoTPlatform.Infrastructure.Persistence.Migrations;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using MQTTnet;
 using MQTTnet.Client;

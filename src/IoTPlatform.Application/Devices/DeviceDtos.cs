@@ -2,6 +2,25 @@ namespace IoTPlatform.Application.Devices;
 
 public sealed record ClaimDeviceRequestDto(string PairingCode, string DisplayName, string? Category);
 
+public sealed record ProvisionDeviceRequestDto(
+    string Serial,
+    string DisplayName,
+    string? Category,
+    string? DeviceType,
+    int ManifestVersion,
+    IReadOnlyList<ProvisionDeviceCapabilityDto> Capabilities);
+
+public sealed record ProvisionDeviceCapabilityDto(
+    string Key,
+    string DisplayName,
+    string Kind,
+    string DataType,
+    string? Unit,
+    decimal? MinValue,
+    decimal? MaxValue,
+    bool IsWritable,
+    IReadOnlyList<string> SupportedCommands);
+
 public sealed record DeviceSummaryDto(
     Guid Id,
     string Serial,

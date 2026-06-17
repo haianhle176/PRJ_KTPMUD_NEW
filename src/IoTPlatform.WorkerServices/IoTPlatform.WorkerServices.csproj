@@ -1,0 +1,25 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Compile Include="..\IoTPlatform.Worker\DeviceMessageHandler.cs" Link="DeviceMessageHandler.cs" />
+    <Compile Include="..\IoTPlatform.Worker\MqttWorker.cs" Link="MqttWorker.cs" />
+    <Compile Include="..\IoTPlatform.Worker\OperationsMaintenanceWorker.cs" Link="OperationsMaintenanceWorker.cs" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="MQTTnet" Version="4.3.3.952" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\IoTPlatform.Application\IoTPlatform.Application.csproj" />
+    <ProjectReference Include="..\IoTPlatform.Infrastructure\IoTPlatform.Infrastructure.csproj" />
+  </ItemGroup>
+
+</Project>

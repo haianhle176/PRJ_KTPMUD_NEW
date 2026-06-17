@@ -1,16 +1,16 @@
 # Local Configuration
 
-Worker va DeviceApp chay local. Khong commit SQL password hoac HiveMQ credential vao repository.
+DeviceApp chay local. API-hosted Worker mac dinh tat khi dev local. Khong commit SQL password hoac HiveMQ credential vao repository.
 
-## Worker
+## API-hosted Worker
 
 ```powershell
-dotnet user-secrets set "ConnectionStrings:IoTPlatform" "<AZURE_SQL_CONNECTION_STRING>" --project src/IoTPlatform.Worker
-dotnet user-secrets set "HiveMq:Username" "<HIVEMQ_USERNAME>" --project src/IoTPlatform.Worker
-dotnet user-secrets set "HiveMq:Password" "<HIVEMQ_PASSWORD>" --project src/IoTPlatform.Worker
+dotnet user-secrets set "Worker:Enabled" "true" --project src/IoTPlatform.Api
+dotnet user-secrets set "HiveMq:Username" "<HIVEMQ_USERNAME>" --project src/IoTPlatform.Api
+dotnet user-secrets set "HiveMq:Password" "<HIVEMQ_PASSWORD>" --project src/IoTPlatform.Api
 ```
 
-Host `f1f0f565b8564081b04217852589bb65.s1.eu.hivemq.cloud` va port `8883` da nam trong `appsettings.json` vi khong phai secret.
+Host `f1f0f565b8564081b04217852589bb65.s1.eu.hivemq.cloud` va port `8883` da nam trong `src/IoTPlatform.Api/appsettings.json` vi khong phai secret.
 
 ## DeviceApp
 
@@ -29,13 +29,13 @@ Trong DeviceApp, bam `Add device`, chon 1 trong 8 preset SmartHome, sau do `Star
 
 Neu can mo phong nhieu thiet bi, them nhieu card trong cung mot cua so DeviceApp.
 
-## Worker startup
+## API startup
 
 ```powershell
-dotnet run --project src/IoTPlatform.Worker
+dotnet run --project src/IoTPlatform.Api
 ```
 
-Worker tu chay database migrations, sau do ket noi HiveMQ va subscribe manifest/presence. Azure SQL firewall phai cho phep IP hien tai cua laptop.
+API tu chay database migrations. Neu `Worker:Enabled=true`, API cung ket noi HiveMQ va subscribe manifest/presence/telemetry/command ACK. Azure SQL firewall phai cho phep IP hien tai cua laptop.
 
 ## P1 verification
 

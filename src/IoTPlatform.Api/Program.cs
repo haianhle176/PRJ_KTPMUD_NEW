@@ -1,6 +1,7 @@
 using IoTPlatform.Infrastructure.Configuration;
 using IoTPlatform.Infrastructure.Health;
 using IoTPlatform.Infrastructure.Persistence.Migrations;
+using IoTPlatform.Worker;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using System.Threading.RateLimiting;
 
@@ -27,6 +28,13 @@ builder.Services.AddHealthChecks()
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddJwtOptions(builder.Configuration);
 builder.Services.AddApplicationServices();
+if (builder.Configuration.GetValue<bool>("Worker:Enabled"))
+{
+    builder.Services.AddHiveMqOptions(builder.Configuration);
+    builder.Services.AddSingleton<DeviceMessageHandler>();
+    builder.Services.AddHostedService<MqttWorker>();
+    builder.Services.AddHostedService<OperationsMaintenanceWorker>();
+}
 
 var app = builder.Build();
 

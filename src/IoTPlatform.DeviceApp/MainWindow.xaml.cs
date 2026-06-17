@@ -7,6 +7,7 @@ using System.Windows.Controls;
 using IoTPlatform.DeviceApp.Configuration;
 using IoTPlatform.DeviceApp.Mqtt;
 using IoTPlatform.DeviceApp.Profiles;
+using IoTPlatform.DeviceApp.Services;
 using IoTPlatform.Domain.Devices;
 using IoTPlatform.Domain.Messaging;
 using Microsoft.Extensions.Configuration;
@@ -15,8 +16,13 @@ namespace IoTPlatform.DeviceApp;
 
 public partial class MainWindow : Window, INotifyPropertyChanged
 {
+    private readonly DeviceAppApiClient _api = new();
     private readonly DeviceHiveMqOptions _hiveMqOptions;
     private DeviceTypePreset? _selectedDeviceType;
+    private bool _isAuthenticated;
+    private string _authEmail = "";
+    private string _authStatus = "Đăng nhập bằng cùng tài khoản OmniConnect.";
+    private string _signedInDisplayName = "";
 
     public MainWindow()
     {
@@ -25,7 +31,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         SelectedDeviceType = DeviceTypes.First();
         _hiveMqOptions = LoadHiveMqOptions();
         DataContext = this;
-        Log("Ready. Add one or more simulated devices.");
+        _ = RestoreSessionAsync();
     }
 
     public event PropertyChangedEventHandler? PropertyChanged;
@@ -33,6 +39,87 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     public ObservableCollection<DeviceTypePreset> DeviceTypes { get; }
     public ObservableCollection<SimulatedDeviceItem> Devices { get; } = [];
     public ObservableCollection<string> Logs { get; } = [];
+
+    public bool IsAuthenticated
+    {
+        get => _isAuthenticated;
+        set
+        {
+            if (_isAuthenticated != value)
+            {
+                _isAuthenticated = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(AuthVisibility));
+                OnPropertyChanged(nameof(SimulatorVisibility));
+                OnPropertyChanged(nameof(AppWindowWidth));
+                OnPropertyChanged(nameof(AppWindowHeight));
+                OnPropertyChanged(nameof(AppWindowMinWidth));
+                OnPropertyChanged(nameof(AppWindowMinHeight));
+                OnPropertyChanged(nameof(AppWindowMaxWidth));
+                OnPropertyChanged(nameof(AppWindowMaxHeight));
+            }
+        }
+    }
+
+    public string AuthEmail
+    {
+        get => _authEmail;
+        set
+        {
+            if (_authEmail != value)
+            {
+                _authEmail = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string AuthStatus
+    {
+        get => _authStatus;
+        set
+        {
+            if (_authStatus != value)
+            {
+                _authStatus = value;
+                OnPropertyChanged();
+            }
+        }
+    }
+
+    public string SignedInDisplayName
+    {
+        get => _signedInDisplayName;
+        set
+        {
+            if (_signedInDisplayName != value)
+            {
+                _signedInDisplayName = value;
+                OnPropertyChanged();
+                OnPropertyChanged(nameof(SignedInText));
+            }
+        }
+    }
+
+    public string SignedInText => string.IsNullOrWhiteSpace(SignedInDisplayName)
+        ? "Signed in"
+        : $"Signed in as {SignedInDisplayName}";
+
+    public Visibility AuthVisibility => IsAuthenticated ? Visibility.Collapsed : Visibility.Visible;
+
+    public Visibility SimulatorVisibility => IsAuthenticated ? Visibility.Visible : Visibility.Collapsed;
+
+    public double AppWindowWidth => IsAuthenticated ? 980 : 420;
+
+    public double AppWindowHeight => IsAuthenticated ? 680 : 520;
+
+    public double AppWindowMinWidth => AppWindowWidth;
+
+    public double AppWindowMinHeight => AppWindowHeight;
+
+    public double AppWindowMaxWidth => AppWindowWidth;
+
+    public double AppWindowMaxHeight => AppWindowHeight;
 
     public DeviceTypePreset? SelectedDeviceType
     {
@@ -47,20 +134,75 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         }
     }
 
-    private void AddDevice_OnClick(object sender, RoutedEventArgs e)
+    private async void Login_OnClick(object sender, RoutedEventArgs e)
     {
-        if (SelectedDeviceType is null)
+        if (string.IsNullOrWhiteSpace(AuthEmail) || string.IsNullOrWhiteSpace(PasswordInput.Password))
         {
+            AuthStatus = "Email và mật khẩu là bắt buộc.";
             return;
         }
 
-        var profile = new DeviceProfile(
-            DeviceSerial.Create(),
-            1,
-            SelectedDeviceType.Capabilities,
-            SelectedDeviceType.DeviceType);
-        Devices.Add(new SimulatedDeviceItem(profile, SelectedDeviceType));
-        Log($"Added {SelectedDeviceType.DisplayName}.");
+        try
+        {
+            AuthStatus = "Đang đăng nhập...";
+            var user = await _api.LoginAsync(AuthEmail.Trim(), PasswordInput.Password);
+            SignedInDisplayName = user.DisplayName;
+            IsAuthenticated = true;
+            PasswordInput.Clear();
+            Log($"Signed in as {user.Email}.");
+        }
+        catch (Exception exception)
+        {
+            AuthStatus = exception.Message;
+        }
+    }
+
+    private async void Logout_OnClick(object sender, RoutedEventArgs e)
+    {
+        foreach (var item in Devices.ToArray())
+        {
+            await StopDeviceAsync(item);
+        }
+
+        Devices.Clear();
+        await _api.LogoutAsync();
+        SignedInDisplayName = "";
+        IsAuthenticated = false;
+        AuthStatus = "Đăng nhập bằng cùng tài khoản OmniConnect.";
+        Log("Signed out.");
+    }
+
+    private async void AddDevice_OnClick(object sender, RoutedEventArgs e)
+    {
+        try
+        {
+            if (SelectedDeviceType is null)
+            {
+                return;
+            }
+
+            var profile = new DeviceProfile(
+                DeviceSerial.Create(),
+                1,
+                SelectedDeviceType.Capabilities,
+                SelectedDeviceType.DeviceType);
+
+            await _api.ProvisionDeviceAsync(
+                profile.Serial,
+                SelectedDeviceType.DisplayName,
+                SelectedDeviceType.Group,
+                profile.DeviceType,
+                profile.ManifestVersion,
+                profile.Capabilities);
+
+            Devices.Add(new SimulatedDeviceItem(profile, SelectedDeviceType));
+            Log($"Added {SelectedDeviceType.DisplayName} to your OmniConnect account.");
+        }
+        catch (Exception exception)
+        {
+            App.WriteCrashLog(exception);
+            Log($"Could not add device: {exception.Message}");
+        }
     }
 
     private async void StartDevice_OnClick(object sender, RoutedEventArgs e)
@@ -86,7 +228,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
         item.Status = "Online";
     }
 
-    private void CopyPairingCode_OnClick(object sender, RoutedEventArgs e)
+    private async void CopyPairingCode_OnClick(object sender, RoutedEventArgs e)
     {
         if ((sender as Button)?.Tag is not SimulatedDeviceItem item || string.IsNullOrWhiteSpace(item.PairingCode) || item.PairingCode == "-")
         {
@@ -94,8 +236,39 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        Clipboard.SetText(item.PairingCode);
-        Log($"Copied pairing code for {item.Serial}.");
+        var copyError = await TryCopyToClipboardAsync(item.PairingCode);
+        if (copyError is null)
+        {
+            Log($"Copied pairing code for {item.Serial}.");
+            return;
+        }
+
+        Log($"Clipboard copy failed ({copyError}). Type this code manually: {item.PairingCode}");
+    }
+
+    private static async Task<string?> TryCopyToClipboardAsync(string text)
+    {
+        Exception? lastException = null;
+        for (var attempt = 1; attempt <= 10; attempt++)
+        {
+            try
+            {
+                Clipboard.SetText(text);
+                return null;
+            }
+            catch (Exception exception) when (exception is System.Runtime.InteropServices.COMException or System.Runtime.InteropServices.ExternalException or ThreadStateException)
+            {
+                lastException = exception;
+                if (attempt < 10)
+                {
+                    await Task.Delay(75);
+                }
+            }
+        }
+
+        return lastException is null
+            ? "unknown error"
+            : $"{lastException.GetType().Name}: {lastException.Message}";
     }
 
     private async void StopDevice_OnClick(object sender, RoutedEventArgs e)
@@ -148,6 +321,20 @@ public partial class MainWindow : Window, INotifyPropertyChanged
                 Logs.RemoveAt(Logs.Count - 1);
             }
         });
+    }
+
+    private async Task RestoreSessionAsync()
+    {
+        if (await _api.TryRestoreAsync())
+        {
+            IsAuthenticated = true;
+            SignedInDisplayName = "";
+            Log("Restored signed-in session.");
+            Log("Ready. Add one or more simulated devices.");
+            return;
+        }
+
+        IsAuthenticated = false;
     }
 
     private static DeviceHiveMqOptions LoadHiveMqOptions()
@@ -255,11 +442,14 @@ public sealed class SimulatedDeviceItem(DeviceProfile profile, DeviceTypePreset 
                 _pairingCode = value;
                 OnPropertyChanged();
                 OnPropertyChanged(nameof(PairingCodeText));
+                OnPropertyChanged(nameof(PairingCodeDisplay));
             }
         }
     }
 
     public string PairingCodeText => PairingCode == "-" ? "Pairing code appears after Start" : $"Pairing code: {PairingCode}";
+
+    public string PairingCodeDisplay => PairingCode == "-" ? "Pairing code appears after Start" : PairingCode;
 
     public void ApplySettings()
     {

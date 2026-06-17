@@ -2,12 +2,66 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="OmniConnect Device Simulator"
-        Width="980"
-        Height="680"
-        MinWidth="860"
-        MinHeight="560"
+        Width="{Binding AppWindowWidth}"
+        Height="{Binding AppWindowHeight}"
+        MinWidth="{Binding AppWindowMinWidth}"
+        MinHeight="{Binding AppWindowMinHeight}"
+        MaxWidth="{Binding AppWindowMaxWidth}"
+        MaxHeight="{Binding AppWindowMaxHeight}"
+        ResizeMode="NoResize"
+        WindowStartupLocation="CenterScreen"
         Closing="Window_OnClosing">
-    <Grid Margin="24">
+    <Grid>
+        <Grid Visibility="{Binding AuthVisibility}">
+            <Border Background="{StaticResource SurfaceBrush}"
+                    Padding="24">
+                <StackPanel Width="320" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Border Width="68" Height="68" Background="{StaticResource PrimaryBrush}" CornerRadius="20" HorizontalAlignment="Center" Margin="0,0,0,12">
+                        <Path Stroke="White"
+                              StrokeThickness="4.5"
+                              StrokeStartLineCap="Round"
+                              StrokeEndLineCap="Round"
+                              StrokeLineJoin="Round"
+                              Stretch="Fill"
+                              Width="38"
+                              Height="38"
+                              HorizontalAlignment="Center"
+                              VerticalAlignment="Center"
+                              Data="M 12,2 L 3,7 L 3,17 L 12,22 L 21,17 L 21,7 Z M 12,9 A 3,3 0 0 0 9,12 L 9,17 L 15,17 L 15,12 A 3,3 0 0 0 12,9 Z" />
+                    </Border>
+                    <TextBlock Text="Đăng nhập"
+                               FontSize="28"
+                               FontWeight="Bold"
+                               Margin="0,0,0,4" />
+                    <TextBlock Text="Dùng cùng tài khoản với OmniConnect App để thiết bị chỉ hiện trong tài khoản của bạn."
+                               Foreground="{StaticResource MutedInkBrush}"
+                               TextWrapping="Wrap"
+                               Margin="0,0,0,22" />
+
+                    <TextBlock Text="Email" Foreground="{StaticResource MutedInkBrush}" Margin="0,0,0,6" />
+                    <TextBox Text="{Binding AuthEmail, UpdateSourceTrigger=PropertyChanged}"
+                             Height="40"
+                             Padding="12,8"
+                             Margin="0,0,0,12" />
+
+                    <TextBlock Text="Mật khẩu" Foreground="{StaticResource MutedInkBrush}" Margin="0,0,0,6" />
+                    <PasswordBox x:Name="PasswordInput"
+                                 Height="40"
+                                 Padding="12,8"
+                                 Margin="0,0,0,18" />
+
+                    <Button Content="Đăng nhập"
+                            Click="Login_OnClick"
+                            Height="42"
+                            Margin="0,0,0,12" />
+                    <TextBlock Text="{Binding AuthStatus}"
+                               Foreground="{StaticResource MutedInkBrush}"
+                               TextWrapping="Wrap" />
+                </StackPanel>
+            </Border>
+        </Grid>
+
+        <Grid Margin="24" Visibility="{Binding SimulatorVisibility}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto" />
             <RowDefinition Height="*" />
@@ -37,6 +91,10 @@
             </StackPanel>
 
             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center">
+                <TextBlock Text="{Binding SignedInText}"
+                           Foreground="{StaticResource MutedInkBrush}"
+                           VerticalAlignment="Center"
+                           Margin="0,0,12,0" />
                 <ComboBox ItemsSource="{Binding DeviceTypes}"
                           SelectedItem="{Binding SelectedDeviceType}"
                           DisplayMemberPath="DisplayName"
@@ -44,6 +102,12 @@
                           Height="34"
                           Margin="0,0,10,0" />
                 <Button Content="Add device" Click="AddDevice_OnClick" Height="34" />
+                <Button Content="Logout"
+                        Click="Logout_OnClick"
+                        Height="34"
+                        Background="White"
+                        Foreground="#0F172A"
+                        BorderBrush="{StaticResource BorderBrushSoft}" />
             </StackPanel>
         </Grid>
 
@@ -91,9 +155,14 @@
                                                 <ColumnDefinition Width="*" />
                                                 <ColumnDefinition Width="Auto" />
                                             </Grid.ColumnDefinitions>
-                                            <TextBlock Text="{Binding PairingCodeText}"
-                                                       Foreground="{StaticResource MutedInkBrush}"
-                                                       VerticalAlignment="Center" />
+                                            <TextBox Text="{Binding PairingCodeDisplay, Mode=OneWay}"
+                                                     IsReadOnly="True"
+                                                     BorderThickness="0"
+                                                     Background="Transparent"
+                                                     Foreground="{StaticResource MutedInkBrush}"
+                                                     Padding="0"
+                                                     Margin="0"
+                                                     VerticalContentAlignment="Center" />
                                             <Button Grid.Column="1"
                                                     Content="Copy"
                                                     Click="CopyPairingCode_OnClick"
@@ -184,5 +253,6 @@
                 <ListBox ItemsSource="{Binding Logs}" BorderThickness="0" />
             </DockPanel>
         </Border>
+        </Grid>
     </Grid>
 </Window>

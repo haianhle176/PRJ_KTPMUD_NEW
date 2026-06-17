@@ -1,4 +1,6 @@
 using IoTPlatform.Infrastructure.Operations;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace IoTPlatform.Worker;
 

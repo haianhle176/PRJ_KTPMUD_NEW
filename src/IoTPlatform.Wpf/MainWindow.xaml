@@ -688,7 +688,7 @@
                                                     <Border Width="22" Height="22" Background="{StaticResource SurfaceMutedBrush}" CornerRadius="11">
                                                         <TextBlock Text="1" Foreground="{StaticResource PrimaryBrush}" FontSize="11" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center" />
                                                     </Border>
-                                                    <TextBlock Grid.Column="1" Text="Open Worker and DeviceApp on this machine." Foreground="{StaticResource MutedInkBrush}" TextWrapping="Wrap" />
+                                                    <TextBlock Grid.Column="1" Text="Open DeviceApp on this machine." Foreground="{StaticResource MutedInkBrush}" TextWrapping="Wrap" />
                                                 </Grid>
                                             </Border>
                                             <Border Background="{StaticResource AppBackgroundBrush}" CornerRadius="12" Padding="12" Margin="0,0,0,10">
@@ -1266,12 +1266,11 @@
                         <Border Style="{StaticResource CardBorder}">
                             <StackPanel>
                                 <TextBlock Text="Local developer tools" FontSize="18" FontWeight="SemiBold" />
-                                <TextBlock Text="{Binding WorkerLaunchHelp}"
+                                <TextBlock Text="{Binding LocalToolsHelp}"
                                            Foreground="{StaticResource MutedInkBrush}"
                                            TextWrapping="Wrap"
                                            Margin="0,4,0,12" />
                                 <WrapPanel>
-                                    <Button Content="Open Worker" Command="{Binding LaunchWorkerCommand}" />
                                     <Button Content="Open DeviceApp" Command="{Binding LaunchDeviceAppCommand}" Style="{StaticResource SecondaryButton}" />
                                 </WrapPanel>
                             </StackPanel>

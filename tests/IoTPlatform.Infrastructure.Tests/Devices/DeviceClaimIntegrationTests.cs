@@ -202,6 +202,110 @@ public sealed class DeviceClaimIntegrationTests
     }
 
     [Fact]
+    public async Task ProvisionAsync_ScopesAvailableDeviceToCurrentUserAndRejectsOtherUsers()
+    {
+        var databaseName = $"IoTPlatform_Provision_{Guid.NewGuid():N}";
+        var connectionString = new SqlConnectionStringBuilder(MasterConnectionString) { InitialCatalog = databaseName }.ConnectionString;
+        await ExecuteMasterAsync($"CREATE DATABASE [{databaseName}];");
+
+        try
+        {
+            var context = await CreateContextAsync(connectionString);
+            var owner = await context.AuthService.RegisterAsync(new RegisterRequestDto("provision-owner@example.test", "Password123!", "Owner"));
+            var other = await context.AuthService.RegisterAsync(new RegisterRequestDto("provision-other@example.test", "Password123!", "Other"));
+
+            var provisioned = await context.ManagementService.ProvisionAsync(owner.User.Id, ProvisionRequest("DEV-PROVISION01", "Desk Sensor", "sensor", 1));
+            Assert.Equal("DEV-PROVISION01", provisioned.Serial);
+            Assert.Equal("Desk Sensor", provisioned.DisplayName);
+            Assert.Equal("sensor", provisioned.Category);
+            Assert.Equal("offline", provisioned.Status);
+            Assert.Null(provisioned.ClaimedAtUtc);
+
+            var reprovisioned = await context.ManagementService.ProvisionAsync(owner.User.Id, ProvisionRequest("DEV-PROVISION01", "Desk Sensor v2", "office", 2));
+            Assert.Equal(provisioned.Id, reprovisioned.Id);
+            Assert.Equal("Desk Sensor v2", reprovisioned.DisplayName);
+            Assert.Equal("office", reprovisioned.Category);
+            Assert.Equal(2, reprovisioned.ManifestVersion);
+
+            await Assert.ThrowsAsync<DeviceAlreadyClaimedException>(() =>
+                context.ManagementService.ProvisionAsync(other.User.Id, ProvisionRequest("DEV-PROVISION01", "Stolen", null, 3)));
+
+            var ownerDevices = await context.ManagementService.ListAsync(owner.User.Id);
+            var otherDevices = await context.ManagementService.ListAsync(other.User.Id);
+            Assert.Empty(ownerDevices);
+            Assert.Empty(otherDevices);
+
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest("DEV-PROVISION01", "PRVA2345", [Sensor("temperature")], 2));
+            await context.DeviceRegistry.UpdatePresenceAsync(CreatePresence("DEV-PROVISION01", "online"));
+
+            Assert.Equal(["DEV-PROVISION01"], (await context.ManagementService.ListAvailableAsync(owner.User.Id)).Select(device => device.Serial).ToArray());
+            Assert.Empty(await context.ManagementService.ListAvailableAsync(other.User.Id));
+
+            var claimed = await context.ClaimService.ClaimAsync(owner.User.Id, new ClaimDeviceRequestDto("PRVA2345", "Desk Sensor v2", "office"));
+            Assert.Equal(provisioned.Id, claimed.Id);
+            Assert.Equal(["DEV-PROVISION01"], (await context.ManagementService.ListAsync(owner.User.Id)).Select(device => device.Serial).ToArray());
+
+            await using var connection = new SqlConnection(connectionString);
+            var capabilityCount = await connection.ExecuteScalarAsync<int>(
+                """
+                SELECT COUNT(*)
+                FROM dbo.Capabilities
+                WHERE DeviceId = @DeviceId AND IsActive = 1;
+                """,
+                new { DeviceId = provisioned.Id });
+            Assert.Equal(1, capabilityCount);
+
+            var auditCount = await connection.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM dbo.AuditLogs WHERE UserId = @UserId AND Action = 'device.provision' AND EntityId = @DeviceId;",
+                new { UserId = owner.User.Id, DeviceId = provisioned.Id.ToString() });
+            Assert.Equal(2, auditCount);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            await ExecuteMasterAsync($"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}];");
+        }
+    }
+
+    [Fact]
+    public async Task RegisterManifestAsync_PreservesAvailabilityScopeForProvisionedDevice()
+    {
+        var databaseName = $"IoTPlatform_ProvisionManifest_{Guid.NewGuid():N}";
+        var connectionString = new SqlConnectionStringBuilder(MasterConnectionString) { InitialCatalog = databaseName }.ConnectionString;
+        await ExecuteMasterAsync($"CREATE DATABASE [{databaseName}];");
+
+        try
+        {
+            var context = await CreateContextAsync(connectionString);
+            var owner = await context.AuthService.RegisterAsync(new RegisterRequestDto("manifest-owner@example.test", "Password123!", "Owner"));
+            var provisioned = await context.ManagementService.ProvisionAsync(owner.User.Id, ProvisionRequest("DEV-PROVMAN001", "Provisioned", null, 1));
+
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest("DEV-PROVMAN001", "PMAN2345", [Sensor("temperature"), Actuator("power")]));
+            await context.DeviceRegistry.UpdatePresenceAsync(CreatePresence("DEV-PROVMAN001", "online"));
+
+            var devices = await context.ManagementService.ListAsync(owner.User.Id);
+            Assert.Empty(devices);
+            Assert.Equal([provisioned.Id], (await context.ManagementService.ListAvailableAsync(owner.User.Id)).Select(device => device.DeviceId).ToArray());
+
+            await using var connection = new SqlConnection(connectionString);
+            var scope = await connection.QuerySingleAsync<(Guid? OwnerUserId, Guid? AvailableToUserId)>(
+                "SELECT OwnerUserId, AvailableToUserId FROM dbo.Devices WHERE Serial = @Serial;",
+                new { Serial = "DEV-PROVMAN001" });
+            var pairingCodeCount = await connection.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM dbo.PairingCodes WHERE DeviceId = @DeviceId;",
+                new { DeviceId = provisioned.Id });
+            Assert.Null(scope.OwnerUserId);
+            Assert.Equal(owner.User.Id, scope.AvailableToUserId);
+            Assert.Equal(1, pairingCodeCount);
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            await ExecuteMasterAsync($"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}];");
+        }
+    }
+
+    [Fact]
     public async Task ListAvailableAsync_ReturnsOnlyUnclaimedDevicesWithActivePairingCode()
     {
         var databaseName = $"IoTPlatform_AvailableDevices_{Guid.NewGuid():N}";
@@ -292,6 +396,15 @@ public sealed class DeviceClaimIntegrationTests
         pairingCode,
         capabilities);
 
+    private static DeviceManifestMessage CreateManifest(string serial, string pairingCode, IReadOnlyList<CapabilityManifestItem> capabilities, int manifestVersion) => new(
+        Guid.NewGuid(),
+        serial,
+        DateTimeOffset.UtcNow,
+        DeviceMessageSerializer.CurrentSchemaVersion,
+        manifestVersion,
+        pairingCode,
+        capabilities);
+
     private static DevicePresenceMessage CreatePresence(string serial, string status) => new(
         Guid.NewGuid(),
         serial,
@@ -305,6 +418,14 @@ public sealed class DeviceClaimIntegrationTests
 
     private static CapabilityManifestItem Actuator(string key) =>
         new(key, key, "actuator", "boolean", null, null, null, true, ["ON", "OFF"]);
+
+    private static ProvisionDeviceRequestDto ProvisionRequest(string serial, string displayName, string? category, int manifestVersion) => new(
+        serial,
+        displayName,
+        category,
+        "temperature_sensor",
+        manifestVersion,
+        [new ProvisionDeviceCapabilityDto("temperature", "Temperature", "sensor", "number", "C", -20, 80, false, [])]);
 
     private static async Task<TestContext> CreateContextAsync(string connectionString)
     {
@@ -325,7 +446,7 @@ public sealed class DeviceClaimIntegrationTests
         var authService = new AuthService(authRepository, new PasswordService(), new JwtTokenService(jwtOptions), auditRepository);
         var deviceRegistry = new DeviceRegistry(transactionFactory);
         var claimService = new DeviceClaimService(new SqlDeviceClaimRepository(transactionFactory), auditRepository);
-        var managementService = new DeviceManagementService(new SqlDeviceManagementRepository(connectionFactory), auditRepository);
+        var managementService = new DeviceManagementService(new SqlDeviceManagementRepository(connectionFactory, transactionFactory), auditRepository);
         return new TestContext(authService, deviceRegistry, claimService, managementService);
     }
 

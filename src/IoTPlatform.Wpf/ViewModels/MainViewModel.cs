@@ -58,7 +58,6 @@ public sealed class MainViewModel : ObservableObject
         SaveAutomationRuleCommand = new RelayCommand(SaveAutomationRuleAsync, () => IsAuthenticated);
         DeleteAutomationRuleCommand = new RelayCommand(DeleteAutomationRuleAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
         LoadAutomationExecutionsCommand = new RelayCommand(LoadAutomationExecutionsAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
-        LaunchWorkerCommand = new RelayCommand(() => LaunchLocalProjectAsync("src\\IoTPlatform.Worker", "Worker"));
         LaunchDeviceAppCommand = new RelayCommand(() => LaunchLocalProjectAsync("src\\IoTPlatform.DeviceApp", "DeviceApp"));
 
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
@@ -103,7 +102,6 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand SaveAutomationRuleCommand { get; }
     public RelayCommand DeleteAutomationRuleCommand { get; }
     public RelayCommand LoadAutomationExecutionsCommand { get; }
-    public RelayCommand LaunchWorkerCommand { get; }
     public RelayCommand LaunchDeviceAppCommand { get; }
 
     public string CurrentSection
@@ -445,7 +443,7 @@ public sealed class MainViewModel : ObservableObject
     public string SelectedAvailableDeviceName => SelectedAvailableDevice?.Serial ?? "selected device";
     public string SelectedDeviceName => SelectedDevice?.NameOrSerial ?? "Select a device";
     public string SelectedDeviceStatus => SelectedDevice is null ? "No device selected" : $"{SelectedDevice.Status} - Last seen {SelectedDevice.LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "never"}";
-    public string WorkerLaunchHelp => "OmniConnect runs from the cloud. These local shortcuts are only for your development machine when the source projects and dotnet SDK are available.";
+    public string LocalToolsHelp => "OmniConnect runs from the cloud. Open DeviceApp locally when you want to simulate devices from this machine.";
     public string AuthTitle => IsRegisterMode ? "Tạo tài khoản" : "Đăng nhập";
     public string AuthSubtitle => IsRegisterMode
         ? "Bắt đầu quản lý các thiết bị IoT động của bạn."

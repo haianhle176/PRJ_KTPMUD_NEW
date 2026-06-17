@@ -71,6 +71,29 @@ public sealed class DevicesController(
         return Ok(await deviceManagementService.ListAvailableAsync(userId, cancellationToken));
     }
 
+    [HttpPost("provision")]
+    public async Task<ActionResult<DeviceSummaryDto>> Provision(ProvisionDeviceRequest request, CancellationToken cancellationToken)
+    {
+        if (!TryGetUserId(out var userId, out var unauthorized))
+        {
+            return unauthorized;
+        }
+
+        try
+        {
+            var result = await deviceManagementService.ProvisionAsync(userId, request.ToDto(), cancellationToken);
+            return Created($"/api/v1/devices/{result.Id}", result);
+        }
+        catch (DeviceAlreadyClaimedException exception)
+        {
+            return Conflict(ProblemDetails("device_already_claimed", exception.Message, StatusCodes.Status409Conflict));
+        }
+        catch (ArgumentException exception)
+        {
+            return BadRequest(ProblemDetails("validation_error", exception.Message, StatusCodes.Status400BadRequest));
+        }
+    }
+
     [HttpGet("{id:guid}")]
     public async Task<ActionResult<DeviceSummaryDto>> Get(Guid id, CancellationToken cancellationToken)
     {
