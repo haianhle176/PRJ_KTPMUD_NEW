@@ -1,5 +1,6 @@
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Threading;
 using IoTPlatform.Wpf.ViewModels;
 
 namespace IoTPlatform.Wpf;
@@ -8,10 +9,20 @@ public partial class MainWindow : Window
 {
     private bool _isPasswordVisible;
     private bool _isSyncingPassword;
+    private readonly DispatcherTimer _notificationCloseTimer;
 
     public MainWindow()
     {
         InitializeComponent();
+        _notificationCloseTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(180) };
+        _notificationCloseTimer.Tick += (_, _) =>
+        {
+            _notificationCloseTimer.Stop();
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.IsNotificationFlyoutOpen = false;
+            }
+        };
         DataContext = new MainViewModel();
     }
 
@@ -84,5 +95,31 @@ public partial class MainWindow : Window
         EmailPlaceholder.Visibility = string.IsNullOrEmpty(AuthEmailTextBox.Text)
             ? Visibility.Visible
             : Visibility.Collapsed;
+    }
+
+    private void NotificationButton_OnMouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        _notificationCloseTimer.Stop();
+        if (DataContext is MainViewModel viewModel)
+        {
+            viewModel.IsNotificationFlyoutOpen = true;
+        }
+    }
+
+    private void NotificationButton_OnMouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        _notificationCloseTimer.Stop();
+        _notificationCloseTimer.Start();
+    }
+
+    private void NotificationFlyout_OnMouseEnter(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        _notificationCloseTimer.Stop();
+    }
+
+    private void NotificationFlyout_OnMouseLeave(object sender, System.Windows.Input.MouseEventArgs e)
+    {
+        _notificationCloseTimer.Stop();
+        _notificationCloseTimer.Start();
     }
 }

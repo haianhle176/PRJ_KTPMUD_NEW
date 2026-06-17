@@ -370,6 +370,7 @@ public sealed class SimulatedDeviceItem(DeviceProfile profile, DeviceTypePreset 
     public string Serial => Profile.Serial;
     public string DisplayName => preset.DisplayName;
     public string Icon => preset.Icon;
+    public string IconData => preset.IconData;
     public Visibility SensorSettingsVisibility => IsNumericSensor ? Visibility.Visible : Visibility.Collapsed;
     public Visibility ActuatorSettingsVisibility => IsActuator ? Visibility.Visible : Visibility.Collapsed;
     public string ActuatorValueText => ActuatorValue ? "On / true" : "Off / false";

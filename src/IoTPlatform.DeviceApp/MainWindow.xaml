@@ -134,12 +134,14 @@
                                         <ColumnDefinition Width="*" />
                                     </Grid.ColumnDefinitions>
                                     <Border Width="36" Height="36" Background="#EFF6FF" CornerRadius="18">
-                                        <TextBlock Text="{Binding Icon}"
-                                                   FontFamily="Segoe UI Emoji"
-                                                   Foreground="{StaticResource PrimaryBrush}"
-                                                   HorizontalAlignment="Center"
-                                                   VerticalAlignment="Center"
-                                                   FontSize="18" />
+                                        <Viewbox Width="20"
+                                                 Height="20"
+                                                 HorizontalAlignment="Center"
+                                                 VerticalAlignment="Center">
+                                            <Path Data="{Binding IconData}"
+                                                  Stroke="{StaticResource PrimaryBrush}"
+                                                  Style="{StaticResource LucidePath}" />
+                                        </Viewbox>
                                     </Border>
                                     <StackPanel Grid.Column="1">
                                         <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" FontSize="16" />
