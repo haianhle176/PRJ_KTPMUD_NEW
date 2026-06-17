@@ -31,6 +31,14 @@ public sealed class MainViewModel : ObservableObject
     private string _homeMode = "Dashboard";
     private bool _isOnboardingClaimSuccess;
     private bool _isHomeDeviceRenaming;
+    private bool _isAutomationScheduleEnabled;
+    private bool _automationSunday;
+    private bool _automationMonday;
+    private bool _automationTuesday;
+    private bool _automationWednesday;
+    private bool _automationThursday;
+    private bool _automationFriday;
+    private bool _automationSaturday;
     private string _automationSourceSelectionKey = "";
     private string _automationTargetSelectionKey = "";
     private DeviceSummary? _selectedDevice;
@@ -70,6 +78,7 @@ public sealed class MainViewModel : ObservableObject
         RefreshNotificationsCommand = new RelayCommand(RefreshNotificationsAsync, () => IsAuthenticated);
         ToggleNotificationFlyoutCommand = new RelayCommand(ToggleNotificationFlyoutAsync, () => IsAuthenticated);
         ViewAllNotificationsCommand = new RelayCommand(ViewAllNotificationsAsync, () => IsAuthenticated);
+        SelectAutomationRuleCommand = new RelayCommand<AutomationRuleCard>(SelectAutomationRuleAsync, card => IsAuthenticated && card is not null);
         SaveAutomationRuleCommand = new RelayCommand(SaveAutomationRuleAsync, () => IsAuthenticated);
         DeleteAutomationRuleCommand = new RelayCommand(DeleteAutomationRuleAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
         LoadAutomationExecutionsCommand = new RelayCommand(LoadAutomationExecutionsAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
@@ -91,6 +100,7 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<HomeDeviceTelemetryLogItem> HomeDeviceTelemetryLog { get; } = [];
     public ObservableCollection<CommandDto> Commands { get; } = [];
     public ObservableCollection<AutomationRuleDto> AutomationRules { get; } = [];
+    public ObservableCollection<AutomationRuleCard> AutomationRuleCards { get; } = [];
     public ObservableCollection<AutomationExecutionDto> AutomationExecutions { get; } = [];
     public ObservableCollection<NotificationDto> Notifications { get; } = [];
 
@@ -124,6 +134,7 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand RefreshNotificationsCommand { get; }
     public RelayCommand ToggleNotificationFlyoutCommand { get; }
     public RelayCommand ViewAllNotificationsCommand { get; }
+    public RelayCommand<AutomationRuleCard> SelectAutomationRuleCommand { get; }
     public RelayCommand SaveAutomationRuleCommand { get; }
     public RelayCommand DeleteAutomationRuleCommand { get; }
     public RelayCommand LoadAutomationExecutionsCommand { get; }
@@ -317,9 +328,7 @@ public sealed class MainViewModel : ObservableObject
                     AutomationCommandName = value.CommandName;
                     AutomationDesiredValue = FormatValue(value.DesiredValueType, value.DesiredNumberValue, value.DesiredBooleanValue, value.DesiredStringValue);
                     AutomationCooldownSeconds = value.CooldownSeconds.ToString();
-                    AutomationActiveFromTime = value.ActiveFromTime ?? "";
-                    AutomationActiveToTime = value.ActiveToTime ?? "";
-                    AutomationActiveDaysOfWeek = value.ActiveDaysOfWeek?.ToString() ?? "";
+                    SetAutomationScheduleFromRule(value);
                     AutomationIsEnabled = value.IsEnabled;
                     OnAutomationPropertiesChanged();
                     _ = LoadAutomationExecutionsAsync();
@@ -352,6 +361,60 @@ public sealed class MainViewModel : ObservableObject
     public string AutomationActiveToTime { get; set; } = "";
     public string AutomationActiveDaysOfWeek { get; set; } = "";
     public bool AutomationIsEnabled { get; set; } = true;
+
+    public bool IsAutomationScheduleEnabled
+    {
+        get => _isAutomationScheduleEnabled;
+        set
+        {
+            if (SetProperty(ref _isAutomationScheduleEnabled, value))
+            {
+                OnPropertyChanged(nameof(AutomationScheduleVisibility));
+            }
+        }
+    }
+
+    public bool AutomationSunday
+    {
+        get => _automationSunday;
+        set => SetScheduleDay(ref _automationSunday, value, nameof(AutomationSunday));
+    }
+
+    public bool AutomationMonday
+    {
+        get => _automationMonday;
+        set => SetScheduleDay(ref _automationMonday, value, nameof(AutomationMonday));
+    }
+
+    public bool AutomationTuesday
+    {
+        get => _automationTuesday;
+        set => SetScheduleDay(ref _automationTuesday, value, nameof(AutomationTuesday));
+    }
+
+    public bool AutomationWednesday
+    {
+        get => _automationWednesday;
+        set => SetScheduleDay(ref _automationWednesday, value, nameof(AutomationWednesday));
+    }
+
+    public bool AutomationThursday
+    {
+        get => _automationThursday;
+        set => SetScheduleDay(ref _automationThursday, value, nameof(AutomationThursday));
+    }
+
+    public bool AutomationFriday
+    {
+        get => _automationFriday;
+        set => SetScheduleDay(ref _automationFriday, value, nameof(AutomationFriday));
+    }
+
+    public bool AutomationSaturday
+    {
+        get => _automationSaturday;
+        set => SetScheduleDay(ref _automationSaturday, value, nameof(AutomationSaturday));
+    }
 
     public string AutomationSourceSelectionKey
     {
@@ -674,6 +737,7 @@ public sealed class MainViewModel : ObservableObject
     public Visibility HasNotificationsVisibility => Notifications.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility EmptyHomeTelemetryLogVisibility => HomeDeviceTelemetryLog.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasHomeTelemetryLogVisibility => HomeDeviceTelemetryLog.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility AutomationScheduleVisibility => IsAutomationScheduleEnabled ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NotificationFlyoutVisibility => IsNotificationFlyoutOpen ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HomeNotificationFlyoutVisibility => IsNotificationFlyoutOpen && CurrentSection == "Home" && HomeMode == "Dashboard" && Devices.Count > 0 && !IsOnboardingClaimSuccess
         ? Visibility.Visible
@@ -786,6 +850,7 @@ public sealed class MainViewModel : ObservableObject
             TelemetryHistory.Clear();
             Commands.Clear();
             AutomationRules.Clear();
+            AutomationRuleCards.Clear();
             AutomationExecutions.Clear();
             Notifications.Clear();
             NotifyDashboardCounts();
@@ -832,6 +897,16 @@ public sealed class MainViewModel : ObservableObject
         {
             SelectedAvailableDevice = device;
             AvailablePairingCode = "";
+        }
+
+        return Task.CompletedTask;
+    }
+
+    private Task SelectAutomationRuleAsync(AutomationRuleCard? card)
+    {
+        if (card is not null)
+        {
+            SelectedAutomationRule = card.Rule;
         }
 
         return Task.CompletedTask;
@@ -944,6 +1019,7 @@ public sealed class MainViewModel : ObservableObject
             }
         }
 
+        RebuildAutomationRuleCards();
         NotifyDashboardCounts();
     }
 
@@ -1228,6 +1304,7 @@ public sealed class MainViewModel : ObservableObject
         await RunAsync(async () =>
         {
             Replace(AutomationRules, await _api.GetAutomationRulesAsync());
+            RebuildAutomationRuleCards();
             NotifyDashboardCounts();
             StatusMessage = $"Loaded {AutomationRules.Count} automation rules.";
         });
@@ -1240,6 +1317,7 @@ public sealed class MainViewModel : ObservableObject
             var sourceDeviceId = Guid.Parse(AutomationSourceDeviceId);
             var targetDeviceId = Guid.Parse(AutomationTargetDeviceId);
             var cooldown = int.Parse(AutomationCooldownSeconds);
+            var schedule = CreateAutomationSchedulePayload();
             if (SelectedAutomationRule is null)
             {
                 var created = await _api.CreateAutomationRuleAsync(new CreateAutomationRulePayload(
@@ -1254,9 +1332,9 @@ public sealed class MainViewModel : ObservableObject
                     ParseDynamicValue(AutomationDesiredValue),
                     cooldown,
                     AutomationIsEnabled,
-                    EmptyToNull(AutomationActiveFromTime),
-                    EmptyToNull(AutomationActiveToTime),
-                    ParseNullableInt(AutomationActiveDaysOfWeek)));
+                    schedule.ActiveFromTime,
+                    schedule.ActiveToTime,
+                    schedule.ActiveDaysOfWeek));
                 await RefreshAutomationRulesAsync();
                 SelectedAutomationRule = AutomationRules.FirstOrDefault(item => item.Id == created.Id);
                 StatusMessage = "Automation rule created.";
@@ -1271,9 +1349,9 @@ public sealed class MainViewModel : ObservableObject
                     ParseDynamicValue(AutomationDesiredValue),
                     cooldown,
                     AutomationIsEnabled,
-                    EmptyToNull(AutomationActiveFromTime),
-                    EmptyToNull(AutomationActiveToTime),
-                    ParseNullableInt(AutomationActiveDaysOfWeek)));
+                    schedule.ActiveFromTime,
+                    schedule.ActiveToTime,
+                    schedule.ActiveDaysOfWeek));
                 await RefreshAutomationRulesAsync();
                 SelectedAutomationRule = AutomationRules.FirstOrDefault(item => item.Id == updated.Id);
                 StatusMessage = "Automation rule updated.";
@@ -1538,6 +1616,7 @@ public sealed class MainViewModel : ObservableObject
         ToggleNotificationFlyoutCommand.RaiseCanExecuteChanged();
         ToggleSidebarCommand.RaiseCanExecuteChanged();
         ViewAllNotificationsCommand.RaiseCanExecuteChanged();
+        SelectAutomationRuleCommand.RaiseCanExecuteChanged();
         SaveAutomationRuleCommand.RaiseCanExecuteChanged();
         DeleteAutomationRuleCommand.RaiseCanExecuteChanged();
         LoadAutomationExecutionsCommand.RaiseCanExecuteChanged();
@@ -1583,6 +1662,7 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(RecentHomeNotifications));
         OnPropertyChanged(nameof(RecentActivityNotifications));
         OnPropertyChanged(nameof(EnabledAutomationCount));
+        OnPropertyChanged(nameof(AutomationRuleCards));
         OnPropertyChanged(nameof(EmptyDevicesVisibility));
         OnPropertyChanged(nameof(HasDevicesVisibility));
         OnPropertyChanged(nameof(HomeEmptyVisibility));
@@ -1643,7 +1723,211 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(AutomationActiveToTime));
         OnPropertyChanged(nameof(AutomationActiveDaysOfWeek));
         OnPropertyChanged(nameof(AutomationIsEnabled));
+        OnPropertyChanged(nameof(IsAutomationScheduleEnabled));
+        OnPropertyChanged(nameof(AutomationScheduleVisibility));
+        OnPropertyChanged(nameof(AutomationSunday));
+        OnPropertyChanged(nameof(AutomationMonday));
+        OnPropertyChanged(nameof(AutomationTuesday));
+        OnPropertyChanged(nameof(AutomationWednesday));
+        OnPropertyChanged(nameof(AutomationThursday));
+        OnPropertyChanged(nameof(AutomationFriday));
+        OnPropertyChanged(nameof(AutomationSaturday));
     }
+
+    private void RebuildAutomationRuleCards()
+    {
+        var cards = AutomationRules.Select(rule =>
+        {
+            var source = ResolveAutomationEndpoint(rule.SourceDeviceId, rule.SourceDeviceSerial, rule.SourceCapabilityKey);
+            var target = ResolveAutomationEndpoint(rule.TargetDeviceId, rule.TargetDeviceSerial, rule.TargetCapabilityKey);
+            return AutomationRuleCard.From(rule, source, target, FormatScheduleSummary(rule));
+        });
+
+        Replace(AutomationRuleCards, cards);
+    }
+
+    private string ResolveAutomationEndpoint(Guid deviceId, string fallbackDeviceName, string capabilityKey)
+    {
+        var card = HomeDeviceCards.FirstOrDefault(item =>
+            item.DeviceId == deviceId && item.CapabilityKey.Equals(capabilityKey, StringComparison.OrdinalIgnoreCase));
+        if (card is not null)
+        {
+            return $"{card.DeviceName} - {card.CapabilityName}";
+        }
+
+        var deviceName = Devices.FirstOrDefault(device => device.Id == deviceId)?.NameOrSerial;
+        return $"{(string.IsNullOrWhiteSpace(deviceName) ? fallbackDeviceName : deviceName)} - {FormatCapabilityName(capabilityKey)}";
+    }
+
+    private void SetAutomationScheduleFromRule(AutomationRuleDto rule)
+    {
+        IsAutomationScheduleEnabled = !string.IsNullOrWhiteSpace(rule.ActiveFromTime)
+            || !string.IsNullOrWhiteSpace(rule.ActiveToTime)
+            || rule.ActiveDaysOfWeek is not null;
+
+        AutomationActiveFromTime = ToLocalScheduleTime(rule.ActiveFromTime);
+        AutomationActiveToTime = ToLocalScheduleTime(rule.ActiveToTime);
+        AutomationActiveDaysOfWeek = rule.ActiveDaysOfWeek?.ToString() ?? "";
+        SetScheduleDayValues(ToLocalDayMask(rule.ActiveDaysOfWeek, rule.ActiveFromTime));
+    }
+
+    private AutomationSchedulePayload CreateAutomationSchedulePayload()
+    {
+        if (!IsAutomationScheduleEnabled)
+        {
+            return new AutomationSchedulePayload(null, null, null);
+        }
+
+        var localFrom = EmptyToNull(AutomationActiveFromTime) ?? "00:00";
+        var localTo = EmptyToNull(AutomationActiveToTime) ?? "23:59";
+        var utcFrom = ToUtcScheduleTime(localFrom);
+        var utcTo = ToUtcScheduleTime(localTo);
+        var utcDays = ToUtcDayMask(GetLocalScheduleDayMask(), localFrom);
+        return new AutomationSchedulePayload(utcFrom, utcTo, utcDays == 0 ? null : utcDays);
+    }
+
+    private string FormatScheduleSummary(AutomationRuleDto rule)
+    {
+        if (string.IsNullOrWhiteSpace(rule.ActiveFromTime) && string.IsNullOrWhiteSpace(rule.ActiveToTime) && rule.ActiveDaysOfWeek is null)
+        {
+            return $"Every time - {rule.CooldownSeconds}s cooldown";
+        }
+
+        var from = ToLocalScheduleTime(rule.ActiveFromTime);
+        var to = ToLocalScheduleTime(rule.ActiveToTime);
+        var days = FormatDayMask(ToLocalDayMask(rule.ActiveDaysOfWeek, rule.ActiveFromTime));
+        var range = string.IsNullOrWhiteSpace(from) && string.IsNullOrWhiteSpace(to)
+            ? "All day"
+            : $"{(string.IsNullOrWhiteSpace(from) ? "00:00" : from)}-{(string.IsNullOrWhiteSpace(to) ? "23:59" : to)}";
+        return $"{range}, {days} - {rule.CooldownSeconds}s cooldown";
+    }
+
+    private void SetScheduleDay(ref bool field, bool value, string propertyName)
+    {
+        if (SetProperty(ref field, value))
+        {
+            AutomationActiveDaysOfWeek = GetLocalScheduleDayMask().ToString();
+            OnPropertyChanged(nameof(AutomationActiveDaysOfWeek));
+            OnPropertyChanged(propertyName);
+        }
+    }
+
+    private void SetScheduleDayValues(int dayMask)
+    {
+        _automationSunday = HasDay(dayMask, DayOfWeek.Sunday);
+        _automationMonday = HasDay(dayMask, DayOfWeek.Monday);
+        _automationTuesday = HasDay(dayMask, DayOfWeek.Tuesday);
+        _automationWednesday = HasDay(dayMask, DayOfWeek.Wednesday);
+        _automationThursday = HasDay(dayMask, DayOfWeek.Thursday);
+        _automationFriday = HasDay(dayMask, DayOfWeek.Friday);
+        _automationSaturday = HasDay(dayMask, DayOfWeek.Saturday);
+    }
+
+    private int GetLocalScheduleDayMask()
+    {
+        var mask = 0;
+        if (AutomationSunday) mask |= DayBit(DayOfWeek.Sunday);
+        if (AutomationMonday) mask |= DayBit(DayOfWeek.Monday);
+        if (AutomationTuesday) mask |= DayBit(DayOfWeek.Tuesday);
+        if (AutomationWednesday) mask |= DayBit(DayOfWeek.Wednesday);
+        if (AutomationThursday) mask |= DayBit(DayOfWeek.Thursday);
+        if (AutomationFriday) mask |= DayBit(DayOfWeek.Friday);
+        if (AutomationSaturday) mask |= DayBit(DayOfWeek.Saturday);
+        return mask == 0 ? 127 : mask;
+    }
+
+    private static bool HasDay(int mask, DayOfWeek day) => (mask & DayBit(day)) != 0;
+
+    private static int DayBit(DayOfWeek day) => 1 << (int)day;
+
+    private static string ToUtcScheduleTime(string localTime)
+    {
+        var time = TimeSpan.Parse(localTime);
+        var local = new DateTimeOffset(DateTime.Today.Add(time), TimeZoneInfo.Local.GetUtcOffset(DateTime.Today.Add(time)));
+        return local.ToUniversalTime().ToString("HH:mm");
+    }
+
+    private static string ToLocalScheduleTime(string? utcTime)
+    {
+        if (string.IsNullOrWhiteSpace(utcTime))
+        {
+            return "";
+        }
+
+        var time = TimeSpan.Parse(utcTime);
+        var utc = new DateTimeOffset(DateTime.UtcNow.Date.Add(time), TimeSpan.Zero);
+        return utc.ToLocalTime().ToString("HH:mm");
+    }
+
+    private static int ToUtcDayMask(int localDayMask, string localFromTime)
+    {
+        var time = TimeSpan.Parse(localFromTime);
+        var mask = 0;
+        foreach (DayOfWeek day in Enum.GetValues<DayOfWeek>())
+        {
+            if (!HasDay(localDayMask, day))
+            {
+                continue;
+            }
+
+            var localDate = DateForDay(DateTime.Today, day).Add(time);
+            var local = new DateTimeOffset(localDate, TimeZoneInfo.Local.GetUtcOffset(localDate));
+            mask |= DayBit(local.ToUniversalTime().DayOfWeek);
+        }
+
+        return mask;
+    }
+
+    private static int ToLocalDayMask(int? utcDayMask, string? utcFromTime)
+    {
+        if (utcDayMask is null)
+        {
+            return 127;
+        }
+
+        var time = TimeSpan.Parse(string.IsNullOrWhiteSpace(utcFromTime) ? "00:00" : utcFromTime);
+        var mask = 0;
+        foreach (DayOfWeek day in Enum.GetValues<DayOfWeek>())
+        {
+            if (!HasDay(utcDayMask.Value, day))
+            {
+                continue;
+            }
+
+            var utc = new DateTimeOffset(DateForDay(DateTime.UtcNow.Date, day).Add(time), TimeSpan.Zero);
+            mask |= DayBit(utc.ToLocalTime().DayOfWeek);
+        }
+
+        return mask;
+    }
+
+    private static DateTime DateForDay(DateTime start, DayOfWeek day)
+    {
+        var offset = ((int)day - (int)start.DayOfWeek + 7) % 7;
+        return start.Date.AddDays(offset);
+    }
+
+    private static string FormatDayMask(int dayMask)
+    {
+        if (dayMask == 127)
+        {
+            return "Every day";
+        }
+
+        var parts = new List<string>();
+        if (HasDay(dayMask, DayOfWeek.Monday)) parts.Add("Mon");
+        if (HasDay(dayMask, DayOfWeek.Tuesday)) parts.Add("Tue");
+        if (HasDay(dayMask, DayOfWeek.Wednesday)) parts.Add("Wed");
+        if (HasDay(dayMask, DayOfWeek.Thursday)) parts.Add("Thu");
+        if (HasDay(dayMask, DayOfWeek.Friday)) parts.Add("Fri");
+        if (HasDay(dayMask, DayOfWeek.Saturday)) parts.Add("Sat");
+        if (HasDay(dayMask, DayOfWeek.Sunday)) parts.Add("Sun");
+        return parts.Count == 0 ? "Every day" : string.Join(", ", parts);
+    }
+
+    private static string FormatCapabilityName(string key) =>
+        string.Join(" ", key.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => char.ToUpperInvariant(part[0]) + part[1..].ToLowerInvariant()));
 
     private void ApplyAutomationSelection(string selectionKey, bool isSource)
     {
@@ -1922,6 +2206,47 @@ public sealed record AutomationCapabilityOption(
         $"{card.DeviceName} - {card.CapabilityName}",
         card.DeviceId,
         card.CapabilityKey);
+}
+
+public sealed record AutomationSchedulePayload(string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek);
+
+public sealed record AutomationRuleCard(
+    AutomationRuleDto Rule,
+    string Name,
+    string TriggerSummary,
+    string ActionSummary,
+    string MetaSummary,
+    string EnabledText,
+    string EnabledBackground,
+    string EnabledForeground)
+{
+    public static AutomationRuleCard From(AutomationRuleDto rule, string source, string target, string scheduleSummary)
+    {
+        var threshold = FormatRuleValue(rule.ThresholdValueType, rule.ThresholdNumberValue, rule.ThresholdBooleanValue, rule.ThresholdStringValue);
+        return new AutomationRuleCard(
+            rule,
+            rule.Name,
+            $"{source} {rule.ComparisonOperator} {threshold}",
+            $"{target} -> {FormatCommandName(rule.CommandName)}",
+            scheduleSummary,
+            rule.IsEnabled ? "Enabled" : "Paused",
+            rule.IsEnabled ? "#DCFCE7" : "#F1F5F9",
+            rule.IsEnabled ? "#16A34A" : "#64748B");
+    }
+
+    private static string FormatCommandName(string commandName) => commandName.Equals("ON", StringComparison.OrdinalIgnoreCase)
+        ? "Turn on"
+        : commandName.Equals("OFF", StringComparison.OrdinalIgnoreCase)
+            ? "Turn off"
+            : commandName;
+
+    private static string FormatRuleValue(string valueType, decimal? numberValue, bool? booleanValue, string? stringValue) => valueType switch
+    {
+        "number" => numberValue?.ToString("0.###") ?? "",
+        "boolean" => booleanValue == true ? "On" : "Off",
+        "string" => stringValue ?? "",
+        _ => ""
+    };
 }
 
 public sealed class HomeDeviceTelemetryLogItem(
