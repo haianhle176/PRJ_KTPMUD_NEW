@@ -5,4 +5,5 @@ namespace IoTPlatform.DeviceApp.Profiles;
 public sealed record DeviceProfile(
     string Serial,
     int ManifestVersion,
-    IReadOnlyList<CapabilityManifestItem> Capabilities);
+    IReadOnlyList<CapabilityManifestItem> Capabilities,
+    string DeviceType = "custom");

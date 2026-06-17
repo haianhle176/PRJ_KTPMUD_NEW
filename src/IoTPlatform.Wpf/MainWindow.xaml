@@ -500,10 +500,11 @@
                                                                         Background="{StaticResource SurfaceMutedBrush}"
                                                                         CornerRadius="16">
                                                                     <TextBlock Text="{Binding KindIcon}"
-                                                                               FontFamily="Segoe MDL2 Assets"
+                                                                               FontFamily="Segoe UI Emoji"
                                                                                Foreground="{StaticResource PrimaryBrush}"
                                                                                HorizontalAlignment="Center"
-                                                                               VerticalAlignment="Center" />
+                                                                               VerticalAlignment="Center"
+                                                                               FontSize="16" />
                                                                 </Border>
                                                                 <StackPanel Grid.Column="1">
                                                                     <TextBlock Text="{Binding Serial}" FontWeight="SemiBold" />
@@ -536,6 +537,12 @@
                                                 <TextBox Text="{Binding AvailablePairingCode, UpdateSourceTrigger=PropertyChanged}"
                                                          Tag="Pairing code"
                                                          Style="{StaticResource PlaceholderTextBox}" />
+                                                <TextBlock Text="{Binding AvailableClaimError}"
+                                                           Visibility="{Binding AvailableClaimErrorVisibility}"
+                                                           Foreground="#DC2626"
+                                                           FontWeight="SemiBold"
+                                                           TextWrapping="Wrap"
+                                                           Margin="0,-4,0,10" />
                                                 <Button Content="Claim"
                                                         Command="{Binding ClaimSelectedAvailableDeviceCommand}"
                                                         HorizontalAlignment="Stretch"
@@ -1047,7 +1054,8 @@
                     Background="{StaticResource SurfaceBrush}"
                     BorderBrush="{StaticResource BorderBrushSoft}"
                     BorderThickness="1,1,0,0"
-                    Padding="14">
+                    Padding="14"
+                    Visibility="Collapsed">
                 <TextBlock Text="{Binding StatusMessage}" TextWrapping="Wrap" Foreground="{StaticResource MutedInkBrush}" />
             </Border>
         </Grid>

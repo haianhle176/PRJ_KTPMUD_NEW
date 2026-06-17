@@ -30,6 +30,7 @@ public sealed class SqlDeviceManagementRepository(IDbConnectionFactory connectio
             SELECT
                 d.Id AS DeviceId,
                 d.Serial,
+                d.DeviceType,
                 d.Status,
                 d.ManifestVersion,
                 d.LastSeenAtUtc,
@@ -49,7 +50,7 @@ public sealed class SqlDeviceManagementRepository(IDbConnectionFactory connectio
             WHERE d.OwnerUserId IS NULL
               AND d.Status = 'online'
               AND d.LastSeenAtUtc >= DATEADD(second, -45, SYSUTCDATETIME())
-            GROUP BY d.Id, d.Serial, d.Status, d.ManifestVersion, d.LastSeenAtUtc, pc.ExpiresAtUtc
+            GROUP BY d.Id, d.Serial, d.DeviceType, d.Status, d.ManifestVersion, d.LastSeenAtUtc, pc.ExpiresAtUtc
             ORDER BY d.LastSeenAtUtc DESC,
                      d.Serial ASC;
             """,
@@ -153,6 +154,7 @@ public sealed class SqlDeviceManagementRepository(IDbConnectionFactory connectio
         return new AvailableDeviceDto(
             row.DeviceId,
             row.Serial,
+            row.DeviceType,
             row.Status,
             row.ManifestVersion,
             lastSeenAtUtc is null ? null : new DateTimeOffset(DateTime.SpecifyKind(lastSeenAtUtc.Value, DateTimeKind.Utc)),

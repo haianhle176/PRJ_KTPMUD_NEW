@@ -10,7 +10,8 @@ public sealed record DeviceManifestMessage(
     string SchemaVersion,
     int ManifestVersion,
     string PairingCode,
-    IReadOnlyList<CapabilityManifestItem> Capabilities);
+    IReadOnlyList<CapabilityManifestItem> Capabilities,
+    string DeviceType = "custom");
 
 public sealed record CapabilityManifestItem(
     string Key,

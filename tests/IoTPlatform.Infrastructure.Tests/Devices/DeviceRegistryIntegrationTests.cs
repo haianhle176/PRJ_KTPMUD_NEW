@@ -36,11 +36,11 @@ public sealed class DeviceRegistryIntegrationTests
             ]));
             await registry.RegisterManifestAsync(CreateManifest(serial, 2, "WXYZ6789", [
                 Sensor("temperature")
-            ]));
+            ], "temperature_sensor"));
 
             await using var connection = await factory.OpenConnectionAsync();
-            var device = await connection.QuerySingleAsync<(int ManifestVersion, string Status)>(
-                "SELECT ManifestVersion, Status FROM dbo.Devices WHERE Serial = @Serial;",
+            var device = await connection.QuerySingleAsync<(int ManifestVersion, string Status, string DeviceType)>(
+                "SELECT ManifestVersion, Status, DeviceType FROM dbo.Devices WHERE Serial = @Serial;",
                 new { Serial = serial });
             var activeKeys = (await connection.QueryAsync<string>(
                 "SELECT [Key] FROM dbo.Capabilities WHERE DeviceId = (SELECT Id FROM dbo.Devices WHERE Serial = @Serial) AND IsActive = 1;",
@@ -53,7 +53,8 @@ public sealed class DeviceRegistryIntegrationTests
                 new { Serial = serial })).ToArray();
 
             Assert.Equal(2, device.ManifestVersion);
-            Assert.Equal("online", device.Status);
+            Assert.Equal("offline", device.Status);
+            Assert.Equal("temperature_sensor", device.DeviceType);
             Assert.Equal(["temperature"], activeKeys);
             Assert.Equal(["pump_power"], inactiveKeys);
             Assert.Equal(2, pairingCodes.Length);
@@ -73,14 +74,16 @@ public sealed class DeviceRegistryIntegrationTests
         string serial,
         int version,
         string pairingCode,
-        IReadOnlyList<CapabilityManifestItem> capabilities) => new(
+        IReadOnlyList<CapabilityManifestItem> capabilities,
+        string deviceType = "custom") => new(
             Guid.NewGuid(),
             serial,
             DateTimeOffset.UtcNow,
             DeviceMessageSerializer.CurrentSchemaVersion,
             version,
             pairingCode,
-            capabilities);
+            capabilities,
+            deviceType);
 
     private static CapabilityManifestItem Sensor(string key) =>
         new(key, key, "sensor", "number", "C", -20, 80, false, []);

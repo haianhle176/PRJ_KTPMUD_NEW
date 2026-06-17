@@ -15,6 +15,7 @@ public sealed record DeviceSummaryDto(
 public sealed record AvailableDeviceDto(
     Guid DeviceId,
     string Serial,
+    string DeviceType,
     string Status,
     int ManifestVersion,
     DateTimeOffset? LastSeenAtUtc,

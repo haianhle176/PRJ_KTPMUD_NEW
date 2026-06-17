@@ -124,7 +124,8 @@ public sealed class DeviceMqttClient(
             DeviceMessageSerializer.CurrentSchemaVersion,
             profile.ManifestVersion,
             pairingCode,
-            profile.Capabilities),
+            profile.Capabilities,
+            profile.DeviceType),
         DeviceMessageSerializer.Options);
 
     private static string SerializePresence(string serial, Guid sessionId, string status) => JsonSerializer.Serialize(

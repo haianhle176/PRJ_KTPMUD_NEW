@@ -18,7 +18,7 @@ Topic serial va payload serial phai trung nhau. Worker reject message neu schema
 ### Manifest
 
 ```json
-{"messageId":"8a9853de-1037-4e25-85d2-976d53eb8e77","serial":"DEV-A1B2C3D4","timestampUtc":"2026-06-15T10:30:00Z","schemaVersion":"1.0","manifestVersion":1,"pairingCode":"ABCD2345","capabilities":[{"key":"temperature","displayName":"Temperature","kind":"sensor","dataType":"number","unit":"C","minValue":-20,"maxValue":80,"isWritable":false,"supportedCommands":[]},{"key":"pump_power","displayName":"Pump Power","kind":"actuator","dataType":"boolean","unit":null,"minValue":null,"maxValue":null,"isWritable":true,"supportedCommands":["ON","OFF"]}]}
+{"messageId":"8a9853de-1037-4e25-85d2-976d53eb8e77","serial":"DEV-A1B2C3D4","timestampUtc":"2026-06-15T10:30:00Z","schemaVersion":"1.0","manifestVersion":1,"deviceType":"temperature_sensor","pairingCode":"ABCD2345","capabilities":[{"key":"temperature","displayName":"Temperature","kind":"sensor","dataType":"number","unit":"C","minValue":-20,"maxValue":80,"isWritable":false,"supportedCommands":[]}]}
 ```
 
 ### Telemetry

@@ -33,23 +33,15 @@ Connected to HiveMQ ...
 ## 3. Start DeviceApp
 
 ```powershell
-dotnet run --project src\IoTPlatform.DeviceApp -- --profile demo-device
+dotnet run --project src\IoTPlatform.DeviceApp
 ```
 
-If the profile is not clean, recreate it:
+In the simulator:
 
-```powershell
-dotnet run --project src\IoTPlatform.DeviceApp -- --profile demo-device --reconfigure
-```
-
-Create:
-
-```text
-temperature = sensor number C 0..100
-power = actuator boolean writable commands ON,OFF
-```
-
-Copy the pairing code printed by DeviceApp.
+1. Choose a preset device type.
+2. Click `Add device`.
+3. Click `Start` on that device card.
+4. Copy the pairing code shown on the card.
 
 ## 4. Start WPF
 
@@ -60,17 +52,11 @@ dotnet run --project src\IoTPlatform.Wpf
 Demo flow:
 
 1. Register or login.
-2. Claim device with the pairing code.
+2. Claim the available device with the pairing code.
 3. Rename/classify the device.
 4. Select the device.
-5. Open Telemetry and verify `temperature`.
-6. In DeviceApp, manually publish:
-
-```text
-set temperature 35
-```
-
-7. Open Commands and send:
+5. Open Telemetry and verify sensor values if the selected preset is a sensor.
+6. Open Commands and send a command if the selected preset is an actuator:
 
 ```text
 Capability key: power
@@ -78,19 +64,19 @@ Command name: ON
 Desired value: true
 ```
 
-8. Confirm DeviceApp logs the command.
-9. Create automation:
+7. Confirm DeviceApp logs the command.
+8. Create automation:
 
 ```text
 IF temperature > 30
 THEN power ON true
 ```
 
-10. Publish telemetry above threshold again and verify automation execution.
+9. Use a sensor preset and verify automation execution when telemetry crosses the threshold.
 
 ## 5. Disconnect/Reconnect Test
 
-Stop DeviceApp with `Ctrl+C`.
+Click `Stop` on the simulated device card, or close DeviceApp.
 
 Expected Worker log:
 
@@ -98,7 +84,7 @@ Expected Worker log:
 Device <serial> is offline.
 ```
 
-Start DeviceApp again.
+Click `Start` on the simulated device card again.
 
 Expected Worker log:
 

@@ -216,6 +216,7 @@ public sealed record DeviceSummary(Guid Id, string Serial, string? DisplayName, 
 public sealed record AvailableDevice(
     Guid DeviceId,
     string Serial,
+    string DeviceType,
     string Status,
     int ManifestVersion,
     DateTimeOffset? LastSeenAtUtc,
@@ -227,8 +228,32 @@ public sealed record AvailableDevice(
     public string CapabilitySummary => $"{SensorCount} sensors - {ActuatorCount} actuators";
     public string LastSeenText => LastSeenAtUtc?.ToLocalTime().ToString("g") ?? "No heartbeat yet";
     public string ExpiresText => $"Pairing expires {PairingCodeExpiresAtUtc.ToLocalTime():t}";
-    public string KindIcon => ActuatorCount > 0 ? "\uE945" : "\uE9D9";
-    public string KindLabel => ActuatorCount > 0 ? "Actuator" : "Sensor";
+    public string KindIcon => DeviceType switch
+    {
+        "temperature_sensor" => "🌡",
+        "humidity_sensor" => "💧",
+        "light_sensor" => "☀️",
+        "motion_sensor" => "⌾",
+        "light_switch" => "💡",
+        "fan_switch" => "🌀",
+        "water_pump" => "🚿",
+        "door_lock" => "🔒",
+        _ => ActuatorCount > 0 ? "⚡" : "⌾"
+    };
+    public string KindLabel => DeviceType switch
+    {
+        "temperature_sensor" => "Temperature Sensor",
+        "humidity_sensor" => "Humidity Sensor",
+        "light_sensor" => "Light Sensor",
+        "motion_sensor" => "Motion Sensor",
+        "light_switch" => "Light Switch",
+        "fan_switch" => "Fan",
+        "water_pump" => "Water Pump",
+        "door_lock" => "Door Lock",
+        _ => ActuatorCount > 0 ? "Actuator" : "Sensor"
+    };
+    public string DefaultCategory => DeviceType.EndsWith("_sensor", StringComparison.OrdinalIgnoreCase) ? "sensor" :
+        DeviceType is "light_switch" or "fan_switch" or "water_pump" or "door_lock" ? "actuator" : "";
 }
 
 public sealed record DeviceCapability(

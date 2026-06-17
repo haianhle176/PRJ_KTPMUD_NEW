@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.IO;
 using IoTPlatform.Domain.Devices;
 using IoTPlatform.Domain.Messaging;
 
@@ -60,7 +61,7 @@ public sealed class DeviceProfileStore(string rootDirectory)
 
     private static DeviceProfile Validate(DeviceProfile profile)
     {
-        if (!DeviceSerial.IsValid(profile.Serial) || profile.ManifestVersion < 1 || profile.Capabilities.Count == 0)
+        if (!DeviceSerial.IsValid(profile.Serial) || profile.ManifestVersion < 1 || profile.Capabilities.Count == 0 || string.IsNullOrWhiteSpace(profile.DeviceType))
         {
             throw new InvalidDataException("Device profile contains invalid identity or manifest metadata.");
         }

@@ -67,24 +67,13 @@ Telemetry ...
 
 ## DeviceApp Local
 
-Run a demo device:
+Run the multi-device simulator:
 
 ```powershell
-dotnet run --project src\IoTPlatform.DeviceApp -- --profile demo-device
+dotnet run --project src\IoTPlatform.DeviceApp
 ```
 
-Recreate the manifest while preserving the same serial:
-
-```powershell
-dotnet run --project src\IoTPlatform.DeviceApp -- --profile demo-device --reconfigure
-```
-
-Recommended demo capabilities:
-
-```text
-temperature: sensor, number, unit C, min 0, max 100
-power: actuator, boolean, writable, supported commands ON,OFF
-```
+Use `Add device` to create one or more SmartHome preset devices, then `Start` each device independently. Each simulated device has its own serial, pairing code, MQTT session, manifest, telemetry loop, and command subscription.
 
 ## WPF Local
 

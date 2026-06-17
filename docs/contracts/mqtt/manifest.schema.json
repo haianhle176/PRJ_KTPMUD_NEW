@@ -10,6 +10,7 @@
     "timestampUtc": { "$ref": "common.schema.json#/$defs/timestampUtc" },
     "schemaVersion": { "$ref": "common.schema.json#/$defs/schemaVersion" },
     "manifestVersion": { "type": "integer", "minimum": 1 },
+    "deviceType": { "type": "string", "minLength": 1, "maxLength": 64 },
     "pairingCode": { "type": "string", "pattern": "^[A-Z2-9]{8}$" },
     "capabilities": {
       "type": "array",

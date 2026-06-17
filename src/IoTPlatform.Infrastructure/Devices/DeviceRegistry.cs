@@ -14,6 +14,7 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
         CancellationToken cancellationToken = default)
     {
         ValidateManifest(manifest);
+        var deviceType = NormalizeDeviceType(manifest.DeviceType);
         var definitions = manifest.Capabilities.Select(capability => capability.ToDefinition()).ToArray();
 
         if (definitions.Select(definition => definition.Key).Distinct(StringComparer.Ordinal).Count() != definitions.Length)
@@ -35,10 +36,10 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
         {
             await scope.Connection.ExecuteAsync(new CommandDefinition(
                 """
-                INSERT dbo.Devices (Id, Serial, Status, ManifestVersion, CreatedAtUtc, UpdatedAtUtc)
-                VALUES (@DeviceId, @Serial, 'offline', @ManifestVersion, @Now, @Now);
+                INSERT dbo.Devices (Id, Serial, DeviceType, Status, ManifestVersion, CreatedAtUtc, UpdatedAtUtc)
+                VALUES (@DeviceId, @Serial, @DeviceType, 'offline', @ManifestVersion, @Now, @Now);
                 """,
-                new { DeviceId = deviceId, manifest.Serial, manifest.ManifestVersion, Now = now },
+                new { DeviceId = deviceId, manifest.Serial, DeviceType = deviceType, manifest.ManifestVersion, Now = now },
                 scope.Transaction,
                 cancellationToken: cancellationToken));
         }
@@ -52,10 +53,10 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
             await scope.Connection.ExecuteAsync(new CommandDefinition(
                 """
                 UPDATE dbo.Devices
-                SET ManifestVersion = @ManifestVersion, UpdatedAtUtc = @Now
+                SET DeviceType = @DeviceType, ManifestVersion = @ManifestVersion, UpdatedAtUtc = @Now
                 WHERE Id = @DeviceId;
                 """,
-                new { DeviceId = deviceId, manifest.ManifestVersion, Now = now },
+                new { DeviceId = deviceId, DeviceType = deviceType, manifest.ManifestVersion, Now = now },
                 scope.Transaction,
                 cancellationToken: cancellationToken));
         }
@@ -193,6 +194,12 @@ public sealed class DeviceRegistry(ISqlTransactionScopeFactory transactionScopeF
         {
             throw new ArgumentException("Pairing code format is invalid.", nameof(manifest));
         }
+    }
+
+    private static string NormalizeDeviceType(string? deviceType)
+    {
+        var normalized = string.IsNullOrWhiteSpace(deviceType) ? "custom" : deviceType.Trim().ToLowerInvariant();
+        return normalized.Length > 64 ? normalized[..64] : normalized;
     }
 
     private static async Task<DateTimeOffset?> SavePairingCodeIfNeededAsync(

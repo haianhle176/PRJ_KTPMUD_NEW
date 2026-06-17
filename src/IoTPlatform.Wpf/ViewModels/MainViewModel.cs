@@ -24,6 +24,7 @@ public sealed class MainViewModel : ObservableObject
     private string _lastHomeRefreshText = "Not refreshed yet";
     private string _availableDeviceMessage = "Waiting for DeviceApp...";
     private string _availablePairingCode = "";
+    private string _availableClaimError = "";
     private DeviceSummary? _selectedDevice;
     private AvailableDevice? _selectedAvailableDevice;
     private AutomationRuleDto? _selectedAutomationRule;
@@ -280,6 +281,7 @@ public sealed class MainViewModel : ObservableObject
         {
             if (SetProperty(ref _selectedAvailableDevice, value))
             {
+                AvailableClaimError = "";
                 OnPropertyChanged(nameof(SelectedAvailableDeviceName));
                 OnPropertyChanged(nameof(SelectedAvailableDeviceVisibility));
                 ClaimSelectedAvailableDeviceCommand.RaiseCanExecuteChanged();
@@ -290,7 +292,25 @@ public sealed class MainViewModel : ObservableObject
     public string AvailablePairingCode
     {
         get => _availablePairingCode;
-        set => SetProperty(ref _availablePairingCode, value);
+        set
+        {
+            if (SetProperty(ref _availablePairingCode, value))
+            {
+                AvailableClaimError = "";
+            }
+        }
+    }
+
+    public string AvailableClaimError
+    {
+        get => _availableClaimError;
+        set
+        {
+            if (SetProperty(ref _availableClaimError, value))
+            {
+                OnPropertyChanged(nameof(AvailableClaimErrorVisibility));
+            }
+        }
     }
 
     public int OnlineDeviceCount => Devices.Count(device => device.Status.Equals("online", StringComparison.OrdinalIgnoreCase));
@@ -361,6 +381,7 @@ public sealed class MainViewModel : ObservableObject
     public Visibility EmptyAvailableDevicesVisibility => AvailableDevices.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasAvailableDevicesVisibility => AvailableDevices.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SelectedAvailableDeviceVisibility => SelectedAvailableDevice is null ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility AvailableClaimErrorVisibility => string.IsNullOrWhiteSpace(AvailableClaimError) ? Visibility.Collapsed : Visibility.Visible;
     public Visibility EmptyNotificationsVisibility => Notifications.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasNotificationsVisibility => Notifications.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility NotificationFlyoutVisibility => IsNotificationFlyoutOpen ? Visibility.Visible : Visibility.Collapsed;
@@ -567,9 +588,16 @@ public sealed class MainViewModel : ObservableObject
         }
 
         var availableDevice = SelectedAvailableDevice;
-        await RunAsync(async () =>
+        try
         {
-            var device = await _api.ClaimDeviceAsync(AvailablePairingCode, availableDevice.Serial, null);
+            if (string.IsNullOrWhiteSpace(AvailablePairingCode))
+            {
+                AvailableClaimError = "Enter the pairing code shown in DeviceApp.";
+                return;
+            }
+
+            AvailableClaimError = "";
+            var device = await _api.ClaimDeviceAsync(AvailablePairingCode, availableDevice.KindLabel, EmptyToNull(availableDevice.DefaultCategory));
             AvailablePairingCode = "";
             SelectedAvailableDevice = null;
             await RefreshDevicesAsync();
@@ -577,7 +605,11 @@ public sealed class MainViewModel : ObservableObject
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == device.Id);
             CurrentSection = "Home";
             StatusMessage = $"Claimed {device.NameOrSerial}.";
-        });
+        }
+        catch
+        {
+            AvailableClaimError = "Pairing code is invalid, expired, or already used.";
+        }
     }
 
     private async Task RenameDeviceAsync()

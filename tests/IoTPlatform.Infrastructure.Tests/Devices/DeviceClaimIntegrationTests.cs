@@ -257,6 +257,7 @@ public sealed class DeviceClaimIntegrationTests
             Assert.Equal([onlineSerial], available.Select(device => device.Serial).ToArray());
             var online = Assert.Single(available.Where(device => device.Serial == onlineSerial));
             Assert.Equal("online", online.Status);
+            Assert.Equal("custom", online.DeviceType);
             Assert.Equal(1, online.SensorCount);
             Assert.Equal(1, online.ActuatorCount);
             Assert.True(online.PairingCodeExpiresAtUtc > DateTimeOffset.UtcNow);

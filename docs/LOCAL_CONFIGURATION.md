@@ -19,19 +19,15 @@ dotnet user-secrets set "HiveMq:Username" "<HIVEMQ_USERNAME>" --project src/IoTP
 dotnet user-secrets set "HiveMq:Password" "<HIVEMQ_PASSWORD>" --project src/IoTPlatform.DeviceApp
 ```
 
-Chay nhieu thiet bi bang profile khac nhau:
+Chay WPF multi-device simulator:
 
 ```powershell
-dotnet run --project src/IoTPlatform.DeviceApp -- --profile garden-pump
-dotnet run --project src/IoTPlatform.DeviceApp -- --profile living-room
+dotnet run --project src/IoTPlatform.DeviceApp
 ```
 
-Moi profile co serial va manifest rieng tai `%LOCALAPPDATA%\OmniConnect\DeviceApp\<profile>`.
-De thay doi capability ma van giu serial, chay them `--reconfigure`; DeviceApp se tang `manifestVersion`:
+Trong DeviceApp, bam `Add device`, chon 1 trong 8 preset SmartHome, sau do `Start` tung thiet bi. Moi card co serial, pairing code va MQTT session rieng. DeviceApp khong con hoi capability thu cong trong luong mac dinh.
 
-```powershell
-dotnet run --project src/IoTPlatform.DeviceApp -- --profile garden-pump --reconfigure
-```
+Neu can mo phong nhieu thiet bi, them nhieu card trong cung mot cua so DeviceApp.
 
 ## Worker startup
 
