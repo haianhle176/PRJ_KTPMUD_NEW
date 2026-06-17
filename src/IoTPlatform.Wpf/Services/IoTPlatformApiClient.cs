@@ -307,7 +307,30 @@ public sealed record CreateAutomationRulePayload(string Name, Guid SourceDeviceI
 
 public sealed record UpdateAutomationRulePayload(string Name, string ComparisonOperator, JsonElement ThresholdValue, string CommandName, JsonElement DesiredValue, int CooldownSeconds, bool IsEnabled, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek);
 
-public sealed record AutomationRuleDto(Guid Id, string Name, Guid SourceDeviceId, string SourceDeviceSerial, string SourceCapabilityKey, string ComparisonOperator, string ThresholdValueType, decimal? ThresholdNumberValue, bool? ThresholdBooleanValue, string? ThresholdStringValue, Guid TargetDeviceId, string TargetDeviceSerial, string TargetCapabilityKey, string CommandName, string DesiredValueType, decimal? DesiredNumberValue, bool? DesiredBooleanValue, string? DesiredStringValue, bool IsEnabled, int CooldownSeconds, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek, bool? LastConditionResult, DateTimeOffset? LastTriggeredAtUtc, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc);
+public sealed record AutomationRuleDto(Guid Id, string Name, Guid SourceDeviceId, string SourceDeviceSerial, string SourceCapabilityKey, string ComparisonOperator, string ThresholdValueType, decimal? ThresholdNumberValue, bool? ThresholdBooleanValue, string? ThresholdStringValue, Guid TargetDeviceId, string TargetDeviceSerial, string TargetCapabilityKey, string CommandName, string DesiredValueType, decimal? DesiredNumberValue, bool? DesiredBooleanValue, string? DesiredStringValue, bool IsEnabled, int CooldownSeconds, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek, bool? LastConditionResult, DateTimeOffset? LastTriggeredAtUtc, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc)
+{
+    public string SourceSummary => $"{SourceDeviceSerial} - {FormatCapabilityName(SourceCapabilityKey)}";
+    public string TargetSummary => $"{TargetDeviceSerial} - {FormatCapabilityName(TargetCapabilityKey)}";
+    public string ActionSummary => $"{FormatCommandName(CommandName)} {FormatDesiredValue(DesiredValueType, DesiredNumberValue, DesiredBooleanValue, DesiredStringValue)}";
+
+    private static string FormatCapabilityName(string key) =>
+        string.Join(" ", key.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries)
+            .Select(part => char.ToUpperInvariant(part[0]) + part[1..].ToLowerInvariant()));
+
+    private static string FormatCommandName(string commandName) => commandName.Equals("ON", StringComparison.OrdinalIgnoreCase)
+        ? "Turn on"
+        : commandName.Equals("OFF", StringComparison.OrdinalIgnoreCase)
+            ? "Turn off"
+            : commandName;
+
+    private static string FormatDesiredValue(string valueType, decimal? numberValue, bool? booleanValue, string? stringValue) => valueType switch
+    {
+        "number" => numberValue?.ToString("0.###") ?? "",
+        "boolean" => booleanValue == true ? "On" : "Off",
+        "string" => stringValue ?? "",
+        _ => ""
+    };
+}
 
 public sealed record AutomationExecutionDto(long Id, Guid AutomationRuleId, Guid TriggerMessageId, Guid? CommandId, string Outcome, string? Reason, DateTimeOffset EvaluatedAtUtc);
 

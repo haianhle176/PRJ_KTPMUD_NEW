@@ -31,6 +31,8 @@ public sealed class MainViewModel : ObservableObject
     private string _homeMode = "Dashboard";
     private bool _isOnboardingClaimSuccess;
     private bool _isHomeDeviceRenaming;
+    private string _automationSourceSelectionKey = "";
+    private string _automationTargetSelectionKey = "";
     private DeviceSummary? _selectedDevice;
     private HomeDeviceCard? _selectedHomeDeviceCard;
     private AvailableDevice? _selectedAvailableDevice;
@@ -145,11 +147,13 @@ public sealed class MainViewModel : ObservableObject
                 OnPropertyChanged(nameof(AutomationVisibility));
                 OnPropertyChanged(nameof(NotificationsVisibility));
                 OnPropertyChanged(nameof(AdvancedVisibility));
+                OnPropertyChanged(nameof(SettingsVisibility));
                 OnPropertyChanged(nameof(HomeNotificationFlyoutVisibility));
                 OnPropertyChanged(nameof(IsHomeNavSelected));
                 OnPropertyChanged(nameof(IsAutomationNavSelected));
                 OnPropertyChanged(nameof(IsNotificationsNavSelected));
                 OnPropertyChanged(nameof(IsAdvancedNavSelected));
+                OnPropertyChanged(nameof(IsSettingsNavSelected));
                 OnPropertyChanged(nameof(HomeNavBackground));
                 OnPropertyChanged(nameof(HomeNavForeground));
                 OnPropertyChanged(nameof(HomeNavRailOpacity));
@@ -162,6 +166,9 @@ public sealed class MainViewModel : ObservableObject
                 OnPropertyChanged(nameof(AdvancedNavBackground));
                 OnPropertyChanged(nameof(AdvancedNavForeground));
                 OnPropertyChanged(nameof(AdvancedNavRailOpacity));
+                OnPropertyChanged(nameof(SettingsNavBackground));
+                OnPropertyChanged(nameof(SettingsNavForeground));
+                OnPropertyChanged(nameof(SettingsNavRailOpacity));
             }
         }
     }
@@ -264,6 +271,8 @@ public sealed class MainViewModel : ObservableObject
                     RenameCategory = value.Category ?? "";
                     AutomationSourceDeviceId = value.Id.ToString();
                     AutomationTargetDeviceId = value.Id.ToString();
+                    AutomationSourceSelectionKey = CreateAutomationSelectionKey(value.Id, AutomationSourceCapabilityKey);
+                    AutomationTargetSelectionKey = CreateAutomationSelectionKey(value.Id, AutomationTargetCapabilityKey);
                     OnPropertyChanged(nameof(RenameDisplayName));
                     OnPropertyChanged(nameof(RenameCategory));
                     OnPropertyChanged(nameof(AutomationSourceDeviceId));
@@ -299,10 +308,12 @@ public sealed class MainViewModel : ObservableObject
                     AutomationName = value.Name;
                     AutomationSourceDeviceId = value.SourceDeviceId.ToString();
                     AutomationSourceCapabilityKey = value.SourceCapabilityKey;
+                    AutomationSourceSelectionKey = CreateAutomationSelectionKey(value.SourceDeviceId, value.SourceCapabilityKey);
                     AutomationOperator = value.ComparisonOperator;
                     AutomationThresholdValue = FormatValue(value.ThresholdValueType, value.ThresholdNumberValue, value.ThresholdBooleanValue, value.ThresholdStringValue);
                     AutomationTargetDeviceId = value.TargetDeviceId.ToString();
                     AutomationTargetCapabilityKey = value.TargetCapabilityKey;
+                    AutomationTargetSelectionKey = CreateAutomationSelectionKey(value.TargetDeviceId, value.TargetCapabilityKey);
                     AutomationCommandName = value.CommandName;
                     AutomationDesiredValue = FormatValue(value.DesiredValueType, value.DesiredNumberValue, value.DesiredBooleanValue, value.DesiredStringValue);
                     AutomationCooldownSeconds = value.CooldownSeconds.ToString();
@@ -341,6 +352,30 @@ public sealed class MainViewModel : ObservableObject
     public string AutomationActiveToTime { get; set; } = "";
     public string AutomationActiveDaysOfWeek { get; set; } = "";
     public bool AutomationIsEnabled { get; set; } = true;
+
+    public string AutomationSourceSelectionKey
+    {
+        get => _automationSourceSelectionKey;
+        set
+        {
+            if (SetProperty(ref _automationSourceSelectionKey, value))
+            {
+                ApplyAutomationSelection(value, isSource: true);
+            }
+        }
+    }
+
+    public string AutomationTargetSelectionKey
+    {
+        get => _automationTargetSelectionKey;
+        set
+        {
+            if (SetProperty(ref _automationTargetSelectionKey, value))
+            {
+                ApplyAutomationSelection(value, isSource: false);
+            }
+        }
+    }
 
     public AvailableDevice? SelectedAvailableDevice
     {
@@ -490,6 +525,7 @@ public sealed class MainViewModel : ObservableObject
     public bool IsAutomationNavSelected => CurrentSection == "Automation";
     public bool IsNotificationsNavSelected => CurrentSection == "Notifications";
     public bool IsAdvancedNavSelected => CurrentSection == "Advanced";
+    public bool IsSettingsNavSelected => CurrentSection == "Settings";
     public string HomeNavBackground => NavBackground(IsHomeNavSelected);
     public string HomeNavForeground => NavForeground(IsHomeNavSelected);
     public double HomeNavRailOpacity => NavRailOpacity(IsHomeNavSelected);
@@ -502,6 +538,15 @@ public sealed class MainViewModel : ObservableObject
     public string AdvancedNavBackground => NavBackground(IsAdvancedNavSelected);
     public string AdvancedNavForeground => NavForeground(IsAdvancedNavSelected);
     public double AdvancedNavRailOpacity => NavRailOpacity(IsAdvancedNavSelected);
+    public string SettingsNavBackground => NavBackground(IsSettingsNavSelected);
+    public string SettingsNavForeground => NavForeground(IsSettingsNavSelected);
+    public double SettingsNavRailOpacity => NavRailOpacity(IsSettingsNavSelected);
+    public IEnumerable<AutomationCapabilityOption> AutomationSourceOptions => HomeDeviceCards
+        .Where(card => card.IsSensor)
+        .Select(AutomationCapabilityOption.From);
+    public IEnumerable<AutomationCapabilityOption> AutomationTargetOptions => HomeDeviceCards
+        .Where(card => card.IsActuator)
+        .Select(AutomationCapabilityOption.From);
     public string LastHomeRefreshText
     {
         get => _lastHomeRefreshText;
@@ -605,6 +650,7 @@ public sealed class MainViewModel : ObservableObject
     public Visibility AutomationVisibility => Section("Automation");
     public Visibility NotificationsVisibility => Section("Notifications");
     public Visibility AdvancedVisibility => Section("Advanced");
+    public Visibility SettingsVisibility => Section("Settings");
     public Visibility AuthenticatedVisibility => IsAuthenticated ? Visibility.Visible : Visibility.Collapsed;
     public Visibility UnauthenticatedVisibility => IsAuthenticated ? Visibility.Collapsed : Visibility.Visible;
     public Visibility HasSelectedDeviceVisibility => SelectedDevice is null ? Visibility.Collapsed : Visibility.Visible;
@@ -880,6 +926,24 @@ public sealed class MainViewModel : ObservableObject
                 card.DeviceId == selectedDeviceId && card.CapabilityKey.Equals(selectedCapabilityKey, StringComparison.OrdinalIgnoreCase));
         }
 
+        if (string.IsNullOrWhiteSpace(AutomationSourceSelectionKey))
+        {
+            var firstSource = HomeDeviceCards.FirstOrDefault(card => card.IsSensor);
+            if (firstSource is not null)
+            {
+                AutomationSourceSelectionKey = CreateAutomationSelectionKey(firstSource.DeviceId, firstSource.CapabilityKey);
+            }
+        }
+
+        if (string.IsNullOrWhiteSpace(AutomationTargetSelectionKey))
+        {
+            var firstTarget = HomeDeviceCards.FirstOrDefault(card => card.IsActuator);
+            if (firstTarget is not null)
+            {
+                AutomationTargetSelectionKey = CreateAutomationSelectionKey(firstTarget.DeviceId, firstTarget.CapabilityKey);
+            }
+        }
+
         NotifyDashboardCounts();
     }
 
@@ -966,6 +1030,19 @@ public sealed class MainViewModel : ObservableObject
     {
         IsNotificationFlyoutOpen = false;
         CurrentSection = "Automation";
+        if (SelectedHomeDeviceCard is not null)
+        {
+            var selection = CreateAutomationSelectionKey(SelectedHomeDeviceCard.DeviceId, SelectedHomeDeviceCard.CapabilityKey);
+            if (SelectedHomeDeviceCard.IsSensor)
+            {
+                AutomationSourceSelectionKey = selection;
+            }
+            else if (SelectedHomeDeviceCard.IsActuator)
+            {
+                AutomationTargetSelectionKey = selection;
+            }
+        }
+
         await RefreshAutomationRulesAsync();
     }
 
@@ -1498,6 +1575,8 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HomeActuatorCount));
         OnPropertyChanged(nameof(FilteredHomeDeviceCards));
         OnPropertyChanged(nameof(HomeViewAllDevicesVisibility));
+        OnPropertyChanged(nameof(AutomationSourceOptions));
+        OnPropertyChanged(nameof(AutomationTargetOptions));
         OnPropertyChanged(nameof(UnreadNotificationBadgeText));
         OnPropertyChanged(nameof(UnreadNotificationBadgeVisibility));
         OnPropertyChanged(nameof(SidebarUnreadNotificationBadgeVisibility));
@@ -1551,10 +1630,12 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(AutomationName));
         OnPropertyChanged(nameof(AutomationSourceDeviceId));
         OnPropertyChanged(nameof(AutomationSourceCapabilityKey));
+        OnPropertyChanged(nameof(AutomationSourceSelectionKey));
         OnPropertyChanged(nameof(AutomationOperator));
         OnPropertyChanged(nameof(AutomationThresholdValue));
         OnPropertyChanged(nameof(AutomationTargetDeviceId));
         OnPropertyChanged(nameof(AutomationTargetCapabilityKey));
+        OnPropertyChanged(nameof(AutomationTargetSelectionKey));
         OnPropertyChanged(nameof(AutomationCommandName));
         OnPropertyChanged(nameof(AutomationDesiredValue));
         OnPropertyChanged(nameof(AutomationCooldownSeconds));
@@ -1562,6 +1643,46 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(AutomationActiveToTime));
         OnPropertyChanged(nameof(AutomationActiveDaysOfWeek));
         OnPropertyChanged(nameof(AutomationIsEnabled));
+    }
+
+    private void ApplyAutomationSelection(string selectionKey, bool isSource)
+    {
+        if (!TryParseAutomationSelectionKey(selectionKey, out var deviceId, out var capabilityKey))
+        {
+            return;
+        }
+
+        if (isSource)
+        {
+            AutomationSourceDeviceId = deviceId.ToString();
+            AutomationSourceCapabilityKey = capabilityKey;
+            OnPropertyChanged(nameof(AutomationSourceDeviceId));
+            OnPropertyChanged(nameof(AutomationSourceCapabilityKey));
+        }
+        else
+        {
+            AutomationTargetDeviceId = deviceId.ToString();
+            AutomationTargetCapabilityKey = capabilityKey;
+            OnPropertyChanged(nameof(AutomationTargetDeviceId));
+            OnPropertyChanged(nameof(AutomationTargetCapabilityKey));
+        }
+    }
+
+    private static string CreateAutomationSelectionKey(Guid deviceId, string capabilityKey) =>
+        string.IsNullOrWhiteSpace(capabilityKey) ? "" : $"{deviceId:N}|{capabilityKey}";
+
+    private static bool TryParseAutomationSelectionKey(string selectionKey, out Guid deviceId, out string capabilityKey)
+    {
+        deviceId = Guid.Empty;
+        capabilityKey = "";
+        var parts = selectionKey.Split('|', 2);
+        if (parts.Length != 2 || !Guid.TryParse(parts[0], out deviceId) || string.IsNullOrWhiteSpace(parts[1]))
+        {
+            return false;
+        }
+
+        capabilityKey = parts[1];
+        return true;
     }
 
     private Visibility Section(string section) => CurrentSection == section ? Visibility.Visible : Visibility.Collapsed;
@@ -1788,6 +1909,19 @@ public sealed class MainViewModel : ObservableObject
 
         return null;
     }
+}
+
+public sealed record AutomationCapabilityOption(
+    string SelectionKey,
+    string DisplayName,
+    Guid DeviceId,
+    string CapabilityKey)
+{
+    public static AutomationCapabilityOption From(HomeDeviceCard card) => new(
+        $"{card.DeviceId:N}|{card.CapabilityKey}",
+        $"{card.DeviceName} - {card.CapabilityName}",
+        card.DeviceId,
+        card.CapabilityKey);
 }
 
 public sealed class HomeDeviceTelemetryLogItem(

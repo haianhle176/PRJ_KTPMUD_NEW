@@ -341,11 +341,11 @@
                         <Border Height="1" Background="{StaticResource BorderBrushSoft}" Margin="4,18,4,18" />
                         <Button Style="{StaticResource NavButton}"
                                 Command="{Binding NavigateCommand}"
-                                CommandParameter="Advanced"
-                                Background="{Binding AdvancedNavBackground}"
-                                Foreground="{Binding AdvancedNavForeground}"
+                                CommandParameter="Settings"
+                                Background="{Binding SettingsNavBackground}"
+                                Foreground="{Binding SettingsNavForeground}"
                                 Padding="{Binding SidebarNavPadding}"
-                                Tag="{Binding AdvancedNavRailOpacity}">
+                                Tag="{Binding SettingsNavRailOpacity}">
                             <Grid>
                                 <Grid.ColumnDefinitions>
                                     <ColumnDefinition Width="28" />
@@ -1066,8 +1066,8 @@
                                     <Border Style="{StaticResource CardBorder}" Margin="0">
                                         <StackPanel>
                                             <TextBlock Text="Advanced tools" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,12" />
-                                            <Button Content="Manage device" Command="{Binding NavigateCommand}" CommandParameter="Devices" Height="36" Margin="0,0,0,8" HorizontalAlignment="Stretch" />
-                                            <Button Content="View raw telemetry" Command="{Binding NavigateCommand}" CommandParameter="Advanced" Height="36" Margin="0" HorizontalAlignment="Stretch" />
+                                            <Button Content="Manage device" Command="{Binding BackToHomeDashboardCommand}" Height="36" Margin="0,0,0,8" HorizontalAlignment="Stretch" />
+                                            <Button Content="Open settings" Command="{Binding NavigateCommand}" CommandParameter="Settings" Height="36" Margin="0" HorizontalAlignment="Stretch" />
                                         </StackPanel>
                                     </Border>
                                 </StackPanel>
@@ -1456,7 +1456,7 @@
                         </StackPanel>
                     </Border>
 
-                    <StackPanel Visibility="{Binding DevicesVisibility}">
+                    <StackPanel Visibility="Collapsed">
                         <TextBlock Text="Devices" Style="{StaticResource SectionTitle}" />
                         <Grid>
                             <Grid.ColumnDefinitions>
@@ -1550,10 +1550,10 @@
                                     <DataGrid ItemsSource="{Binding AutomationRules}" SelectedItem="{Binding SelectedAutomationRule}">
                                         <DataGrid.Columns>
                                             <DataGridTextColumn Header="Name" Binding="{Binding Name}" Width="180" />
-                                            <DataGridTextColumn Header="If" Binding="{Binding SourceCapabilityKey}" Width="120" />
+                                            <DataGridTextColumn Header="If" Binding="{Binding SourceSummary}" Width="170" />
                                             <DataGridTextColumn Header="Op" Binding="{Binding ComparisonOperator}" Width="60" />
-                                            <DataGridTextColumn Header="Then" Binding="{Binding TargetCapabilityKey}" Width="120" />
-                                            <DataGridTextColumn Header="Command" Binding="{Binding CommandName}" Width="100" />
+                                            <DataGridTextColumn Header="Then" Binding="{Binding TargetSummary}" Width="170" />
+                                            <DataGridTextColumn Header="Action" Binding="{Binding ActionSummary}" Width="120" />
                                             <DataGridCheckBoxColumn Header="Enabled" Binding="{Binding IsEnabled}" Width="80" />
                                         </DataGrid.Columns>
                                     </DataGrid>
@@ -1565,22 +1565,32 @@
                                     <TextBlock Text="Rule editor" FontSize="18" FontWeight="SemiBold" />
                                     <TextBlock Text="Name" Style="{StaticResource SmallLabel}" />
                                     <TextBox Text="{Binding AutomationName, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBlock Text="Source device id" Style="{StaticResource SmallLabel}" />
-                                    <TextBox Text="{Binding AutomationSourceDeviceId, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBlock Text="Source capability key" Style="{StaticResource SmallLabel}" />
-                                    <TextBox Text="{Binding AutomationSourceCapabilityKey, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Text="Source" Style="{StaticResource SmallLabel}" />
+                                    <ComboBox ItemsSource="{Binding AutomationSourceOptions}"
+                                              SelectedValue="{Binding AutomationSourceSelectionKey, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="SelectionKey"
+                                              DisplayMemberPath="DisplayName" />
                                     <TextBlock Text="Operator" Style="{StaticResource SmallLabel}" />
                                     <TextBox Text="{Binding AutomationOperator, UpdateSourceTrigger=PropertyChanged}" />
                                     <TextBlock Text="Threshold value" Style="{StaticResource SmallLabel}" />
                                     <TextBox Text="{Binding AutomationThresholdValue, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBlock Text="Target device id" Style="{StaticResource SmallLabel}" />
-                                    <TextBox Text="{Binding AutomationTargetDeviceId, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBlock Text="Target capability key" Style="{StaticResource SmallLabel}" />
-                                    <TextBox Text="{Binding AutomationTargetCapabilityKey, UpdateSourceTrigger=PropertyChanged}" />
-                                    <TextBlock Text="Command name" Style="{StaticResource SmallLabel}" />
-                                    <TextBox Text="{Binding AutomationCommandName, UpdateSourceTrigger=PropertyChanged}" />
+                                    <TextBlock Text="Target" Style="{StaticResource SmallLabel}" />
+                                    <ComboBox ItemsSource="{Binding AutomationTargetOptions}"
+                                              SelectedValue="{Binding AutomationTargetSelectionKey, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="SelectionKey"
+                                              DisplayMemberPath="DisplayName" />
+                                    <TextBlock Text="Action" Style="{StaticResource SmallLabel}" />
+                                    <ComboBox SelectedValue="{Binding AutomationCommandName, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="Tag">
+                                        <ComboBoxItem Content="Turn on" Tag="ON" />
+                                        <ComboBoxItem Content="Turn off" Tag="OFF" />
+                                    </ComboBox>
                                     <TextBlock Text="Desired value" Style="{StaticResource SmallLabel}" />
-                                    <TextBox Text="{Binding AutomationDesiredValue, UpdateSourceTrigger=PropertyChanged}" />
+                                    <ComboBox SelectedValue="{Binding AutomationDesiredValue, UpdateSourceTrigger=PropertyChanged}"
+                                              SelectedValuePath="Tag">
+                                        <ComboBoxItem Content="On" Tag="true" />
+                                        <ComboBoxItem Content="Off" Tag="false" />
+                                    </ComboBox>
                                     <TextBlock Text="Cooldown seconds" Style="{StaticResource SmallLabel}" />
                                     <TextBox Text="{Binding AutomationCooldownSeconds, UpdateSourceTrigger=PropertyChanged}" />
                                     <CheckBox Content="Enabled" IsChecked="{Binding AutomationIsEnabled}" Margin="0,0,0,10" />
@@ -1618,11 +1628,11 @@
                         </Border>
                     </StackPanel>
 
-                    <StackPanel Visibility="{Binding AdvancedVisibility}">
-                        <TextBlock Text="Advanced" Style="{StaticResource SectionTitle}" />
+                    <StackPanel Visibility="{Binding SettingsVisibility}">
+                        <TextBlock Text="Settings" Style="{StaticResource SectionTitle}" />
                         <Border Style="{StaticResource CardBorder}">
                             <StackPanel>
-                                <TextBlock Text="Local developer tools" FontSize="18" FontWeight="SemiBold" />
+                                <TextBlock Text="DeviceApp" FontSize="18" FontWeight="SemiBold" />
                                 <TextBlock Text="{Binding LocalToolsHelp}"
                                            Foreground="{StaticResource MutedInkBrush}"
                                            TextWrapping="Wrap"
@@ -1633,7 +1643,7 @@
                             </StackPanel>
                         </Border>
 
-                        <Grid>
+                        <Grid Visibility="Collapsed">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*" />
                                 <ColumnDefinition Width="*" />
@@ -1661,7 +1671,7 @@
                             </Border>
                         </Grid>
 
-                        <Border Style="{StaticResource CardBorder}">
+                        <Border Style="{StaticResource CardBorder}" Visibility="Collapsed">
                             <StackPanel>
                                 <TextBlock Text="Latest values" FontSize="18" FontWeight="SemiBold" />
                                 <DataGrid ItemsSource="{Binding LatestValues}">
