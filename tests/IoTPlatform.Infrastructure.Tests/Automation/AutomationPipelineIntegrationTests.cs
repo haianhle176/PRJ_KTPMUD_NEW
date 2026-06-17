@@ -71,8 +71,12 @@ public sealed class AutomationPipelineIntegrationTests
 
             await context.AutomationService.UpdateAsync(owner.User.Id, rule.Id, new UpdateAutomationRuleRequestDto(
                 rule.Name,
+                rule.SourceDeviceId,
+                rule.SourceCapabilityKey,
                 rule.ComparisonOperator,
                 JsonSerializer.SerializeToElement(30m, DeviceMessageSerializer.Options),
+                rule.TargetDeviceId,
+                rule.TargetCapabilityKey,
                 rule.CommandName,
                 JsonSerializer.SerializeToElement(true, DeviceMessageSerializer.Options),
                 rule.CooldownSeconds,

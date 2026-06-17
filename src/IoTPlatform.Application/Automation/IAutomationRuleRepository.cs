@@ -7,7 +7,7 @@ public interface IAutomationRuleRepository
     Task<AutomationRuleDto?> CreateAsync(
         Guid userId,
         CreateAutomationRuleRequestDto request,
-        CommandValue thresholdValue,
+        CommandValue? thresholdValue,
         CommandValue desiredValue,
         CancellationToken cancellationToken = default);
 
@@ -19,7 +19,7 @@ public interface IAutomationRuleRepository
         Guid userId,
         Guid ruleId,
         UpdateAutomationRuleRequestDto request,
-        CommandValue thresholdValue,
+        CommandValue? thresholdValue,
         CommandValue desiredValue,
         CancellationToken cancellationToken = default);
 

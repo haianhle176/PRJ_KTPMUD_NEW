@@ -1,3 +1,4 @@
+using System.Text.Json;
 using IoTPlatform.Application.Commands;
 
 namespace IoTPlatform.Application.Automation;
@@ -9,9 +10,11 @@ public sealed class AutomationRuleService(IAutomationRuleRepository repository) 
     public async Task<AutomationRuleDto> CreateAsync(Guid userId, CreateAutomationRuleRequestDto request, CancellationToken cancellationToken = default)
     {
         ValidateUser(userId);
-        ValidateCommon(request.Name, request.ComparisonOperator, request.CooldownSeconds, request.CommandName);
+        ValidateCommon(request.Name, request.CooldownSeconds, request.CommandName);
         ValidateSchedule(request.ActiveFromTime, request.ActiveToTime, request.ActiveDaysOfWeek);
-        var threshold = CommandValue.FromJson(request.ThresholdValue);
+        var hasSource = HasSource(request.SourceDeviceId, request.SourceCapabilityKey);
+        ValidateTrigger(hasSource, request.ComparisonOperator, request.ThresholdValue, request.ActiveFromTime, request.ActiveToTime, request.ActiveDaysOfWeek);
+        var threshold = hasSource ? CommandValue.FromJson(request.ThresholdValue!.Value) : null;
         var desired = CommandValue.FromJson(request.DesiredValue);
         return await repository.CreateAsync(userId, request, threshold, desired, cancellationToken)
             ?? throw new AutomationValidationException("Automation source or target capability is invalid.");
@@ -32,9 +35,11 @@ public sealed class AutomationRuleService(IAutomationRuleRepository repository) 
     public async Task<AutomationRuleDto> UpdateAsync(Guid userId, Guid ruleId, UpdateAutomationRuleRequestDto request, CancellationToken cancellationToken = default)
     {
         ValidateUser(userId);
-        ValidateCommon(request.Name, request.ComparisonOperator, request.CooldownSeconds, request.CommandName);
+        ValidateCommon(request.Name, request.CooldownSeconds, request.CommandName);
         ValidateSchedule(request.ActiveFromTime, request.ActiveToTime, request.ActiveDaysOfWeek);
-        var threshold = CommandValue.FromJson(request.ThresholdValue);
+        var hasSource = HasSource(request.SourceDeviceId, request.SourceCapabilityKey);
+        ValidateTrigger(hasSource, request.ComparisonOperator, request.ThresholdValue, request.ActiveFromTime, request.ActiveToTime, request.ActiveDaysOfWeek);
+        var threshold = hasSource ? CommandValue.FromJson(request.ThresholdValue!.Value) : null;
         var desired = CommandValue.FromJson(request.DesiredValue);
         return await repository.UpdateAsync(userId, ruleId, request, threshold, desired, cancellationToken)
             ?? throw new AutomationRuleNotFoundException();
@@ -68,16 +73,11 @@ public sealed class AutomationRuleService(IAutomationRuleRepository repository) 
         }
     }
 
-    private static void ValidateCommon(string name, string comparisonOperator, int cooldownSeconds, string commandName)
+    private static void ValidateCommon(string name, int cooldownSeconds, string commandName)
     {
         if (string.IsNullOrWhiteSpace(name))
         {
             throw new AutomationValidationException("Rule name is required.");
-        }
-
-        if (!Operators.Contains(comparisonOperator))
-        {
-            throw new AutomationValidationException("Comparison operator is invalid.");
         }
 
         if (cooldownSeconds < 0)
@@ -90,6 +90,43 @@ public sealed class AutomationRuleService(IAutomationRuleRepository repository) 
             throw new AutomationValidationException("Command name is required.");
         }
     }
+
+    private static void ValidateTrigger(
+        bool hasSource,
+        string? comparisonOperator,
+        JsonElement? thresholdValue,
+        string? activeFromTime,
+        string? activeToTime,
+        int? activeDaysOfWeek)
+    {
+        if (hasSource)
+        {
+            if (string.IsNullOrWhiteSpace(comparisonOperator) || !Operators.Contains(comparisonOperator))
+            {
+                throw new AutomationValidationException("Comparison operator is invalid.");
+            }
+
+            if (thresholdValue is null)
+            {
+                throw new AutomationValidationException("Threshold value is required.");
+            }
+
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(comparisonOperator) || thresholdValue is not null)
+        {
+            throw new AutomationValidationException("Schedule-only rules cannot include a source condition.");
+        }
+
+        if (string.IsNullOrWhiteSpace(activeFromTime) && string.IsNullOrWhiteSpace(activeToTime) && activeDaysOfWeek is null)
+        {
+            throw new AutomationValidationException("Schedule-only rules require an active schedule.");
+        }
+    }
+
+    private static bool HasSource(Guid? sourceDeviceId, string? sourceCapabilityKey) =>
+        sourceDeviceId is not null && sourceDeviceId != Guid.Empty && !string.IsNullOrWhiteSpace(sourceCapabilityKey);
 
     private static void ValidateSchedule(string? activeFromTime, string? activeToTime, int? activeDaysOfWeek)
     {

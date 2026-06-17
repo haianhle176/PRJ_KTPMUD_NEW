@@ -37,6 +37,7 @@ public static class ServiceCollectionExtensions
         services.AddScoped<ITelemetryQueryRepository, SqlTelemetryQueryRepository>();
         services.AddScoped<ICommandRepository, SqlCommandRepository>();
         services.AddScoped<IAutomationRuleRepository, SqlAutomationRuleRepository>();
+        services.AddSingleton<IScheduledAutomationRepository, SqlScheduledAutomationRepository>();
         services.AddScoped<INotificationRepository, SqlNotificationRepository>();
         services.AddSingleton<ITelemetryIngestionRepository, SqlTelemetryIngestionRepository>();
         services.AddSingleton<ICommandDispatchRepository, SqlCommandDispatchRepository>();

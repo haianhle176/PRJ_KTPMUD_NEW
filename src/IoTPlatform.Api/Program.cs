@@ -33,6 +33,7 @@ if (builder.Configuration.GetValue<bool>("Worker:Enabled"))
     builder.Services.AddHiveMqOptions(builder.Configuration);
     builder.Services.AddSingleton<DeviceMessageHandler>();
     builder.Services.AddHostedService<MqttWorker>();
+    builder.Services.AddHostedService<ScheduledAutomationWorker>();
     builder.Services.AddHostedService<OperationsMaintenanceWorker>();
 }
 

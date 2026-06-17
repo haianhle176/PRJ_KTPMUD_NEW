@@ -10,7 +10,7 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
     public async Task<AutomationRuleDto?> CreateAsync(
         Guid userId,
         CreateAutomationRuleRequestDto request,
-        CommandValue thresholdValue,
+        CommandValue? thresholdValue,
         CommandValue desiredValue,
         CancellationToken cancellationToken = default)
     {
@@ -28,20 +28,25 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
                 @ThresholdValueType, @ThresholdNumberValue, @ThresholdBooleanValue, @ThresholdStringValue,
                 targetCapability.Id, @CommandName, @DesiredValueType, @DesiredNumberValue, @DesiredBooleanValue, @DesiredStringValue,
                 @IsEnabled, @CooldownSeconds, @ActiveFromTime, @ActiveToTime, @ActiveDaysOfWeek
-            FROM dbo.Devices sourceDevice
-            INNER JOIN dbo.Capabilities sourceCapability ON sourceCapability.DeviceId = sourceDevice.Id AND sourceCapability.IsActive = 1
-            INNER JOIN dbo.Devices targetDevice ON targetDevice.Id = @TargetDeviceId AND targetDevice.OwnerUserId = @UserId
+            FROM dbo.Devices targetDevice
             INNER JOIN dbo.Capabilities targetCapability ON targetCapability.DeviceId = targetDevice.Id AND targetCapability.IsActive = 1
-            WHERE sourceDevice.Id = @SourceDeviceId
-              AND sourceDevice.OwnerUserId = @UserId
+            LEFT JOIN dbo.Devices sourceDevice ON sourceDevice.Id = @SourceDeviceId AND sourceDevice.OwnerUserId = @UserId
+            LEFT JOIN dbo.Capabilities sourceCapability ON sourceCapability.DeviceId = sourceDevice.Id
+              AND sourceCapability.IsActive = 1
               AND sourceCapability.[Key] = @SourceCapabilityKey
               AND sourceCapability.Kind = 'sensor'
               AND sourceCapability.DataType = @ThresholdValueType
+            WHERE targetDevice.Id = @TargetDeviceId
+              AND targetDevice.OwnerUserId = @UserId
               AND targetCapability.[Key] = @TargetCapabilityKey
               AND targetCapability.Kind = 'actuator'
               AND targetCapability.IsWritable = 1
               AND targetCapability.DataType = @DesiredValueType
-              AND targetCapability.SupportedCommandsJson LIKE @SupportedCommand;
+              AND targetCapability.SupportedCommandsJson LIKE @SupportedCommand
+              AND (
+                    (@SourceDeviceId IS NULL AND @SourceCapabilityKey IS NULL)
+                    OR sourceCapability.Id IS NOT NULL
+                  );
             """,
             Parameters(ruleId, userId, request, thresholdValue, desiredValue),
             cancellationToken: cancellationToken));
@@ -72,7 +77,7 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
         Guid userId,
         Guid ruleId,
         UpdateAutomationRuleRequestDto request,
-        CommandValue thresholdValue,
+        CommandValue? thresholdValue,
         CommandValue desiredValue,
         CancellationToken cancellationToken = default)
     {
@@ -81,6 +86,8 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
             """
             UPDATE ar
             SET Name = @Name,
+                SourceCapabilityId = sourceCapability.Id,
+                TargetCapabilityId = targetCapability.Id,
                 ComparisonOperator = @ComparisonOperator,
                 ThresholdValueType = @ThresholdValueType,
                 ThresholdNumberValue = @ThresholdNumberValue,
@@ -98,24 +105,40 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
                 ActiveDaysOfWeek = @ActiveDaysOfWeek,
                 UpdatedAtUtc = SYSUTCDATETIME()
             FROM dbo.AutomationRules ar
-            INNER JOIN dbo.Capabilities sourceCapability ON sourceCapability.Id = ar.SourceCapabilityId
-            INNER JOIN dbo.Capabilities targetCapability ON targetCapability.Id = ar.TargetCapabilityId
+            INNER JOIN dbo.Devices targetDevice ON targetDevice.Id = @TargetDeviceId AND targetDevice.OwnerUserId = @UserId
+            INNER JOIN dbo.Capabilities targetCapability ON targetCapability.DeviceId = targetDevice.Id AND targetCapability.IsActive = 1
+            LEFT JOIN dbo.Devices sourceDevice ON sourceDevice.Id = @SourceDeviceId AND sourceDevice.OwnerUserId = @UserId
+            LEFT JOIN dbo.Capabilities sourceCapability ON sourceCapability.DeviceId = sourceDevice.Id
+              AND sourceCapability.IsActive = 1
+              AND sourceCapability.[Key] = @SourceCapabilityKey
+              AND sourceCapability.Kind = 'sensor'
+              AND sourceCapability.DataType = @ThresholdValueType
             WHERE ar.Id = @RuleId
               AND ar.OwnerUserId = @UserId
-              AND sourceCapability.DataType = @ThresholdValueType
+              AND targetCapability.[Key] = @TargetCapabilityKey
+              AND targetCapability.Kind = 'actuator'
+              AND targetCapability.IsWritable = 1
               AND targetCapability.DataType = @DesiredValueType
-              AND targetCapability.SupportedCommandsJson LIKE @SupportedCommand;
+              AND targetCapability.SupportedCommandsJson LIKE @SupportedCommand
+              AND (
+                    (@SourceDeviceId IS NULL AND @SourceCapabilityKey IS NULL)
+                    OR sourceCapability.Id IS NOT NULL
+                  );
             """,
             new
             {
                 RuleId = ruleId,
                 UserId = userId,
                 request.Name,
+                SourceDeviceId = request.SourceDeviceId,
+                SourceCapabilityKey = request.SourceCapabilityKey,
                 request.ComparisonOperator,
-                ThresholdValueType = thresholdValue.ValueType,
-                ThresholdNumberValue = thresholdValue.NumberValue,
-                ThresholdBooleanValue = thresholdValue.BooleanValue,
-                ThresholdStringValue = thresholdValue.StringValue,
+                ThresholdValueType = thresholdValue?.ValueType,
+                ThresholdNumberValue = thresholdValue?.NumberValue,
+                ThresholdBooleanValue = thresholdValue?.BooleanValue,
+                ThresholdStringValue = thresholdValue?.StringValue,
+                request.TargetDeviceId,
+                request.TargetCapabilityKey,
                 CommandName = request.CommandName.Trim().ToUpperInvariant(),
                 DesiredValueType = desiredValue.ValueType,
                 DesiredNumberValue = desiredValue.NumberValue,
@@ -188,8 +211,8 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
             ar.CreatedAtUtc,
             ar.UpdatedAtUtc
         FROM dbo.AutomationRules ar
-        INNER JOIN dbo.Capabilities sourceCapability ON sourceCapability.Id = ar.SourceCapabilityId
-        INNER JOIN dbo.Devices sourceDevice ON sourceDevice.Id = sourceCapability.DeviceId
+        LEFT JOIN dbo.Capabilities sourceCapability ON sourceCapability.Id = ar.SourceCapabilityId
+        LEFT JOIN dbo.Devices sourceDevice ON sourceDevice.Id = sourceCapability.DeviceId
         INNER JOIN dbo.Capabilities targetCapability ON targetCapability.Id = ar.TargetCapabilityId
         INNER JOIN dbo.Devices targetDevice ON targetDevice.Id = targetCapability.DeviceId
         """;
@@ -198,7 +221,7 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
         Guid ruleId,
         Guid userId,
         CreateAutomationRuleRequestDto request,
-        CommandValue thresholdValue,
+        CommandValue? thresholdValue,
         CommandValue desiredValue) => new
         {
             RuleId = ruleId,
@@ -207,10 +230,10 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
             SourceDeviceId = request.SourceDeviceId,
             SourceCapabilityKey = request.SourceCapabilityKey,
             request.ComparisonOperator,
-            ThresholdValueType = thresholdValue.ValueType,
-            ThresholdNumberValue = thresholdValue.NumberValue,
-            ThresholdBooleanValue = thresholdValue.BooleanValue,
-            ThresholdStringValue = thresholdValue.StringValue,
+            ThresholdValueType = thresholdValue?.ValueType,
+            ThresholdNumberValue = thresholdValue?.NumberValue,
+            ThresholdBooleanValue = thresholdValue?.BooleanValue,
+            ThresholdStringValue = thresholdValue?.StringValue,
             TargetDeviceId = request.TargetDeviceId,
             TargetCapabilityKey = request.TargetCapabilityKey,
             CommandName = request.CommandName.Trim().ToUpperInvariant(),
@@ -236,11 +259,11 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
         return new AutomationRuleDto(
             row.Id,
             row.Name,
-            row.SourceDeviceId,
-            row.SourceDeviceSerial,
-            row.SourceCapabilityKey,
-            row.ComparisonOperator,
-            row.ThresholdValueType,
+            (Guid?)row.SourceDeviceId,
+            (string?)row.SourceDeviceSerial,
+            (string?)row.SourceCapabilityKey,
+            (string?)row.ComparisonOperator,
+            (string?)row.ThresholdValueType,
             row.ThresholdNumberValue,
             row.ThresholdBooleanValue,
             row.ThresholdStringValue,
@@ -266,7 +289,7 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
     private static AutomationExecutionDto ToExecution(dynamic row)
     {
         DateTime evaluatedAtUtc = row.EvaluatedAtUtc;
-        return new AutomationExecutionDto(row.Id, row.AutomationRuleId, row.TriggerMessageId, row.CommandId, row.Outcome, row.Reason, Utc(evaluatedAtUtc));
+        return new AutomationExecutionDto(row.Id, row.AutomationRuleId, (Guid?)row.TriggerMessageId, row.CommandId, row.Outcome, row.Reason, Utc(evaluatedAtUtc));
     }
 
     private static DateTimeOffset Utc(DateTime value) => new(DateTime.SpecifyKind(value, DateTimeKind.Utc));

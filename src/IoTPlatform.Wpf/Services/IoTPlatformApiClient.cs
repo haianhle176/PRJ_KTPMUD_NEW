@@ -303,13 +303,15 @@ public sealed record TelemetryHistoryItem(long Id, Guid CapabilityId, string Cap
 
 public sealed record CommandDto(Guid Id, Guid DeviceId, string Serial, string CapabilityKey, string CommandName, string DesiredValueType, decimal? DesiredNumberValue, bool? DesiredBooleanValue, string? DesiredStringValue, string Source, string Status, DateTimeOffset CreatedAtUtc, DateTimeOffset? SentAtUtc, DateTimeOffset? AcceptedAtUtc, DateTimeOffset? CompletedAtUtc, DateTimeOffset ExpiresAtUtc, string? FailureCode, string? FailureMessage);
 
-public sealed record CreateAutomationRulePayload(string Name, Guid SourceDeviceId, string SourceCapabilityKey, string ComparisonOperator, JsonElement ThresholdValue, Guid TargetDeviceId, string TargetCapabilityKey, string CommandName, JsonElement DesiredValue, int CooldownSeconds, bool IsEnabled, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek);
+public sealed record CreateAutomationRulePayload(string Name, Guid? SourceDeviceId, string? SourceCapabilityKey, string? ComparisonOperator, JsonElement? ThresholdValue, Guid TargetDeviceId, string TargetCapabilityKey, string CommandName, JsonElement DesiredValue, int CooldownSeconds, bool IsEnabled, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek);
 
-public sealed record UpdateAutomationRulePayload(string Name, string ComparisonOperator, JsonElement ThresholdValue, string CommandName, JsonElement DesiredValue, int CooldownSeconds, bool IsEnabled, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek);
+public sealed record UpdateAutomationRulePayload(string Name, Guid? SourceDeviceId, string? SourceCapabilityKey, string? ComparisonOperator, JsonElement? ThresholdValue, Guid TargetDeviceId, string TargetCapabilityKey, string CommandName, JsonElement DesiredValue, int CooldownSeconds, bool IsEnabled, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek);
 
-public sealed record AutomationRuleDto(Guid Id, string Name, Guid SourceDeviceId, string SourceDeviceSerial, string SourceCapabilityKey, string ComparisonOperator, string ThresholdValueType, decimal? ThresholdNumberValue, bool? ThresholdBooleanValue, string? ThresholdStringValue, Guid TargetDeviceId, string TargetDeviceSerial, string TargetCapabilityKey, string CommandName, string DesiredValueType, decimal? DesiredNumberValue, bool? DesiredBooleanValue, string? DesiredStringValue, bool IsEnabled, int CooldownSeconds, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek, bool? LastConditionResult, DateTimeOffset? LastTriggeredAtUtc, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc)
+public sealed record AutomationRuleDto(Guid Id, string Name, Guid? SourceDeviceId, string? SourceDeviceSerial, string? SourceCapabilityKey, string? ComparisonOperator, string? ThresholdValueType, decimal? ThresholdNumberValue, bool? ThresholdBooleanValue, string? ThresholdStringValue, Guid TargetDeviceId, string TargetDeviceSerial, string TargetCapabilityKey, string CommandName, string DesiredValueType, decimal? DesiredNumberValue, bool? DesiredBooleanValue, string? DesiredStringValue, bool IsEnabled, int CooldownSeconds, string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek, bool? LastConditionResult, DateTimeOffset? LastTriggeredAtUtc, DateTimeOffset CreatedAtUtc, DateTimeOffset UpdatedAtUtc)
 {
-    public string SourceSummary => $"{SourceDeviceSerial} - {FormatCapabilityName(SourceCapabilityKey)}";
+    public string SourceSummary => SourceDeviceId is null || string.IsNullOrWhiteSpace(SourceCapabilityKey)
+        ? "Schedule only"
+        : $"{SourceDeviceSerial} - {FormatCapabilityName(SourceCapabilityKey)}";
     public string TargetSummary => $"{TargetDeviceSerial} - {FormatCapabilityName(TargetCapabilityKey)}";
     public string ActionSummary => $"{FormatCommandName(CommandName)} {FormatDesiredValue(DesiredValueType, DesiredNumberValue, DesiredBooleanValue, DesiredStringValue)}";
 

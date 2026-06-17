@@ -9,6 +9,7 @@
   <ItemGroup>
     <Compile Include="..\IoTPlatform.Worker\DeviceMessageHandler.cs" Link="DeviceMessageHandler.cs" />
     <Compile Include="..\IoTPlatform.Worker\MqttWorker.cs" Link="MqttWorker.cs" />
+    <Compile Include="..\IoTPlatform.Worker\ScheduledAutomationWorker.cs" Link="ScheduledAutomationWorker.cs" />
     <Compile Include="..\IoTPlatform.Worker\OperationsMaintenanceWorker.cs" Link="OperationsMaintenanceWorker.cs" />
   </ItemGroup>
 

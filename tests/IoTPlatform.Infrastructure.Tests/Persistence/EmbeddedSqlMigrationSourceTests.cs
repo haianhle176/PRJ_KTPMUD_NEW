@@ -9,7 +9,7 @@ public sealed class EmbeddedSqlMigrationSourceTests
     {
         var migrations = new EmbeddedSqlMigrationSource().GetMigrations();
 
-        Assert.Equal([1, 2, 3, 4, 5, 6], migrations.Select(migration => migration.Version));
+        Assert.Equal([1, 2, 3, 4, 5, 6, 7], migrations.Select(migration => migration.Version));
         Assert.All(migrations, migration => Assert.Equal(64, migration.Checksum.Length));
         Assert.All(migrations, migration => Assert.False(string.IsNullOrWhiteSpace(migration.Script)));
     }

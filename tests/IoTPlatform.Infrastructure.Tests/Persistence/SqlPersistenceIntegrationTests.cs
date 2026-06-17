@@ -48,7 +48,7 @@ public sealed class SqlPersistenceIntegrationTests
                     "SELECT COUNT(*) FROM sys.tables WHERE name IN @Names;",
                     new { Names = expectedTables });
 
-                Assert.Equal(6, migrationCount);
+                Assert.Equal(7, migrationCount);
                 Assert.Equal(expectedTables.Length, tableCount);
             }
 

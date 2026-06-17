@@ -39,6 +39,7 @@ public sealed class MainViewModel : ObservableObject
     private bool _automationThursday;
     private bool _automationFriday;
     private bool _automationSaturday;
+    private string _automationOperator = ">";
     private string _automationSourceSelectionKey = "";
     private string _automationTargetSelectionKey = "";
     private DeviceSummary? _selectedDevice;
@@ -317,10 +318,12 @@ public sealed class MainViewModel : ObservableObject
                 if (value is not null)
                 {
                     AutomationName = value.Name;
-                    AutomationSourceDeviceId = value.SourceDeviceId.ToString();
-                    AutomationSourceCapabilityKey = value.SourceCapabilityKey;
-                    AutomationSourceSelectionKey = CreateAutomationSelectionKey(value.SourceDeviceId, value.SourceCapabilityKey);
-                    AutomationOperator = value.ComparisonOperator;
+                    AutomationSourceDeviceId = value.SourceDeviceId?.ToString() ?? "";
+                    AutomationSourceCapabilityKey = value.SourceCapabilityKey ?? "";
+                    AutomationSourceSelectionKey = value.SourceDeviceId is null || string.IsNullOrWhiteSpace(value.SourceCapabilityKey)
+                        ? ""
+                        : CreateAutomationSelectionKey(value.SourceDeviceId.Value, value.SourceCapabilityKey);
+                    AutomationOperator = value.ComparisonOperator ?? "";
                     AutomationThresholdValue = FormatValue(value.ThresholdValueType, value.ThresholdNumberValue, value.ThresholdBooleanValue, value.ThresholdStringValue);
                     AutomationTargetDeviceId = value.TargetDeviceId.ToString();
                     AutomationTargetCapabilityKey = value.TargetCapabilityKey;
@@ -350,7 +353,17 @@ public sealed class MainViewModel : ObservableObject
     public string AutomationName { get; set; } = "";
     public string AutomationSourceDeviceId { get; set; } = "";
     public string AutomationSourceCapabilityKey { get; set; } = "";
-    public string AutomationOperator { get; set; } = ">";
+    public string AutomationOperator
+    {
+        get => _automationOperator;
+        set
+        {
+            if (SetProperty(ref _automationOperator, value))
+            {
+                OnPropertyChanged(nameof(IsAutomationConditionEnabled));
+            }
+        }
+    }
     public string AutomationThresholdValue { get; set; } = "30";
     public string AutomationTargetDeviceId { get; set; } = "";
     public string AutomationTargetCapabilityKey { get; set; } = "";
@@ -416,6 +429,17 @@ public sealed class MainViewModel : ObservableObject
         set => SetScheduleDay(ref _automationSaturday, value, nameof(AutomationSaturday));
     }
 
+    public bool AutomationAllDays
+    {
+        get => AutomationSunday && AutomationMonday && AutomationTuesday && AutomationWednesday && AutomationThursday && AutomationFriday && AutomationSaturday;
+        set
+        {
+            SetScheduleDayValues(value ? 127 : 0);
+            AutomationActiveDaysOfWeek = GetLocalScheduleDayMask().ToString();
+            OnAutomationPropertiesChanged();
+        }
+    }
+
     public string AutomationSourceSelectionKey
     {
         get => _automationSourceSelectionKey;
@@ -424,6 +448,8 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _automationSourceSelectionKey, value))
             {
                 ApplyAutomationSelection(value, isSource: true);
+                OnPropertyChanged(nameof(IsAutomationTriggerConfigured));
+                OnPropertyChanged(nameof(IsAutomationConditionEnabled));
             }
         }
     }
@@ -606,10 +632,15 @@ public sealed class MainViewModel : ObservableObject
     public double SettingsNavRailOpacity => NavRailOpacity(IsSettingsNavSelected);
     public IEnumerable<AutomationCapabilityOption> AutomationSourceOptions => HomeDeviceCards
         .Where(card => card.IsSensor)
-        .Select(AutomationCapabilityOption.From);
+        .Select(AutomationCapabilityOption.From)
+        .Prepend(AutomationCapabilityOption.Empty);
     public IEnumerable<AutomationCapabilityOption> AutomationTargetOptions => HomeDeviceCards
         .Where(card => card.IsActuator)
         .Select(AutomationCapabilityOption.From);
+    public IReadOnlyList<string> AutomationOperatorOptions { get; } = [">", ">=", "<", "<=", "==", "!="];
+    public IReadOnlyList<string> AutomationTimeOptions { get; } = BuildTimeOptions();
+    public bool IsAutomationTriggerConfigured => !string.IsNullOrWhiteSpace(AutomationSourceSelectionKey);
+    public bool IsAutomationConditionEnabled => IsAutomationTriggerConfigured && !string.IsNullOrWhiteSpace(AutomationOperator);
     public string LastHomeRefreshText
     {
         get => _lastHomeRefreshText;
@@ -1314,7 +1345,11 @@ public sealed class MainViewModel : ObservableObject
     {
         await RunAsync(async () =>
         {
-            var sourceDeviceId = Guid.Parse(AutomationSourceDeviceId);
+            var hasSource = !string.IsNullOrWhiteSpace(AutomationSourceSelectionKey);
+            var sourceDeviceId = hasSource ? Guid.Parse(AutomationSourceDeviceId) : (Guid?)null;
+            var sourceCapabilityKey = hasSource ? AutomationSourceCapabilityKey : null;
+            var comparisonOperator = hasSource ? AutomationOperator : null;
+            var thresholdValue = hasSource ? ParseDynamicValue(AutomationThresholdValue) : (JsonElement?)null;
             var targetDeviceId = Guid.Parse(AutomationTargetDeviceId);
             var cooldown = int.Parse(AutomationCooldownSeconds);
             var schedule = CreateAutomationSchedulePayload();
@@ -1323,9 +1358,9 @@ public sealed class MainViewModel : ObservableObject
                 var created = await _api.CreateAutomationRuleAsync(new CreateAutomationRulePayload(
                     AutomationName,
                     sourceDeviceId,
-                    AutomationSourceCapabilityKey,
-                    AutomationOperator,
-                    ParseDynamicValue(AutomationThresholdValue),
+                    sourceCapabilityKey,
+                    comparisonOperator,
+                    thresholdValue,
                     targetDeviceId,
                     AutomationTargetCapabilityKey,
                     AutomationCommandName,
@@ -1343,8 +1378,12 @@ public sealed class MainViewModel : ObservableObject
             {
                 var updated = await _api.UpdateAutomationRuleAsync(SelectedAutomationRule.Id, new UpdateAutomationRulePayload(
                     AutomationName,
-                    AutomationOperator,
-                    ParseDynamicValue(AutomationThresholdValue),
+                    sourceDeviceId,
+                    sourceCapabilityKey,
+                    comparisonOperator,
+                    thresholdValue,
+                    targetDeviceId,
+                    AutomationTargetCapabilityKey,
                     AutomationCommandName,
                     ParseDynamicValue(AutomationDesiredValue),
                     cooldown,
@@ -1725,6 +1764,9 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(AutomationIsEnabled));
         OnPropertyChanged(nameof(IsAutomationScheduleEnabled));
         OnPropertyChanged(nameof(AutomationScheduleVisibility));
+        OnPropertyChanged(nameof(IsAutomationTriggerConfigured));
+        OnPropertyChanged(nameof(IsAutomationConditionEnabled));
+        OnPropertyChanged(nameof(AutomationAllDays));
         OnPropertyChanged(nameof(AutomationSunday));
         OnPropertyChanged(nameof(AutomationMonday));
         OnPropertyChanged(nameof(AutomationTuesday));
@@ -1746,16 +1788,21 @@ public sealed class MainViewModel : ObservableObject
         Replace(AutomationRuleCards, cards);
     }
 
-    private string ResolveAutomationEndpoint(Guid deviceId, string fallbackDeviceName, string capabilityKey)
+    private string ResolveAutomationEndpoint(Guid? deviceId, string? fallbackDeviceName, string? capabilityKey)
     {
+        if (deviceId is null || string.IsNullOrWhiteSpace(capabilityKey))
+        {
+            return "Schedule only";
+        }
+
         var card = HomeDeviceCards.FirstOrDefault(item =>
-            item.DeviceId == deviceId && item.CapabilityKey.Equals(capabilityKey, StringComparison.OrdinalIgnoreCase));
+            item.DeviceId == deviceId.Value && item.CapabilityKey.Equals(capabilityKey, StringComparison.OrdinalIgnoreCase));
         if (card is not null)
         {
             return $"{card.DeviceName} - {card.CapabilityName}";
         }
 
-        var deviceName = Devices.FirstOrDefault(device => device.Id == deviceId)?.NameOrSerial;
+        var deviceName = Devices.FirstOrDefault(device => device.Id == deviceId.Value)?.NameOrSerial;
         return $"{(string.IsNullOrWhiteSpace(deviceName) ? fallbackDeviceName : deviceName)} - {FormatCapabilityName(capabilityKey)}";
     }
 
@@ -1808,6 +1855,7 @@ public sealed class MainViewModel : ObservableObject
         {
             AutomationActiveDaysOfWeek = GetLocalScheduleDayMask().ToString();
             OnPropertyChanged(nameof(AutomationActiveDaysOfWeek));
+            OnPropertyChanged(nameof(AutomationAllDays));
             OnPropertyChanged(propertyName);
         }
     }
@@ -1929,10 +1977,32 @@ public sealed class MainViewModel : ObservableObject
         string.Join(" ", key.Split(['_', '-', '.'], StringSplitOptions.RemoveEmptyEntries)
             .Select(part => char.ToUpperInvariant(part[0]) + part[1..].ToLowerInvariant()));
 
+    private static IReadOnlyList<string> BuildTimeOptions()
+    {
+        var values = new List<string>(96);
+        for (var minutes = 0; minutes < 24 * 60; minutes += 15)
+        {
+            values.Add(TimeSpan.FromMinutes(minutes).ToString(@"hh\:mm"));
+        }
+
+        return values;
+    }
+
     private void ApplyAutomationSelection(string selectionKey, bool isSource)
     {
         if (!TryParseAutomationSelectionKey(selectionKey, out var deviceId, out var capabilityKey))
         {
+            if (isSource)
+            {
+                AutomationSourceDeviceId = "";
+                AutomationSourceCapabilityKey = "";
+                AutomationOperator = "";
+                IsAutomationScheduleEnabled = true;
+                OnPropertyChanged(nameof(AutomationSourceDeviceId));
+                OnPropertyChanged(nameof(AutomationSourceCapabilityKey));
+                OnPropertyChanged(nameof(AutomationOperator));
+            }
+
             return;
         }
 
@@ -1940,6 +2010,10 @@ public sealed class MainViewModel : ObservableObject
         {
             AutomationSourceDeviceId = deviceId.ToString();
             AutomationSourceCapabilityKey = capabilityKey;
+            if (string.IsNullOrWhiteSpace(AutomationOperator))
+            {
+                AutomationOperator = ">";
+            }
             OnPropertyChanged(nameof(AutomationSourceDeviceId));
             OnPropertyChanged(nameof(AutomationSourceCapabilityKey));
         }
@@ -2165,7 +2239,7 @@ public sealed class MainViewModel : ObservableObject
         return JsonSerializer.SerializeToElement(value);
     }
 
-    private static string FormatValue(string valueType, decimal? numberValue, bool? booleanValue, string? stringValue) => valueType switch
+    private static string FormatValue(string? valueType, decimal? numberValue, bool? booleanValue, string? stringValue) => valueType switch
     {
         "number" => numberValue?.ToString("0.###") ?? "",
         "boolean" => booleanValue?.ToString() ?? "",
@@ -2201,11 +2275,15 @@ public sealed record AutomationCapabilityOption(
     Guid DeviceId,
     string CapabilityKey)
 {
+    public static AutomationCapabilityOption Empty { get; } = new("", "No trigger - schedule only", Guid.Empty, "");
+
     public static AutomationCapabilityOption From(HomeDeviceCard card) => new(
         $"{card.DeviceId:N}|{card.CapabilityKey}",
-        $"{card.DeviceName} - {card.CapabilityName}",
+        $"{card.CapabilityName} - {card.DeviceName}",
         card.DeviceId,
         card.CapabilityKey);
+
+    public override string ToString() => DisplayName;
 }
 
 public sealed record AutomationSchedulePayload(string? ActiveFromTime, string? ActiveToTime, int? ActiveDaysOfWeek);
@@ -2223,10 +2301,13 @@ public sealed record AutomationRuleCard(
     public static AutomationRuleCard From(AutomationRuleDto rule, string source, string target, string scheduleSummary)
     {
         var threshold = FormatRuleValue(rule.ThresholdValueType, rule.ThresholdNumberValue, rule.ThresholdBooleanValue, rule.ThresholdStringValue);
+        var trigger = string.IsNullOrWhiteSpace(rule.SourceCapabilityKey)
+            ? "Schedule only"
+            : $"{source} {rule.ComparisonOperator} {threshold}";
         return new AutomationRuleCard(
             rule,
             rule.Name,
-            $"{source} {rule.ComparisonOperator} {threshold}",
+            trigger,
             $"{target} -> {FormatCommandName(rule.CommandName)}",
             scheduleSummary,
             rule.IsEnabled ? "Enabled" : "Paused",
@@ -2240,7 +2321,7 @@ public sealed record AutomationRuleCard(
             ? "Turn off"
             : commandName;
 
-    private static string FormatRuleValue(string valueType, decimal? numberValue, bool? booleanValue, string? stringValue) => valueType switch
+    private static string FormatRuleValue(string? valueType, decimal? numberValue, bool? booleanValue, string? stringValue) => valueType switch
     {
         "number" => numberValue?.ToString("0.###") ?? "",
         "boolean" => booleanValue == true ? "On" : "Off",

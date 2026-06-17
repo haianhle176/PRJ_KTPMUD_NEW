@@ -5,10 +5,10 @@ namespace IoTPlatform.Api.Contracts;
 
 public sealed record CreateAutomationRuleRequest(
     string Name,
-    Guid SourceDeviceId,
-    string SourceCapabilityKey,
-    string ComparisonOperator,
-    JsonElement ThresholdValue,
+    Guid? SourceDeviceId,
+    string? SourceCapabilityKey,
+    string? ComparisonOperator,
+    JsonElement? ThresholdValue,
     Guid TargetDeviceId,
     string TargetCapabilityKey,
     string CommandName,
@@ -38,8 +38,12 @@ public sealed record CreateAutomationRuleRequest(
 
 public sealed record UpdateAutomationRuleRequest(
     string Name,
-    string ComparisonOperator,
-    JsonElement ThresholdValue,
+    Guid? SourceDeviceId,
+    string? SourceCapabilityKey,
+    string? ComparisonOperator,
+    JsonElement? ThresholdValue,
+    Guid TargetDeviceId,
+    string TargetCapabilityKey,
     string CommandName,
     JsonElement DesiredValue,
     int CooldownSeconds,
@@ -50,8 +54,12 @@ public sealed record UpdateAutomationRuleRequest(
 {
     public UpdateAutomationRuleRequestDto ToDto() => new(
         Name,
+        SourceDeviceId,
+        SourceCapabilityKey,
         ComparisonOperator,
         ThresholdValue,
+        TargetDeviceId,
+        TargetCapabilityKey,
         CommandName,
         DesiredValue,
         CooldownSeconds,

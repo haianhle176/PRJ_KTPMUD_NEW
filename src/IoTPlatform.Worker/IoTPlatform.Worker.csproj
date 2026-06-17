@@ -20,6 +20,7 @@
   <ItemGroup>
     <Compile Remove="DeviceMessageHandler.cs" />
     <Compile Remove="MqttWorker.cs" />
+    <Compile Remove="ScheduledAutomationWorker.cs" />
     <Compile Remove="OperationsMaintenanceWorker.cs" />
   </ItemGroup>
 </Project>

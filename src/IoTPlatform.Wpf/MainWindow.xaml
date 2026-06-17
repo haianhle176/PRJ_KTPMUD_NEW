@@ -1637,11 +1637,16 @@
                                         </Grid.ColumnDefinitions>
                                         <StackPanel>
                                             <TextBlock Text="Operator" Style="{StaticResource SmallLabel}" />
-                                            <TextBox Text="{Binding AutomationOperator, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AutomationTextBox}" />
+                                            <ComboBox ItemsSource="{Binding AutomationOperatorOptions}"
+                                                      SelectedValue="{Binding AutomationOperator, UpdateSourceTrigger=PropertyChanged}"
+                                                      IsEnabled="{Binding IsAutomationTriggerConfigured}"
+                                                      Style="{StaticResource AutomationComboBox}" />
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                             <TextBlock Text="Threshold value" Style="{StaticResource SmallLabel}" />
-                                            <TextBox Text="{Binding AutomationThresholdValue, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AutomationTextBox}" />
+                                            <TextBox Text="{Binding AutomationThresholdValue, UpdateSourceTrigger=PropertyChanged}"
+                                                     IsEnabled="{Binding IsAutomationConditionEnabled}"
+                                                     Style="{StaticResource AutomationTextBox}" />
                                         </StackPanel>
                                     </Grid>
 
@@ -1703,14 +1708,19 @@
                                             </Grid.ColumnDefinitions>
                                             <StackPanel>
                                                 <TextBlock Text="From time" Style="{StaticResource SmallLabel}" />
-                                                <TextBox Text="{Binding AutomationActiveFromTime, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AutomationTextBox}" />
+                                                <ComboBox ItemsSource="{Binding AutomationTimeOptions}"
+                                                          SelectedValue="{Binding AutomationActiveFromTime, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource AutomationComboBox}" />
                                             </StackPanel>
                                             <StackPanel Grid.Column="1" Margin="10,0,0,0">
                                                 <TextBlock Text="To time" Style="{StaticResource SmallLabel}" />
-                                                <TextBox Text="{Binding AutomationActiveToTime, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AutomationTextBox}" />
+                                                <ComboBox ItemsSource="{Binding AutomationTimeOptions}"
+                                                          SelectedValue="{Binding AutomationActiveToTime, UpdateSourceTrigger=PropertyChanged}"
+                                                          Style="{StaticResource AutomationComboBox}" />
                                             </StackPanel>
                                         </Grid>
                                         <WrapPanel Margin="0,0,0,10">
+                                            <CheckBox Content="All" IsChecked="{Binding AutomationAllDays}" Margin="0,0,14,6" />
                                             <CheckBox Content="Mon" IsChecked="{Binding AutomationMonday}" Margin="0,0,10,6" />
                                             <CheckBox Content="Tue" IsChecked="{Binding AutomationTuesday}" Margin="0,0,10,6" />
                                             <CheckBox Content="Wed" IsChecked="{Binding AutomationWednesday}" Margin="0,0,10,6" />
