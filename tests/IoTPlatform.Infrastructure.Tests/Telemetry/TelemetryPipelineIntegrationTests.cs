@@ -63,11 +63,15 @@ public sealed class TelemetryPipelineIntegrationTests
             await using var connection = new SqlConnection(connectionString);
             var recordCount = await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.TelemetryRecords;");
             var latestCount = await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.DeviceLatestValues;");
+            var realtimeTelemetryCount = await connection.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM dbo.RealtimeOutbox WHERE OwnerUserId = @OwnerUserId AND Kind = 'telemetry' AND DeviceId = @DeviceId;",
+                new { OwnerUserId = owner.User.Id, DeviceId = device.Id });
             var deviceStatus = await connection.QuerySingleAsync<(string Status, DateTime? LastSeenAtUtc)>(
                 "SELECT Status, LastSeenAtUtc FROM dbo.Devices WHERE Id = @DeviceId;",
                 new { DeviceId = device.Id });
             Assert.Equal(2, recordCount);
             Assert.Equal(2, latestCount);
+            Assert.Equal(2, realtimeTelemetryCount);
             Assert.Equal("online", deviceStatus.Status);
             Assert.NotNull(deviceStatus.LastSeenAtUtc);
         }

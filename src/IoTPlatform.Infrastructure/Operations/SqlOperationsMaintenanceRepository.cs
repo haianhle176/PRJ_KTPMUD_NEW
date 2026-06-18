@@ -55,6 +55,9 @@ public sealed class SqlOperationsMaintenanceRepository(IDbConnectionFactory conn
         var readNotifications = await connection.ExecuteAsync(new CommandDefinition(
             "DELETE dbo.Notifications WHERE IsRead = 1 AND CreatedAtUtc < DATEADD(day, -30, SYSUTCDATETIME());",
             cancellationToken: cancellationToken));
-        return telemetry + processedMessages + readNotifications;
+        var realtimeOutbox = await connection.ExecuteAsync(new CommandDefinition(
+            "DELETE dbo.RealtimeOutbox WHERE DispatchedAtUtc < DATEADD(day, -7, SYSUTCDATETIME());",
+            cancellationToken: cancellationToken));
+        return telemetry + processedMessages + readNotifications + realtimeOutbox;
     }
 }

@@ -1,8 +1,12 @@
 using IoTPlatform.Infrastructure.Configuration;
 using IoTPlatform.Infrastructure.Health;
 using IoTPlatform.Infrastructure.Persistence.Migrations;
+using IoTPlatform.Api.Realtime;
 using IoTPlatform.Worker;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
 using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -10,6 +14,25 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
+builder.Services.AddSignalR();
+var jwt = builder.Configuration.GetRequiredSection(JwtOptions.SectionName).Get<JwtOptions>()
+    ?? throw new InvalidOperationException("JWT configuration is required.");
+builder.Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
+    .AddJwtBearer(options =>
+    {
+        options.MapInboundClaims = false;
+        options.TokenValidationParameters = new TokenValidationParameters
+        {
+            ValidateIssuer = true,
+            ValidIssuer = jwt.Issuer,
+            ValidateAudience = true,
+            ValidAudience = jwt.Audience,
+            ValidateIssuerSigningKey = true,
+            IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(jwt.SigningKey)),
+            ValidateLifetime = true,
+            ClockSkew = TimeSpan.FromMinutes(1)
+        };
+    });
 builder.Services.AddRateLimiter(options =>
 {
     options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
@@ -28,6 +51,7 @@ builder.Services.AddHealthChecks()
 builder.Services.AddPersistence(builder.Configuration);
 builder.Services.AddJwtOptions(builder.Configuration);
 builder.Services.AddApplicationServices();
+builder.Services.AddHostedService<RealtimeOutboxDispatcher>();
 if (builder.Configuration.GetValue<bool>("Worker:Enabled"))
 {
     builder.Services.AddHiveMqOptions(builder.Configuration);
@@ -47,9 +71,11 @@ app.UseHttpsRedirection();
 
 app.UseRateLimiter();
 
+app.UseAuthentication();
 app.UseAuthorization();
 
 app.MapControllers();
+app.MapHub<DashboardHub>("/hubs/dashboard");
 app.MapHealthChecks("/health");
 app.MapHealthChecks("/health/live", new HealthCheckOptions
 {

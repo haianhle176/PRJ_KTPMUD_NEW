@@ -26,6 +26,7 @@ public partial class MainWindow : Window
             }
         };
         var viewModel = new MainViewModel();
+        Closed += async (_, _) => await viewModel.ShutdownAsync();
         viewModel.PropertyChanged += (_, args) =>
         {
             if (args.PropertyName != nameof(MainViewModel.Password) ||

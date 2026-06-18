@@ -72,6 +72,10 @@ public sealed class CommandPipelineIntegrationTests
             await using var connection = new SqlConnection(connectionString);
             var ackCount = await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandAcknowledgements WHERE CommandId = @CommandId;", new { CommandId = command.Id });
             Assert.Equal(1, ackCount);
+            var realtimeCommandEvents = await connection.ExecuteScalarAsync<int>(
+                "SELECT COUNT(*) FROM dbo.RealtimeOutbox WHERE OwnerUserId = @OwnerUserId AND Kind = 'command' AND EntityId = @CommandId;",
+                new { OwnerUserId = owner.User.Id, CommandId = command.Id.ToString() });
+            Assert.Equal(3, realtimeCommandEvents);
             var latestActuatorValue = await connection.QuerySingleAsync<bool>(
                 """
                 SELECT lv.BooleanValue

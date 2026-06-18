@@ -10,6 +10,7 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.0" />
     <ProjectReference Include="..\IoTPlatform.Application\IoTPlatform.Application.csproj" />
   </ItemGroup>
 

@@ -2,6 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using IoTPlatform.Infrastructure.Persistence;
 using IoTPlatform.Infrastructure.Persistence.Migrations;
+using IoTPlatform.Infrastructure.Realtime;
 using IoTPlatform.Infrastructure.Devices;
 using IoTPlatform.Application.Auth;
 using IoTPlatform.Application.Audit;
@@ -42,6 +43,7 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITelemetryIngestionRepository, SqlTelemetryIngestionRepository>();
         services.AddSingleton<ICommandDispatchRepository, SqlCommandDispatchRepository>();
         services.AddSingleton<IOperationsMaintenanceRepository, SqlOperationsMaintenanceRepository>();
+        services.AddSingleton<IRealtimeOutboxRepository, SqlRealtimeOutboxRepository>();
         services.AddScoped<IAuditLogRepository, SqlAuditLogRepository>();
         return services;
     }

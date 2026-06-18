@@ -11,6 +11,7 @@ public sealed class IoTPlatformApiClient
 {
     private readonly HttpClient _httpClient;
     private readonly TokenStore _tokenStore = new();
+    private readonly SemaphoreSlim _refreshLock = new(1, 1);
     private AuthTokens? _tokens;
 
     private static readonly JsonSerializerOptions JsonOptions = new(JsonSerializerDefaults.Web)
@@ -27,6 +28,22 @@ public sealed class IoTPlatformApiClient
     }
 
     public bool IsAuthenticated => _tokens is not null;
+    public Uri BaseAddress => _httpClient.BaseAddress!;
+
+    public async Task<string?> GetAccessTokenAsync()
+    {
+        if (_tokens is null)
+        {
+            return null;
+        }
+
+        if (_tokens.AccessTokenExpiresAtUtc <= DateTimeOffset.UtcNow.AddMinutes(1) && !await RefreshAsync())
+        {
+            return null;
+        }
+
+        return _tokens?.AccessToken;
+    }
 
     public async Task<bool> TryRestoreAsync()
     {
@@ -166,7 +183,7 @@ public sealed class IoTPlatformApiClient
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body = null, bool allowRefresh = true)
     {
         var response = await SendCoreAsync(method, path, body, includeBearer: true);
-        if (response.StatusCode == HttpStatusCode.Unauthorized && allowRefresh && await RefreshAsync())
+        if (response.StatusCode == HttpStatusCode.Unauthorized && allowRefresh && await RefreshAsync(force: true))
         {
             response.Dispose();
             response = await SendCoreAsync(method, path, body, includeBearer: true);
@@ -196,15 +213,21 @@ public sealed class IoTPlatformApiClient
         return await _httpClient.SendAsync(request);
     }
 
-    private async Task<bool> RefreshAsync()
+    private async Task<bool> RefreshAsync(bool force = false)
     {
-        if (_tokens is null)
-        {
-            return false;
-        }
-
+        await _refreshLock.WaitAsync();
         try
         {
+            if (_tokens is null)
+            {
+                return false;
+            }
+
+            if (!force && _tokens.AccessTokenExpiresAtUtc > DateTimeOffset.UtcNow.AddMinutes(1))
+            {
+                return true;
+            }
+
             var result = await PostAnonymousAsync<AuthResult>("api/v1/auth/refresh", new { _tokens.RefreshToken });
             await SetTokensAsync(result.Tokens);
             return true;
@@ -214,6 +237,10 @@ public sealed class IoTPlatformApiClient
             _tokens = null;
             _tokenStore.Clear();
             return false;
+        }
+        finally
+        {
+            _refreshLock.Release();
         }
     }
 

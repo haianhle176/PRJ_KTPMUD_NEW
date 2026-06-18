@@ -2,6 +2,7 @@ using Dapper;
 using IoTPlatform.Infrastructure.Configuration;
 using IoTPlatform.Infrastructure.Persistence;
 using IoTPlatform.Infrastructure.Persistence.Migrations;
+using IoTPlatform.Infrastructure.Realtime;
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 
@@ -42,13 +43,13 @@ public sealed class SqlPersistenceIntegrationTests
                     "Users", "RefreshTokens", "Devices", "PairingCodes", "Capabilities",
                     "TelemetryRecords", "DeviceLatestValues", "DeviceCommands", "CommandAcknowledgements",
                     "AutomationRules", "AutomationExecutions", "ProcessedMessages", "AuditLogs",
-                    "Notifications", "TelemetryHourlyAggregates"
+                    "Notifications", "TelemetryHourlyAggregates", "RealtimeOutbox"
                 };
                 var tableCount = await connection.ExecuteScalarAsync<int>(
                     "SELECT COUNT(*) FROM sys.tables WHERE name IN @Names;",
                     new { Names = expectedTables });
 
-                Assert.Equal(7, migrationCount);
+                Assert.Equal(8, migrationCount);
                 Assert.Equal(expectedTables.Length, tableCount);
             }
 
@@ -77,6 +78,41 @@ public sealed class SqlPersistenceIntegrationTests
 
                 Assert.Equal(0, rolledBackCount);
                 Assert.Equal(1, committedCount);
+            }
+
+            await using (var connection = await connectionFactory.OpenConnectionAsync())
+            {
+                await connection.ExecuteAsync(
+                    "INSERT dbo.RealtimeOutbox (EventId, OwnerUserId, Kind, EntityId) VALUES (@EventId, @OwnerUserId, 'automation', 'rule-1');",
+                    new { EventId = Guid.NewGuid(), OwnerUserId = committedUserId });
+            }
+            var outboxRepository = new SqlRealtimeOutboxRepository(connectionFactory);
+            var pendingEvent = Assert.Single(await outboxRepository.GetPendingAsync(10));
+            Assert.Equal(committedUserId, pendingEvent.OwnerUserId);
+            Assert.Equal("automation", pendingEvent.Event.Kind);
+            await outboxRepository.MarkDispatchedAsync(pendingEvent.Id);
+            Assert.Empty(await outboxRepository.GetPendingAsync(10));
+
+            long failedEventId;
+            await using (var connection = await connectionFactory.OpenConnectionAsync())
+            {
+                failedEventId = await connection.QuerySingleAsync<long>(
+                    """
+                    INSERT dbo.RealtimeOutbox (EventId, OwnerUserId, Kind, EntityId)
+                    OUTPUT inserted.Id
+                    VALUES (@EventId, @OwnerUserId, 'notification', '42');
+                    """,
+                    new { EventId = Guid.NewGuid(), OwnerUserId = committedUserId });
+            }
+            await outboxRepository.MarkFailedAsync(failedEventId, "temporary failure");
+            await using (var connection = await connectionFactory.OpenConnectionAsync())
+            {
+                var failed = await connection.QuerySingleAsync<(int AttemptCount, DateTime NextAttemptAtUtc, string LastError)>(
+                    "SELECT AttemptCount, NextAttemptAtUtc, LastError FROM dbo.RealtimeOutbox WHERE Id = @Id;",
+                    new { Id = failedEventId });
+                Assert.Equal(1, failed.AttemptCount);
+                Assert.True(failed.NextAttemptAtUtc > DateTime.UtcNow.AddSeconds(-1));
+                Assert.Equal("temporary failure", failed.LastError);
             }
         }
         finally

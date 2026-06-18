@@ -6,6 +6,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
+using IoTPlatform.Application.Realtime;
 using IoTPlatform.Wpf.Services;
 
 namespace IoTPlatform.Wpf.ViewModels;
@@ -13,8 +14,13 @@ namespace IoTPlatform.Wpf.ViewModels;
 public sealed class MainViewModel : ObservableObject
 {
     private readonly IoTPlatformApiClient _api = new();
+    private readonly DashboardRealtimeClient _realtime;
     private readonly DispatcherTimer _pollTimer;
     private readonly DispatcherTimer _authMessageTimer;
+    private readonly DispatcherTimer _realtimeDebounceTimer;
+    private readonly HashSet<string> _pendingRealtimeKinds = new(StringComparer.Ordinal);
+    private readonly HashSet<Guid> _pendingRealtimeDeviceIds = [];
+    private bool _isProcessingRealtimeChanges;
 
     private string _currentSection = "Auth";
     private string _statusMessage = "Ready.";
@@ -52,9 +58,14 @@ public sealed class MainViewModel : ObservableObject
     private HomeDeviceCard? _selectedHomeDeviceCard;
     private AvailableDevice? _selectedAvailableDevice;
     private AutomationRuleDto? _selectedAutomationRule;
+    private string _realtimeConnectionState = "Disconnected";
 
     public MainViewModel()
     {
+        _realtime = new DashboardRealtimeClient(_api);
+        _realtime.Changed += QueueRealtimeChangeAsync;
+        _realtime.Reconnected += ReconcileAfterReconnectAsync;
+        _realtime.StateChanged += UpdateRealtimeStateAsync;
         LoginCommand = new RelayCommand(LoginAsync);
         RegisterCommand = new RelayCommand(RegisterAsync);
         SubmitAuthCommand = new RelayCommand(SubmitAuthAsync);
@@ -96,8 +107,14 @@ public sealed class MainViewModel : ObservableObject
         DeleteAutomationRuleCommand = new RelayCommand(DeleteAutomationRuleAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
         LaunchDeviceAppCommand = new RelayCommand(() => LaunchLocalProjectAsync("src\\IoTPlatform.DeviceApp", "DeviceApp"));
 
-        _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(60) };
         _pollTimer.Tick += async (_, _) => await PollAsync();
+        _realtimeDebounceTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(300) };
+        _realtimeDebounceTimer.Tick += async (_, _) =>
+        {
+            _realtimeDebounceTimer.Stop();
+            await ProcessRealtimeChangesAsync();
+        };
         _authMessageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _authMessageTimer.Tick += (_, _) =>
         {
@@ -120,6 +137,11 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<AutomationRuleDto> AutomationRules { get; } = [];
     public ObservableCollection<AutomationRuleCard> AutomationRuleCards { get; } = [];
     public ObservableCollection<NotificationDto> Notifications { get; } = [];
+    public string RealtimeConnectionState
+    {
+        get => _realtimeConnectionState;
+        private set => SetProperty(ref _realtimeConnectionState, value);
+    }
 
     public RelayCommand LoginCommand { get; }
     public RelayCommand RegisterCommand { get; }
@@ -922,6 +944,7 @@ public sealed class MainViewModel : ObservableObject
             StatusMessage = "Restored saved session.";
             _pollTimer.Start();
             await RefreshAllAsync();
+            await _realtime.StartAsync();
         }
     }
 
@@ -941,6 +964,7 @@ public sealed class MainViewModel : ObservableObject
             CurrentSection = "Home";
             _pollTimer.Start();
             await RefreshAllAfterAuthenticationAsync($"Signed in as {result.User.DisplayName}.");
+            await _realtime.StartAsync();
         }
         catch (ApiProblemException exception)
         {
@@ -1089,6 +1113,7 @@ public sealed class MainViewModel : ObservableObject
     {
         try
         {
+            await _realtime.StopAsync();
             await _api.LogoutAsync();
         }
         catch (Exception exception)
@@ -1744,6 +1769,7 @@ public sealed class MainViewModel : ObservableObject
 
         try
         {
+            await _realtime.StartAsync();
             await RefreshDevicesAsync();
             await BuildHomeDeviceCardsAsync();
             await RefreshAvailableDevicesSafelyAsync();
@@ -1759,6 +1785,84 @@ public sealed class MainViewModel : ObservableObject
         {
             StatusMessage = exception.Message;
         }
+    }
+
+    private Task QueueRealtimeChangeAsync(DashboardChangedEvent changed) =>
+        System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
+        {
+            _pendingRealtimeKinds.Add(changed.Kind);
+            if (changed.DeviceId is Guid deviceId)
+            {
+                _pendingRealtimeDeviceIds.Add(deviceId);
+            }
+            _realtimeDebounceTimer.Stop();
+            _realtimeDebounceTimer.Start();
+        }).Task;
+
+    private async Task ProcessRealtimeChangesAsync()
+    {
+        if (!IsAuthenticated || _pendingRealtimeKinds.Count == 0 || _isProcessingRealtimeChanges)
+        {
+            return;
+        }
+
+        _isProcessingRealtimeChanges = true;
+        try
+        {
+            var kinds = _pendingRealtimeKinds.ToHashSet(StringComparer.Ordinal);
+            var deviceIds = _pendingRealtimeDeviceIds.ToHashSet();
+            _pendingRealtimeKinds.Clear();
+            _pendingRealtimeDeviceIds.Clear();
+
+            var deviceDataChanged = kinds.Overlaps([
+                DashboardEventKinds.Telemetry,
+                DashboardEventKinds.Presence,
+                DashboardEventKinds.Command,
+                DashboardEventKinds.Device]);
+            if (deviceDataChanged)
+            {
+                await RefreshDevicesAsync();
+                await BuildHomeDeviceCardsAsync();
+                if (SelectedDevice is not null && (deviceIds.Count == 0 || deviceIds.Contains(SelectedDevice.Id)))
+                {
+                    await LoadDeviceDetailAsync();
+                }
+            }
+
+            if (kinds.Contains(DashboardEventKinds.AvailableDevices))
+            {
+                await RefreshAvailableDevicesSafelyAsync();
+            }
+            if (kinds.Contains(DashboardEventKinds.Notification))
+            {
+                await RefreshNotificationsAsync();
+            }
+            if (kinds.Contains(DashboardEventKinds.Automation))
+            {
+                await RefreshAutomationRulesAsync();
+            }
+        }
+        finally
+        {
+            _isProcessingRealtimeChanges = false;
+            if (_pendingRealtimeKinds.Count > 0)
+            {
+                _realtimeDebounceTimer.Start();
+            }
+        }
+    }
+
+    private Task UpdateRealtimeStateAsync(string state) =>
+        System.Windows.Application.Current.Dispatcher.InvokeAsync(() => RealtimeConnectionState = state).Task;
+
+    private Task ReconcileAfterReconnectAsync() =>
+        System.Windows.Application.Current.Dispatcher.InvokeAsync(RefreshAllAsync).Task.Unwrap();
+
+    public async Task ShutdownAsync()
+    {
+        _pollTimer.Stop();
+        _realtimeDebounceTimer.Stop();
+        await _realtime.DisposeAsync();
     }
 
     private void BuildControlModels()

@@ -222,16 +222,21 @@ public sealed class SqlDeviceManagementRepository(
 
     public async Task<DeviceSummaryDto?> UpdateAsync(Guid userId, Guid deviceId, string displayName, string? category, CancellationToken cancellationToken = default)
     {
-        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
-        var row = await connection.QuerySingleOrDefaultAsync(new CommandDefinition(
+        await using var scope = await transactionScopeFactory.BeginAsync(cancellationToken);
+        var row = await scope.Connection.QuerySingleOrDefaultAsync(new CommandDefinition(
             """
             UPDATE dbo.Devices
             SET DisplayName = @DisplayName, Category = @Category, UpdatedAtUtc = SYSUTCDATETIME()
-            OUTPUT inserted.Id, inserted.Serial, inserted.DisplayName, inserted.Category, inserted.Status, inserted.ManifestVersion, inserted.LastSeenAtUtc, inserted.ClaimedAtUtc
             WHERE Id = @DeviceId AND OwnerUserId = @UserId;
+
+            SELECT Id, Serial, DisplayName, Category, Status, ManifestVersion, LastSeenAtUtc, ClaimedAtUtc
+            FROM dbo.Devices
+            WHERE Id = @DeviceId AND OwnerUserId = @UserId AND @@ROWCOUNT = 1;
             """,
             new { DeviceId = deviceId, UserId = userId, DisplayName = displayName, Category = category },
+            scope.Transaction,
             cancellationToken: cancellationToken));
+        await scope.CommitAsync(cancellationToken);
         return row is null ? null : ToSummary(row);
     }
 

@@ -67,6 +67,15 @@ public sealed class AutomationPipelineIntegrationTests
             Assert.True(generatedCommand.DesiredBooleanValue);
             Assert.Equal("pending", generatedCommand.Status);
             Assert.Equal("triggered", await LastExecutionOutcomeAsync(connectionString, rule.Id));
+            await using (var realtimeConnection = new SqlConnection(connectionString))
+            {
+                Assert.True(await realtimeConnection.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(*) FROM dbo.RealtimeOutbox WHERE OwnerUserId = @OwnerUserId AND Kind = 'automation' AND EntityId = @RuleId;",
+                    new { OwnerUserId = owner.User.Id, RuleId = rule.Id.ToString() }) >= 1);
+                Assert.True(await realtimeConnection.ExecuteScalarAsync<int>(
+                    "SELECT COUNT(*) FROM dbo.RealtimeOutbox WHERE OwnerUserId = @OwnerUserId AND Kind = 'notification';",
+                    new { OwnerUserId = owner.User.Id }) >= 1);
+            }
 
             await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 36m), MqttTopics.Telemetry(serial));
             Assert.Equal(1, await CountCommandsAsync(connectionString));

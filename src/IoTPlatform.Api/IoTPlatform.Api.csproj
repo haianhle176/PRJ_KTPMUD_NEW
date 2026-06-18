@@ -1,6 +1,7 @@
 <Project Sdk="Microsoft.NET.Sdk.Web">
 
   <ItemGroup>
+    <PackageReference Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.0" />
     <ProjectReference Include="..\IoTPlatform.Application\IoTPlatform.Application.csproj" />
     <ProjectReference Include="..\IoTPlatform.Infrastructure\IoTPlatform.Infrastructure.csproj" />
     <ProjectReference Include="..\IoTPlatform.WorkerServices\IoTPlatform.WorkerServices.csproj" />
