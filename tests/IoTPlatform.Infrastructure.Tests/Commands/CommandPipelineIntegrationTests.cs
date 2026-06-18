@@ -85,6 +85,44 @@ public sealed class CommandPipelineIntegrationTests
                 """,
                 new { DeviceId = device.Id });
             Assert.True(latestActuatorValue);
+
+            var firstTransition = await connection.QuerySingleAsync<bool>(
+                """
+                SELECT tr.BooleanValue
+                FROM dbo.TelemetryRecords tr
+                INNER JOIN dbo.Capabilities capability ON capability.Id = tr.CapabilityId
+                WHERE tr.DeviceId = @DeviceId AND capability.[Key] = 'pump_power';
+                """,
+                new { DeviceId = device.Id });
+            Assert.True(firstTransition);
+
+            var offCommand = await context.CommandService.CreateManualAsync(owner.User.Id, new CreateCommandRequestDto(
+                device.Id,
+                "pump_power",
+                "OFF",
+                JsonSerializer.SerializeToElement(false, DeviceMessageSerializer.Options)));
+            var offAcknowledgement = new DeviceCommandAcknowledgementMessage(
+                Guid.NewGuid(),
+                serial,
+                acknowledgement.TimestampUtc.AddSeconds(1),
+                DeviceMessageSerializer.CurrentSchemaVersion,
+                offCommand.Id,
+                "completed",
+                JsonSerializer.SerializeToElement(false, DeviceMessageSerializer.Options),
+                null,
+                null);
+            await context.DispatchRepository.ApplyAcknowledgementAsync(offAcknowledgement);
+
+            var transitions = (await connection.QueryAsync<bool>(
+                """
+                SELECT tr.BooleanValue
+                FROM dbo.TelemetryRecords tr
+                INNER JOIN dbo.Capabilities capability ON capability.Id = tr.CapabilityId
+                WHERE tr.DeviceId = @DeviceId AND capability.[Key] = 'pump_power'
+                ORDER BY tr.RecordedAtUtc;
+                """,
+                new { DeviceId = device.Id })).ToArray();
+            Assert.Equal([true, false], transitions);
         }
         finally
         {

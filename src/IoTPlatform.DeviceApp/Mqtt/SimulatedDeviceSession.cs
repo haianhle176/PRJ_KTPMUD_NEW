@@ -21,25 +21,32 @@ public sealed class SimulatedDeviceSession(
         : new Dictionary<string, JsonElement>(initialActuatorStates, StringComparer.Ordinal);
     private readonly Guid _sessionId = Guid.NewGuid();
     private readonly string _pairingCode = CreatePairingCode();
+    private readonly SemaphoreSlim _publishLock = new(1, 1);
     private IMqttClient? _client;
     private CancellationTokenSource? _runCancellation;
     private Task? _runTask;
+    private TaskCompletionSource? _started;
 
     public string Serial => profile.Serial;
     public string DeviceType => profile.DeviceType;
     public string PairingCode => _pairingCode;
     public bool IsRunning => _client?.IsConnected == true;
 
-    public Task StartAsync()
+    public async Task StartAsync()
     {
         if (_runTask is not null && !_runTask.IsCompleted)
         {
-            return Task.CompletedTask;
+            if (_started is not null)
+            {
+                await _started.Task;
+            }
+            return;
         }
 
         _runCancellation = new CancellationTokenSource();
-        _runTask = RunAsync(_runCancellation.Token);
-        return Task.CompletedTask;
+        _started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        _runTask = RunSafelyAsync(_runCancellation.Token, _started);
+        await _started.Task;
     }
 
     public async Task StopAsync()
@@ -64,9 +71,27 @@ public sealed class SimulatedDeviceSession(
         _runCancellation.Dispose();
         _runCancellation = null;
         _runTask = null;
+        _started = null;
     }
 
-    private async Task RunAsync(CancellationToken cancellationToken)
+    private async Task RunSafelyAsync(CancellationToken cancellationToken, TaskCompletionSource started)
+    {
+        try
+        {
+            await RunAsync(cancellationToken, started);
+        }
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+        {
+            started.TrySetCanceled(cancellationToken);
+        }
+        catch (Exception exception)
+        {
+            started.TrySetException(exception);
+            log($"{profile.Serial} session stopped: {exception.Message}");
+        }
+    }
+
+    private async Task RunAsync(CancellationToken cancellationToken, TaskCompletionSource started)
     {
         var factory = new MqttFactory();
         using var client = factory.CreateMqttClient();
@@ -99,6 +124,7 @@ public sealed class SimulatedDeviceSession(
             await PublishAsync(client, MqttTopics.Presence(profile.Serial), SerializePresence("online"), retain: true, cancellationToken);
             await client.SubscribeAsync(MqttTopics.Commands(profile.Serial), MqttQualityOfServiceLevel.AtLeastOnce, cancellationToken);
             log($"{profile.Serial} online. Pairing code {_pairingCode}.");
+            started.TrySetResult();
 
             var nextPresenceAt = DateTimeOffset.UtcNow.AddSeconds(15);
             var nextTelemetryAt = DateTimeOffset.UtcNow;
@@ -129,9 +155,16 @@ public sealed class SimulatedDeviceSession(
         {
             if (client.IsConnected)
             {
-                await PublishAsync(client, MqttTopics.Presence(profile.Serial), offlinePayload, retain: true, CancellationToken.None);
-                await client.DisconnectAsync();
-                log($"{profile.Serial} offline.");
+                try
+                {
+                    await PublishAsync(client, MqttTopics.Presence(profile.Serial), offlinePayload, retain: true, CancellationToken.None);
+                    await client.DisconnectAsync();
+                    log($"{profile.Serial} offline.");
+                }
+                catch (Exception exception)
+                {
+                    log($"{profile.Serial} disconnect warning: {exception.Message}");
+                }
             }
 
             _client = null;
@@ -251,7 +284,7 @@ public sealed class SimulatedDeviceSession(
         return Math.Round(min + (decimal)Random.Shared.NextDouble() * (max - min), 2);
     }
 
-    private static Task PublishAsync(IMqttClient client, string topic, string payload, bool retain, CancellationToken cancellationToken)
+    private async Task PublishAsync(IMqttClient client, string topic, string payload, bool retain, CancellationToken cancellationToken)
     {
         var message = new MqttApplicationMessageBuilder()
             .WithTopic(topic)
@@ -260,7 +293,15 @@ public sealed class SimulatedDeviceSession(
             .WithRetainFlag(retain)
             .Build();
 
-        return client.PublishAsync(message, cancellationToken);
+        await _publishLock.WaitAsync(cancellationToken);
+        try
+        {
+            await client.PublishAsync(message, cancellationToken);
+        }
+        finally
+        {
+            _publishLock.Release();
+        }
     }
 
     private static string CreatePairingCode()

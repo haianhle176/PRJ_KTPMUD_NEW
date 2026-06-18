@@ -221,12 +221,26 @@ public partial class MainWindow : Window, INotifyPropertyChanged
             return;
         }
 
-        item.ApplySettings();
-        item.Session ??= new SimulatedDeviceSession(_hiveMqOptions, item.Profile, Log, item.CreateInitialActuatorStates());
-        item.Status = "Connecting";
-        await item.Session.StartAsync();
-        item.PairingCode = item.Session.PairingCode;
-        item.Status = "Online";
+        try
+        {
+            item.ApplySettings();
+            item.Session ??= new SimulatedDeviceSession(_hiveMqOptions, item.Profile, Log, item.CreateInitialActuatorStates());
+            item.Status = "Connecting";
+            await item.Session.StartAsync();
+            item.PairingCode = item.Session.PairingCode;
+            item.Status = "Online";
+        }
+        catch (Exception exception)
+        {
+            App.WriteCrashLog(exception);
+            item.Status = "Error";
+            Log($"Could not start {item.Serial}: {exception.Message}");
+            if (item.Session is not null)
+            {
+                await item.Session.StopAsync();
+                item.Session = null;
+            }
+        }
     }
 
     private async void CopyPairingCode_OnClick(object sender, RoutedEventArgs e)

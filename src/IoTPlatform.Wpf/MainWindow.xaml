@@ -1730,6 +1730,7 @@
                                             <TextBlock Text="Desired value" Style="{StaticResource SmallLabel}" />
                                             <ComboBox SelectedValue="{Binding AutomationDesiredValue, UpdateSourceTrigger=PropertyChanged}"
                                                       SelectedValuePath="Tag"
+                                                      IsEnabled="False"
                                                       Style="{StaticResource AutomationComboBox}">
                                                 <ComboBoxItem Content="On" Tag="true" />
                                                 <ComboBoxItem Content="Off" Tag="false" />

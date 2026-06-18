@@ -119,6 +119,39 @@ public sealed class SqlCommandDispatchRepository(ISqlTransactionScopeFactory tra
             var reportedValue = CommandAckValue.FromJson(acknowledgement.ReportedValue.Value);
             await scope.Connection.ExecuteAsync(new CommandDefinition(
                 """
+                INSERT dbo.TelemetryRecords
+                    (MessageId, DeviceId, CapabilityId, ValueType, NumberValue, BooleanValue, StringValue, RecordedAtUtc)
+                SELECT
+                    @MessageId, dc.DeviceId, dc.CapabilityId, @ValueType, @NumberValue, @BooleanValue, @StringValue, @RecordedAtUtc
+                FROM dbo.DeviceCommands dc
+                INNER JOIN dbo.Devices d ON d.Id = dc.DeviceId AND d.Serial = @Serial
+                LEFT JOIN dbo.DeviceLatestValues latest ON latest.CapabilityId = dc.CapabilityId
+                WHERE dc.Id = @CommandId
+                  AND (latest.CapabilityId IS NULL OR @RecordedAtUtc >= latest.RecordedAtUtc)
+                  AND (
+                        latest.CapabilityId IS NULL
+                        OR latest.ValueType <> @ValueType
+                        OR (@ValueType = 'number' AND (latest.NumberValue IS NULL OR latest.NumberValue <> @NumberValue))
+                        OR (@ValueType = 'boolean' AND (latest.BooleanValue IS NULL OR latest.BooleanValue <> @BooleanValue))
+                        OR (@ValueType = 'string' AND (latest.StringValue IS NULL OR latest.StringValue <> @StringValue))
+                      );
+                """,
+                new
+                {
+                    acknowledgement.CommandId,
+                    acknowledgement.Serial,
+                    acknowledgement.MessageId,
+                    RecordedAtUtc = acknowledgement.TimestampUtc,
+                    ValueType = reportedValue.ValueType,
+                    NumberValue = reportedValue.NumberValue,
+                    BooleanValue = reportedValue.BooleanValue,
+                    StringValue = reportedValue.StringValue
+                },
+                scope.Transaction,
+                cancellationToken: cancellationToken));
+
+            await scope.Connection.ExecuteAsync(new CommandDefinition(
+                """
                 MERGE dbo.DeviceLatestValues WITH (HOLDLOCK) AS target
                 USING (
                     SELECT dc.CapabilityId, dc.DeviceId

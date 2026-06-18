@@ -56,6 +56,8 @@ public sealed class MainViewModel : ObservableObject
     private bool _automationFriday;
     private bool _automationSaturday;
     private string _automationOperator = ">";
+    private string _automationCommandName = "ON";
+    private string _automationDesiredValue = "true";
     private string _automationSourceSelectionKey = "";
     private string _automationTargetSelectionKey = "";
     private DeviceSummary? _selectedDevice;
@@ -430,8 +432,8 @@ public sealed class MainViewModel : ObservableObject
                     AutomationTargetDeviceId = value.TargetDeviceId.ToString();
                     AutomationTargetCapabilityKey = value.TargetCapabilityKey;
                     AutomationTargetSelectionKey = CreateAutomationSelectionKey(value.TargetDeviceId, value.TargetCapabilityKey);
-                    AutomationCommandName = value.CommandName;
                     AutomationDesiredValue = FormatValue(value.DesiredValueType, value.DesiredNumberValue, value.DesiredBooleanValue, value.DesiredStringValue);
+                    AutomationCommandName = value.CommandName;
                     AutomationCooldownSeconds = value.CooldownSeconds.ToString();
                     SetAutomationScheduleFromRule(value);
                     AutomationIsEnabled = value.IsEnabled;
@@ -484,8 +486,27 @@ public sealed class MainViewModel : ObservableObject
     public string AutomationThresholdValue { get; set; } = "30";
     public string AutomationTargetDeviceId { get; set; } = "";
     public string AutomationTargetCapabilityKey { get; set; } = "";
-    public string AutomationCommandName { get; set; } = "ON";
-    public string AutomationDesiredValue { get; set; } = "true";
+    public string AutomationCommandName
+    {
+        get => _automationCommandName;
+        set
+        {
+            if (SetProperty(ref _automationCommandName, value))
+            {
+                var synchronizedValue = value.Equals("OFF", StringComparison.OrdinalIgnoreCase) ? "false" : "true";
+                if (SetProperty(ref _automationDesiredValue, synchronizedValue, nameof(AutomationDesiredValue)))
+                {
+                    AutomationValidationMessage = "";
+                }
+            }
+        }
+    }
+
+    public string AutomationDesiredValue
+    {
+        get => _automationDesiredValue;
+        set => SetProperty(ref _automationDesiredValue, value);
+    }
     public string AutomationCooldownSeconds { get; set; } = "30";
     public string AutomationActiveFromTime { get; set; } = "";
     public string AutomationActiveToTime { get; set; } = "";
