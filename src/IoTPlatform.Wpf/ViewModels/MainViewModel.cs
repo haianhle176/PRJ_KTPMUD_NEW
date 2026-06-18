@@ -1,6 +1,8 @@
 using System.Collections.ObjectModel;
 using System.Diagnostics;
 using System.IO;
+using System.Net;
+using System.Net.Http;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Threading;
@@ -12,12 +14,15 @@ public sealed class MainViewModel : ObservableObject
 {
     private readonly IoTPlatformApiClient _api = new();
     private readonly DispatcherTimer _pollTimer;
+    private readonly DispatcherTimer _authMessageTimer;
 
     private string _currentSection = "Auth";
     private string _statusMessage = "Ready.";
     private string _email = "";
     private string _password = "";
     private string _displayName = "";
+    private string _authMessage = "";
+    private bool _authMessageIsError;
     private bool _isAuthenticated;
     private bool _isRegisterMode;
     private bool _isSidebarExpanded = true;
@@ -32,6 +37,7 @@ public sealed class MainViewModel : ObservableObject
     private bool _isOnboardingClaimSuccess;
     private bool _isHomeDeviceRenaming;
     private bool _isAutomationScheduleEnabled;
+    private string _automationMode = "List";
     private bool _automationSunday;
     private bool _automationMonday;
     private bool _automationTuesday;
@@ -53,6 +59,7 @@ public sealed class MainViewModel : ObservableObject
         RegisterCommand = new RelayCommand(RegisterAsync);
         SubmitAuthCommand = new RelayCommand(SubmitAuthAsync);
         ToggleAuthModeCommand = new RelayCommand(ToggleAuthModeAsync);
+        DismissAuthMessageCommand = new RelayCommand(DismissAuthMessageAsync);
         ToggleSidebarCommand = new RelayCommand(ToggleSidebarAsync, () => IsAuthenticated);
         LogoutCommand = new RelayCommand(LogoutAsync, () => IsAuthenticated);
         NavigateCommand = new RelayCommand<string>(NavigateAsync);
@@ -81,13 +88,22 @@ public sealed class MainViewModel : ObservableObject
         ToggleNotificationFlyoutCommand = new RelayCommand(ToggleNotificationFlyoutAsync, () => IsAuthenticated);
         ViewAllNotificationsCommand = new RelayCommand(ViewAllNotificationsAsync, () => IsAuthenticated);
         SelectAutomationRuleCommand = new RelayCommand<AutomationRuleCard>(SelectAutomationRuleAsync, card => IsAuthenticated && card is not null);
-        SaveAutomationRuleCommand = new RelayCommand(SaveAutomationRuleAsync, () => IsAuthenticated);
+        OpenNewAutomationCommand = new RelayCommand(OpenNewAutomationAsync, () => IsAuthenticated);
+        BackToAutomationListCommand = new RelayCommand(BackToAutomationListAsync, () => IsAuthenticated);
+        CreateAutomationRuleCommand = new RelayCommand(CreateAutomationRuleAsync, () => IsAuthenticated && AutomationMode == "New");
+        UpdateAutomationRuleCommand = new RelayCommand(UpdateAutomationRuleAsync, () => IsAuthenticated && AutomationMode == "Edit" && SelectedAutomationRule is not null);
+        ToggleAutomationRuleEnabledCommand = new RelayCommand<AutomationRuleCard>(ToggleAutomationRuleEnabledAsync, card => IsAuthenticated && card is not null);
         DeleteAutomationRuleCommand = new RelayCommand(DeleteAutomationRuleAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
-        LoadAutomationExecutionsCommand = new RelayCommand(LoadAutomationExecutionsAsync, () => IsAuthenticated && SelectedAutomationRule is not null);
         LaunchDeviceAppCommand = new RelayCommand(() => LaunchLocalProjectAsync("src\\IoTPlatform.DeviceApp", "DeviceApp"));
 
         _pollTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _pollTimer.Tick += async (_, _) => await PollAsync();
+        _authMessageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+        _authMessageTimer.Tick += (_, _) =>
+        {
+            _authMessageTimer.Stop();
+            AuthMessage = "";
+        };
         _ = RestoreSessionAsync();
     }
 
@@ -103,13 +119,13 @@ public sealed class MainViewModel : ObservableObject
     public ObservableCollection<CommandDto> Commands { get; } = [];
     public ObservableCollection<AutomationRuleDto> AutomationRules { get; } = [];
     public ObservableCollection<AutomationRuleCard> AutomationRuleCards { get; } = [];
-    public ObservableCollection<AutomationExecutionDto> AutomationExecutions { get; } = [];
     public ObservableCollection<NotificationDto> Notifications { get; } = [];
 
     public RelayCommand LoginCommand { get; }
     public RelayCommand RegisterCommand { get; }
     public RelayCommand SubmitAuthCommand { get; }
     public RelayCommand ToggleAuthModeCommand { get; }
+    public RelayCommand DismissAuthMessageCommand { get; }
     public RelayCommand ToggleSidebarCommand { get; }
     public RelayCommand LogoutCommand { get; }
     public RelayCommand<string> NavigateCommand { get; }
@@ -138,9 +154,12 @@ public sealed class MainViewModel : ObservableObject
     public RelayCommand ToggleNotificationFlyoutCommand { get; }
     public RelayCommand ViewAllNotificationsCommand { get; }
     public RelayCommand<AutomationRuleCard> SelectAutomationRuleCommand { get; }
-    public RelayCommand SaveAutomationRuleCommand { get; }
+    public RelayCommand OpenNewAutomationCommand { get; }
+    public RelayCommand BackToAutomationListCommand { get; }
+    public RelayCommand CreateAutomationRuleCommand { get; }
+    public RelayCommand UpdateAutomationRuleCommand { get; }
+    public RelayCommand<AutomationRuleCard> ToggleAutomationRuleEnabledCommand { get; }
     public RelayCommand DeleteAutomationRuleCommand { get; }
-    public RelayCommand LoadAutomationExecutionsCommand { get; }
     public RelayCommand LaunchDeviceAppCommand { get; }
 
     public string CurrentSection
@@ -196,19 +215,63 @@ public sealed class MainViewModel : ObservableObject
     public string Email
     {
         get => _email;
-        set => SetProperty(ref _email, value);
+        set
+        {
+            if (SetProperty(ref _email, value))
+            {
+                ClearAuthError();
+            }
+        }
     }
 
     public string Password
     {
         get => _password;
-        set => SetProperty(ref _password, value);
+        set
+        {
+            if (SetProperty(ref _password, value))
+            {
+                ClearAuthError();
+            }
+        }
     }
 
     public string DisplayName
     {
         get => _displayName;
-        set => SetProperty(ref _displayName, value);
+        set
+        {
+            if (SetProperty(ref _displayName, value))
+            {
+                ClearAuthError();
+            }
+        }
+    }
+
+    public string AuthMessage
+    {
+        get => _authMessage;
+        set
+        {
+            if (SetProperty(ref _authMessage, value))
+            {
+                OnPropertyChanged(nameof(AuthMessageVisibility));
+            }
+        }
+    }
+
+    public bool AuthMessageIsError
+    {
+        get => _authMessageIsError;
+        set
+        {
+            if (SetProperty(ref _authMessageIsError, value))
+            {
+                OnPropertyChanged(nameof(AuthMessageForeground));
+                OnPropertyChanged(nameof(AuthMessageBackground));
+                OnPropertyChanged(nameof(AuthMessageBorderBrush));
+            }
+        }
     }
 
     public bool IsAuthenticated
@@ -336,7 +399,6 @@ public sealed class MainViewModel : ObservableObject
                     SetAutomationScheduleFromRule(value);
                     AutomationIsEnabled = value.IsEnabled;
                     OnAutomationPropertiesChanged();
-                    _ = LoadAutomationExecutionsAsync();
                 }
             }
         }
@@ -385,6 +447,23 @@ public sealed class MainViewModel : ObservableObject
             if (SetProperty(ref _isAutomationScheduleEnabled, value))
             {
                 OnPropertyChanged(nameof(AutomationScheduleVisibility));
+            }
+        }
+    }
+
+    public string AutomationMode
+    {
+        get => _automationMode;
+        set
+        {
+            if (SetProperty(ref _automationMode, value))
+            {
+                OnPropertyChanged(nameof(AutomationListVisibility));
+                OnPropertyChanged(nameof(AutomationEditorVisibility));
+                OnPropertyChanged(nameof(AutomationCreateButtonVisibility));
+                OnPropertyChanged(nameof(AutomationEditButtonsVisibility));
+                OnPropertyChanged(nameof(AutomationEditorTitle));
+                RaiseCommandStates();
             }
         }
     }
@@ -723,6 +802,10 @@ public sealed class MainViewModel : ObservableObject
     public string AuthPrimaryButtonText => IsRegisterMode ? "Đăng ký" : "Đăng nhập";
     public string AuthSwitchPrefix => IsRegisterMode ? "Đã có tài khoản? " : "Chưa có tài khoản? ";
     public string AuthSwitchAction => IsRegisterMode ? "Đăng nhập" : "Đăng ký ngay";
+    public Visibility AuthMessageVisibility => string.IsNullOrWhiteSpace(AuthMessage) ? Visibility.Collapsed : Visibility.Visible;
+    public string AuthMessageForeground => AuthMessageIsError ? "#B91C1C" : "#15803D";
+    public string AuthMessageBackground => AuthMessageIsError ? "#FEF2F2" : "#F0FDF4";
+    public string AuthMessageBorderBrush => AuthMessageIsError ? "#FECACA" : "#BBF7D0";
     public double AppWindowWidth => IsAuthenticated ? 1180 : 420;
     public double AppWindowHeight => IsAuthenticated ? 700 : 520;
     public double AppWindowMinWidth => IsAuthenticated ? 1180 : 420;
@@ -771,6 +854,13 @@ public sealed class MainViewModel : ObservableObject
     public Visibility EmptyHomeTelemetryLogVisibility => HomeDeviceTelemetryLog.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HasHomeTelemetryLogVisibility => HomeDeviceTelemetryLog.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
     public Visibility AutomationScheduleVisibility => IsAutomationScheduleEnabled ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility AutomationListVisibility => AutomationMode == "List" ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility AutomationEditorVisibility => AutomationMode == "List" ? Visibility.Collapsed : Visibility.Visible;
+    public Visibility AutomationCreateButtonVisibility => AutomationMode == "New" ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility AutomationEditButtonsVisibility => AutomationMode == "Edit" ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility EmptyAutomationVisibility => AutomationRuleCards.Count == 0 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HasAutomationVisibility => AutomationRuleCards.Count > 0 ? Visibility.Visible : Visibility.Collapsed;
+    public string AutomationEditorTitle => AutomationMode == "New" ? "New Automation" : "Rule";
     public Visibility NotificationFlyoutVisibility => IsNotificationFlyoutOpen ? Visibility.Visible : Visibility.Collapsed;
     public Visibility HomeNotificationFlyoutVisibility => IsNotificationFlyoutOpen && CurrentSection == "Home" && HomeMode == "Dashboard" && Devices.Count > 0 && !IsOnboardingClaimSuccess
         ? Visibility.Visible
@@ -782,6 +872,7 @@ public sealed class MainViewModel : ObservableObject
     private Task ToggleAuthModeAsync()
     {
         IsRegisterMode = !IsRegisterMode;
+        DismissAuthMessage();
         return Task.CompletedTask;
     }
 
@@ -814,6 +905,12 @@ public sealed class MainViewModel : ObservableObject
         {
             await RefreshNotificationsAsync();
         }
+        else if (IsAuthenticated && section == "Automation")
+        {
+            AutomationMode = "List";
+            SelectedAutomationRule = null;
+            await RefreshAutomationRulesAsync();
+        }
     }
 
     private async Task RestoreSessionAsync()
@@ -830,26 +927,149 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task LoginAsync()
     {
-        await RunAsync(async () =>
+        AuthMessage = "";
+        if (string.IsNullOrWhiteSpace(Email) || string.IsNullOrWhiteSpace(Password))
+        {
+            SetAuthMessage("Vui lòng nhập email và mật khẩu.", isError: true);
+            return;
+        }
+
+        try
         {
             var result = await _api.LoginAsync(Email, Password);
             IsAuthenticated = true;
             CurrentSection = "Home";
             _pollTimer.Start();
             await RefreshAllAfterAuthenticationAsync($"Signed in as {result.User.DisplayName}.");
-        });
+        }
+        catch (ApiProblemException exception)
+        {
+            SetAuthMessage(MapLoginError(exception), isError: true);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            SetAuthMessage("Không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối.", isError: true);
+        }
+        catch
+        {
+            SetAuthMessage("Không thể đăng nhập. Vui lòng thử lại.", isError: true);
+        }
     }
 
     private async Task RegisterAsync()
     {
-        await RunAsync(async () =>
+        AuthMessage = "";
+        if (string.IsNullOrWhiteSpace(DisplayName))
         {
-            var result = await _api.RegisterAsync(Email, Password, DisplayName);
-            IsAuthenticated = true;
-            CurrentSection = "Home";
-            _pollTimer.Start();
-            await RefreshAllAfterAuthenticationAsync($"Created account for {result.User.DisplayName}.");
-        });
+            SetAuthMessage("Vui lòng nhập tên hiển thị.", isError: true);
+            return;
+        }
+
+        if (string.IsNullOrWhiteSpace(Email) || !Email.Contains('@', StringComparison.Ordinal))
+        {
+            SetAuthMessage("Email không hợp lệ.", isError: true);
+            return;
+        }
+
+        if (Password.Length < 8)
+        {
+            SetAuthMessage("Mật khẩu phải có ít nhất 8 ký tự.", isError: true);
+            return;
+        }
+
+        try
+        {
+            await _api.RegisterAsync(Email, Password, DisplayName);
+            Password = "";
+            DisplayName = "";
+            IsRegisterMode = false;
+            SetAuthMessage("Đăng ký thành công. Bạn có thể đăng nhập ngay.", isError: false);
+        }
+        catch (ApiProblemException exception)
+        {
+            SetAuthMessage(MapRegistrationError(exception), isError: true);
+        }
+        catch (Exception exception) when (exception is HttpRequestException or TaskCanceledException)
+        {
+            SetAuthMessage("Không thể kết nối tới máy chủ. Vui lòng kiểm tra kết nối.", isError: true);
+        }
+        catch
+        {
+            SetAuthMessage("Không thể đăng ký tài khoản. Vui lòng thử lại.", isError: true);
+        }
+    }
+
+    private void SetAuthMessage(string message, bool isError)
+    {
+        _authMessageTimer.Stop();
+        AuthMessageIsError = isError;
+        AuthMessage = message;
+        _authMessageTimer.Start();
+    }
+
+    private void ClearAuthError()
+    {
+        if (AuthMessageIsError)
+        {
+            DismissAuthMessage();
+        }
+    }
+
+    private Task DismissAuthMessageAsync()
+    {
+        DismissAuthMessage();
+        return Task.CompletedTask;
+    }
+
+    private void DismissAuthMessage()
+    {
+        _authMessageTimer.Stop();
+        AuthMessage = "";
+    }
+
+    private static string MapLoginError(ApiProblemException exception)
+    {
+        if (exception.Code?.Equals("invalid_credentials", StringComparison.OrdinalIgnoreCase) == true ||
+            exception.StatusCode == HttpStatusCode.Unauthorized)
+        {
+            return "Email hoặc mật khẩu không đúng.";
+        }
+
+        return (int)exception.StatusCode >= 500
+            ? "Máy chủ đang gặp sự cố. Vui lòng thử lại sau."
+            : "Không thể đăng nhập. Vui lòng kiểm tra thông tin và thử lại.";
+    }
+
+    private static string MapRegistrationError(ApiProblemException exception)
+    {
+        if (exception.Code?.Equals("email_conflict", StringComparison.OrdinalIgnoreCase) == true ||
+            exception.StatusCode == HttpStatusCode.Conflict)
+        {
+            return "Tài khoản với email này đã tồn tại.";
+        }
+
+        if ((int)exception.StatusCode >= 500)
+        {
+            return "Máy chủ đang gặp sự cố. Vui lòng thử lại sau.";
+        }
+
+        if (exception.Detail.Contains("password", StringComparison.OrdinalIgnoreCase) ||
+            exception.Detail.Contains("8", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Mật khẩu phải có ít nhất 8 ký tự.";
+        }
+
+        if (exception.Detail.Contains("email", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Email không hợp lệ.";
+        }
+
+        if (exception.Detail.Contains("display name", StringComparison.OrdinalIgnoreCase))
+        {
+            return "Vui lòng nhập tên hiển thị.";
+        }
+
+        return "Thông tin đăng ký chưa hợp lệ. Vui lòng kiểm tra lại.";
     }
 
     private async Task RefreshAllAfterAuthenticationAsync(string successMessage)
@@ -867,9 +1087,16 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task LogoutAsync()
     {
-        await RunAsync(async () =>
+        try
         {
             await _api.LogoutAsync();
+        }
+        catch (Exception exception)
+        {
+            Debug.WriteLine($"Server logout failed: {exception.Message}");
+        }
+        finally
+        {
             IsAuthenticated = false;
             CurrentSection = "Auth";
             _pollTimer.Stop();
@@ -884,11 +1111,10 @@ public sealed class MainViewModel : ObservableObject
             Commands.Clear();
             AutomationRules.Clear();
             AutomationRuleCards.Clear();
-            AutomationExecutions.Clear();
             Notifications.Clear();
             NotifyDashboardCounts();
             StatusMessage = "Signed out.";
-        });
+        }
     }
 
     private async Task RefreshAllAsync()
@@ -940,6 +1166,7 @@ public sealed class MainViewModel : ObservableObject
         if (card is not null)
         {
             SelectedAutomationRule = card.Rule;
+            AutomationMode = "Edit";
         }
 
         return Task.CompletedTask;
@@ -1053,6 +1280,7 @@ public sealed class MainViewModel : ObservableObject
         }
 
         RebuildAutomationRuleCards();
+        UpdateHomeDeviceAutomationBadges();
         NotifyDashboardCounts();
     }
 
@@ -1139,6 +1367,8 @@ public sealed class MainViewModel : ObservableObject
     {
         IsNotificationFlyoutOpen = false;
         CurrentSection = "Automation";
+        ResetAutomationEditor();
+        AutomationMode = "New";
         if (SelectedHomeDeviceCard is not null)
         {
             var selection = CreateAutomationSelectionKey(SelectedHomeDeviceCard.DeviceId, SelectedHomeDeviceCard.CapabilityKey);
@@ -1153,6 +1383,20 @@ public sealed class MainViewModel : ObservableObject
         }
 
         await RefreshAutomationRulesAsync();
+    }
+
+    private Task OpenNewAutomationAsync()
+    {
+        ResetAutomationEditor();
+        AutomationMode = "New";
+        return Task.CompletedTask;
+    }
+
+    private Task BackToAutomationListAsync()
+    {
+        AutomationMode = "List";
+        SelectedAutomationRule = null;
+        return Task.CompletedTask;
     }
 
     private async Task ClaimDeviceAsync()
@@ -1338,65 +1582,54 @@ public sealed class MainViewModel : ObservableObject
         {
             Replace(AutomationRules, await _api.GetAutomationRulesAsync());
             RebuildAutomationRuleCards();
+            UpdateHomeDeviceAutomationBadges();
             NotifyDashboardCounts();
             StatusMessage = $"Loaded {AutomationRules.Count} automation rules.";
         });
     }
 
-    private async Task SaveAutomationRuleAsync()
+    private async Task CreateAutomationRuleAsync()
     {
         await RunAsync(async () =>
         {
-            var hasSource = !string.IsNullOrWhiteSpace(AutomationSourceSelectionKey);
-            var sourceDeviceId = hasSource ? Guid.Parse(AutomationSourceDeviceId) : (Guid?)null;
-            var sourceCapabilityKey = hasSource ? AutomationSourceCapabilityKey : null;
-            var comparisonOperator = hasSource ? AutomationOperator : null;
-            var thresholdValue = hasSource ? ParseDynamicValue(AutomationThresholdValue) : (JsonElement?)null;
-            var targetDeviceId = Guid.Parse(AutomationTargetDeviceId);
-            var cooldown = int.Parse(AutomationCooldownSeconds);
-            var schedule = CreateAutomationSchedulePayload();
-            if (SelectedAutomationRule is null)
-            {
-                var created = await _api.CreateAutomationRuleAsync(new CreateAutomationRulePayload(
-                    AutomationName,
-                    sourceDeviceId,
-                    sourceCapabilityKey,
-                    comparisonOperator,
-                    thresholdValue,
-                    targetDeviceId,
-                    AutomationTargetCapabilityKey,
-                    AutomationCommandName,
-                    ParseDynamicValue(AutomationDesiredValue),
-                    cooldown,
-                    AutomationIsEnabled,
-                    schedule.ActiveFromTime,
-                    schedule.ActiveToTime,
-                    schedule.ActiveDaysOfWeek));
-                await RefreshAutomationRulesAsync();
-                SelectedAutomationRule = AutomationRules.FirstOrDefault(item => item.Id == created.Id);
-                StatusMessage = "Automation rule created.";
-            }
-            else
-            {
-                var updated = await _api.UpdateAutomationRuleAsync(SelectedAutomationRule.Id, new UpdateAutomationRulePayload(
-                    AutomationName,
-                    sourceDeviceId,
-                    sourceCapabilityKey,
-                    comparisonOperator,
-                    thresholdValue,
-                    targetDeviceId,
-                    AutomationTargetCapabilityKey,
-                    AutomationCommandName,
-                    ParseDynamicValue(AutomationDesiredValue),
-                    cooldown,
-                    AutomationIsEnabled,
-                    schedule.ActiveFromTime,
-                    schedule.ActiveToTime,
-                    schedule.ActiveDaysOfWeek));
-                await RefreshAutomationRulesAsync();
-                SelectedAutomationRule = AutomationRules.FirstOrDefault(item => item.Id == updated.Id);
-                StatusMessage = "Automation rule updated.";
-            }
+            await _api.CreateAutomationRuleAsync(CreateAutomationRulePayloadFromEditor());
+            AutomationMode = "List";
+            SelectedAutomationRule = null;
+            await RefreshAutomationRulesAsync();
+            StatusMessage = "Automation rule created.";
+        });
+    }
+
+    private async Task UpdateAutomationRuleAsync()
+    {
+        if (SelectedAutomationRule is null)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            await _api.UpdateAutomationRuleAsync(SelectedAutomationRule.Id, CreateUpdateAutomationRulePayloadFromEditor());
+            AutomationMode = "List";
+            SelectedAutomationRule = null;
+            await RefreshAutomationRulesAsync();
+            StatusMessage = "Automation rule updated.";
+        });
+    }
+
+    private async Task ToggleAutomationRuleEnabledAsync(AutomationRuleCard? card)
+    {
+        if (card is null)
+        {
+            return;
+        }
+
+        await RunAsync(async () =>
+        {
+            var rule = card.Rule;
+            await _api.UpdateAutomationRuleAsync(rule.Id, CreateUpdateAutomationRulePayload(rule, !rule.IsEnabled));
+            await RefreshAutomationRulesAsync();
+            StatusMessage = rule.IsEnabled ? $"Paused {rule.Name}." : $"Started {rule.Name}.";
         });
     }
 
@@ -1411,22 +1644,9 @@ public sealed class MainViewModel : ObservableObject
         {
             await _api.DeleteAutomationRuleAsync(SelectedAutomationRule.Id);
             SelectedAutomationRule = null;
+            AutomationMode = "List";
             await RefreshAutomationRulesAsync();
             StatusMessage = "Automation rule deleted.";
-        });
-    }
-
-    private async Task LoadAutomationExecutionsAsync()
-    {
-        if (SelectedAutomationRule is null)
-        {
-            return;
-        }
-
-        await RunAsync(async () =>
-        {
-            Replace(AutomationExecutions, await _api.GetAutomationExecutionsAsync(SelectedAutomationRule.Id));
-            StatusMessage = $"Loaded {AutomationExecutions.Count} automation executions.";
         });
     }
 
@@ -1447,7 +1667,7 @@ public sealed class MainViewModel : ObservableObject
     {
         await RunAsync(async () =>
         {
-            Replace(Notifications, await _api.GetNotificationsAsync());
+            Replace(Notifications, MakeNotificationsFriendly(await _api.GetNotificationsAsync()));
             NotifyDashboardCounts();
             StatusMessage = Notifications.Count == 0 ? "No notifications." : $"Loaded {Notifications.Count} notifications.";
         });
@@ -1458,10 +1678,26 @@ public sealed class MainViewModel : ObservableObject
         await RunAsync(async () =>
         {
             await _api.MarkAllNotificationsReadAsync();
-            Replace(Notifications, await _api.GetNotificationsAsync());
+            Replace(Notifications, MakeNotificationsFriendly(await _api.GetNotificationsAsync()));
             NotifyDashboardCounts();
             StatusMessage = "All alerts marked as read.";
         });
+    }
+
+    private IEnumerable<NotificationDto> MakeNotificationsFriendly(IEnumerable<NotificationDto> notifications)
+    {
+        foreach (var notification in notifications)
+        {
+            var title = notification.Title;
+            var message = notification.Message;
+            foreach (var device in Devices.Where(device => !string.IsNullOrWhiteSpace(device.DisplayName)))
+            {
+                title = title.Replace(device.Serial, device.NameOrSerial, StringComparison.OrdinalIgnoreCase);
+                message = message.Replace(device.Serial, device.NameOrSerial, StringComparison.OrdinalIgnoreCase);
+            }
+
+            yield return notification with { Title = title, Message = message };
+        }
     }
 
     private async Task LaunchLocalProjectAsync(string projectPath, string label)
@@ -1670,9 +1906,12 @@ public sealed class MainViewModel : ObservableObject
         ToggleSidebarCommand.RaiseCanExecuteChanged();
         ViewAllNotificationsCommand.RaiseCanExecuteChanged();
         SelectAutomationRuleCommand.RaiseCanExecuteChanged();
-        SaveAutomationRuleCommand.RaiseCanExecuteChanged();
+        OpenNewAutomationCommand.RaiseCanExecuteChanged();
+        BackToAutomationListCommand.RaiseCanExecuteChanged();
+        CreateAutomationRuleCommand.RaiseCanExecuteChanged();
+        UpdateAutomationRuleCommand.RaiseCanExecuteChanged();
+        ToggleAutomationRuleEnabledCommand.RaiseCanExecuteChanged();
         DeleteAutomationRuleCommand.RaiseCanExecuteChanged();
-        LoadAutomationExecutionsCommand.RaiseCanExecuteChanged();
     }
 
     private void NotifySelectedDeviceChanged()
@@ -1801,6 +2040,22 @@ public sealed class MainViewModel : ObservableObject
         });
 
         Replace(AutomationRuleCards, cards);
+        OnPropertyChanged(nameof(EmptyAutomationVisibility));
+        OnPropertyChanged(nameof(HasAutomationVisibility));
+    }
+
+    private void UpdateHomeDeviceAutomationBadges()
+    {
+        foreach (var card in HomeDeviceCards)
+        {
+            var isAutomated = AutomationRules.Any(rule =>
+                rule.IsEnabled &&
+                ((rule.SourceDeviceId == card.DeviceId &&
+                  rule.SourceCapabilityKey?.Equals(card.CapabilityKey, StringComparison.OrdinalIgnoreCase) == true) ||
+                 (rule.TargetDeviceId == card.DeviceId &&
+                  rule.TargetCapabilityKey.Equals(card.CapabilityKey, StringComparison.OrdinalIgnoreCase))));
+            card.SetAutomationState(isAutomated);
+        }
     }
 
     private string ResolveAutomationEndpoint(Guid? deviceId, string? fallbackDeviceName, string? capabilityKey)
@@ -1846,6 +2101,80 @@ public sealed class MainViewModel : ObservableObject
         var utcTo = ToUtcScheduleTime(localTo);
         var utcDays = ToUtcDayMask(GetLocalScheduleDayMask(), localFrom);
         return new AutomationSchedulePayload(utcFrom, utcTo, utcDays == 0 ? null : utcDays);
+    }
+
+    private CreateAutomationRulePayload CreateAutomationRulePayloadFromEditor()
+    {
+        var hasSource = !string.IsNullOrWhiteSpace(AutomationSourceSelectionKey);
+        var schedule = CreateAutomationSchedulePayload();
+        return new CreateAutomationRulePayload(
+            AutomationName,
+            hasSource ? Guid.Parse(AutomationSourceDeviceId) : null,
+            hasSource ? AutomationSourceCapabilityKey : null,
+            hasSource ? AutomationOperator : null,
+            hasSource ? ParseDynamicValue(AutomationThresholdValue) : null,
+            Guid.Parse(AutomationTargetDeviceId),
+            AutomationTargetCapabilityKey,
+            AutomationCommandName,
+            ParseDynamicValue(AutomationDesiredValue),
+            int.Parse(AutomationCooldownSeconds),
+            AutomationIsEnabled,
+            schedule.ActiveFromTime,
+            schedule.ActiveToTime,
+            schedule.ActiveDaysOfWeek);
+    }
+
+    private UpdateAutomationRulePayload CreateUpdateAutomationRulePayloadFromEditor()
+    {
+        var create = CreateAutomationRulePayloadFromEditor();
+        return new UpdateAutomationRulePayload(
+            create.Name, create.SourceDeviceId, create.SourceCapabilityKey, create.ComparisonOperator,
+            create.ThresholdValue, create.TargetDeviceId, create.TargetCapabilityKey, create.CommandName,
+            create.DesiredValue, create.CooldownSeconds, create.IsEnabled, create.ActiveFromTime,
+            create.ActiveToTime, create.ActiveDaysOfWeek);
+    }
+
+    private static UpdateAutomationRulePayload CreateUpdateAutomationRulePayload(AutomationRuleDto rule, bool isEnabled) => new(
+        rule.Name,
+        rule.SourceDeviceId,
+        rule.SourceCapabilityKey,
+        rule.ComparisonOperator,
+        ToJsonElement(rule.ThresholdValueType, rule.ThresholdNumberValue, rule.ThresholdBooleanValue, rule.ThresholdStringValue),
+        rule.TargetDeviceId,
+        rule.TargetCapabilityKey,
+        rule.CommandName,
+        ToJsonElement(rule.DesiredValueType, rule.DesiredNumberValue, rule.DesiredBooleanValue, rule.DesiredStringValue) ?? ParseDynamicValue("false"),
+        rule.CooldownSeconds,
+        isEnabled,
+        rule.ActiveFromTime,
+        rule.ActiveToTime,
+        rule.ActiveDaysOfWeek);
+
+    private static JsonElement? ToJsonElement(string? valueType, decimal? numberValue, bool? booleanValue, string? stringValue) => valueType switch
+    {
+        "number" when numberValue is not null => JsonSerializer.SerializeToElement(numberValue.Value),
+        "boolean" when booleanValue is not null => JsonSerializer.SerializeToElement(booleanValue.Value),
+        "string" => JsonSerializer.SerializeToElement(stringValue ?? ""),
+        _ => null
+    };
+
+    private void ResetAutomationEditor()
+    {
+        SelectedAutomationRule = null;
+        AutomationName = "";
+        AutomationSourceSelectionKey = "";
+        AutomationOperator = ">";
+        AutomationThresholdValue = "30";
+        AutomationTargetSelectionKey = "";
+        AutomationCommandName = "ON";
+        AutomationDesiredValue = "true";
+        AutomationCooldownSeconds = "30";
+        AutomationIsEnabled = true;
+        IsAutomationScheduleEnabled = false;
+        AutomationActiveFromTime = "";
+        AutomationActiveToTime = "";
+        SetScheduleDayValues(0);
+        OnAutomationPropertiesChanged();
     }
 
     private string FormatScheduleSummary(AutomationRuleDto rule)
@@ -2016,6 +2345,13 @@ public sealed class MainViewModel : ObservableObject
                 OnPropertyChanged(nameof(AutomationSourceDeviceId));
                 OnPropertyChanged(nameof(AutomationSourceCapabilityKey));
                 OnPropertyChanged(nameof(AutomationOperator));
+            }
+            else
+            {
+                AutomationTargetDeviceId = "";
+                AutomationTargetCapabilityKey = "";
+                OnPropertyChanged(nameof(AutomationTargetDeviceId));
+                OnPropertyChanged(nameof(AutomationTargetCapabilityKey));
             }
 
             return;
@@ -2313,6 +2649,10 @@ public sealed record AutomationRuleCard(
     string EnabledBackground,
     string EnabledForeground)
 {
+    public string SwitchBackground => Rule.IsEnabled ? "#2563EB" : "#CBD5E1";
+    public HorizontalAlignment SwitchKnobAlignment => Rule.IsEnabled ? HorizontalAlignment.Right : HorizontalAlignment.Left;
+    public string ToggleToolTip => Rule.IsEnabled ? "Stop automation" : "Start automation";
+
     public static AutomationRuleCard From(AutomationRuleDto rule, string source, string target, string scheduleSummary)
     {
         var threshold = FormatRuleValue(rule.ThresholdValueType, rule.ThresholdNumberValue, rule.ThresholdBooleanValue, rule.ThresholdStringValue);
@@ -2496,6 +2836,7 @@ public sealed class HomeDeviceCard(
     private string _deviceStatus = deviceStatus;
     private string _value = value;
     private IReadOnlyList<string> _supportedCommands = supportedCommands;
+    private bool _isAutomated;
 
     public Guid DeviceId { get; } = deviceId;
     public string DeviceName
@@ -2521,6 +2862,8 @@ public sealed class HomeDeviceCard(
                 OnPropertyChanged(nameof(IconBrush));
                 OnPropertyChanged(nameof(IconBackground));
                 OnPropertyChanged(nameof(PrimaryValue));
+                OnPropertyChanged(nameof(PrimaryValueBrush));
+                OnPropertyChanged(nameof(SensorFooterText));
                 OnPropertyChanged(nameof(SecondaryText));
                 OnPropertyChanged(nameof(SwitchBackground));
                 OnPropertyChanged(nameof(SwitchLabelBrush));
@@ -2577,12 +2920,16 @@ public sealed class HomeDeviceCard(
     public string KindIconData => ResolveKindIconData();
     public string ValueWithUnit => string.IsNullOrWhiteSpace(Unit) || Value == "No readings yet" ? Value : $"{Value} {Unit}";
     public string PrimaryValue => StatusLabel;
-    public string SensorFooterText => Value == "No readings yet" ? "Last value: Waiting" : $"Last value: {ValueWithUnit}";
+    public string PrimaryValueBrush => IsOnline ? "#16A34A" : "#94A3B8";
+    public string SensorFooterText => IsOnline
+        ? Value == "No readings yet" ? "Current value: Waiting" : $"Current value: {ValueWithUnit}"
+        : Value == "No readings yet" ? "Last value: Waiting" : $"Last value: {ValueWithUnit}";
     public string SecondaryText => !IsOnline ? "Device offline" : IsActuator ? LastStatus : _lastStatus;
     public string SwitchBackground => !IsOnline ? "#CBD5E1" : IsOn ? "#2563EB" : "#CBD5E1";
     public string SwitchKnobAlignment => IsOn ? "Right" : "Left";
     public string SwitchLabel => IsOn ? "On" : "Off";
     public string SwitchLabelBrush => IsOn && IsOnline ? "#2563EB" : "#64748B";
+    public Visibility AutomationBadgeVisibility => _isAutomated ? Visibility.Visible : Visibility.Collapsed;
 
     public bool IsOn
     {
@@ -2651,6 +2998,14 @@ public sealed class HomeDeviceCard(
         }
 
         LastStatus = $"Command {commandName} is {status}.";
+    }
+
+    public void SetAutomationState(bool isAutomated)
+    {
+        if (SetProperty(ref _isAutomated, isAutomated))
+        {
+            OnPropertyChanged(nameof(AutomationBadgeVisibility));
+        }
     }
 
     public void UpdateFrom(HomeDeviceCard incoming)

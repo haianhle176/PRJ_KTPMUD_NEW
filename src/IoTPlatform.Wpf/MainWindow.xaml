@@ -168,6 +168,54 @@
                     </StackPanel>
                 </StackPanel>
             </Border>
+
+            <Border Panel.ZIndex="10"
+                    Width="360"
+                    MaxWidth="360"
+                    HorizontalAlignment="Center"
+                    VerticalAlignment="Top"
+                    Margin="16"
+                    Padding="12,10"
+                    Background="{Binding AuthMessageBackground}"
+                    BorderBrush="{Binding AuthMessageBorderBrush}"
+                    BorderThickness="1"
+                    CornerRadius="8"
+                    Visibility="{Binding AuthMessageVisibility}">
+                <Border.Effect>
+                    <DropShadowEffect BlurRadius="14"
+                                      ShadowDepth="3"
+                                      Direction="270"
+                                      Color="#334155"
+                                      Opacity="0.18" />
+                </Border.Effect>
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock Text="{Binding AuthMessage}"
+                               Foreground="{Binding AuthMessageForeground}"
+                               TextWrapping="Wrap"
+                               FontSize="12"
+                               VerticalAlignment="Center"
+                               Margin="0,0,10,0" />
+                    <Button Grid.Column="1"
+                            Command="{Binding DismissAuthMessageCommand}"
+                            Width="26"
+                            Height="26"
+                            Padding="0"
+                            Background="Transparent"
+                            BorderBrush="Transparent"
+                            Foreground="{Binding AuthMessageForeground}"
+                            ToolTip="Close">
+                        <TextBlock Text="&#xE711;"
+                                   FontFamily="Segoe MDL2 Assets"
+                                   FontSize="11"
+                                   HorizontalAlignment="Center"
+                                   VerticalAlignment="Center" />
+                    </Button>
+                </Grid>
+            </Border>
         </Grid>
 
         <Grid Visibility="{Binding AuthenticatedVisibility}">
@@ -425,7 +473,10 @@
                 </Grid>
             </Border>
 
-            <ScrollViewer Grid.Column="1" VerticalScrollBarVisibility="Auto" Margin="28,18,24,0">
+            <ScrollViewer x:Name="MainContentScrollViewer"
+                          Grid.Column="1"
+                          VerticalScrollBarVisibility="Auto"
+                          Margin="28,18,24,0">
                 <Grid>
                     <StackPanel Visibility="{Binding HomeVisibility}">
                         <Grid Margin="0,0,0,22"
@@ -434,9 +485,7 @@
                               Panel.ZIndex="20"
                               Visibility="{Binding HomeDashboardVisibility}">
                             <TextBlock Text="Home"
-                                       FontSize="22"
-                                       FontWeight="SemiBold"
-                                       VerticalAlignment="Top" />
+                                       Style="{StaticResource SectionTitle}" />
 
                             <StackPanel Orientation="Horizontal"
                                         HorizontalAlignment="Right"
@@ -998,10 +1047,7 @@
                                         <Border Height="1" Background="{StaticResource BorderBrushSoft}" Margin="0,12,0,18" />
 
                                         <Grid Margin="0,0,0,10">
-                                            <StackPanel Orientation="Horizontal">
-                                                <TextBlock Text="Telemetry Log" FontSize="16" FontWeight="SemiBold" />
-                                                <TextBlock Text="(100 recent events)" Foreground="{StaticResource MutedInkBrush}" FontSize="13" Margin="8,1,0,0" />
-                                            </StackPanel>
+                                            <TextBlock Text="Telemetry Log" FontSize="16" FontWeight="SemiBold" />
                                         </Grid>
                                         <Border Visibility="{Binding EmptyHomeTelemetryLogVisibility}" Background="{StaticResource SurfaceMutedBrush}" BorderBrush="{StaticResource BorderBrushSoft}" BorderThickness="1" CornerRadius="12" Padding="16">
                                             <TextBlock Text="No state changes or sampled telemetry yet." Foreground="{StaticResource MutedInkBrush}" HorizontalAlignment="Center" />
@@ -1151,17 +1197,6 @@
                                                 <TextBlock Text="Control actuators and monitor sensors from one place."
                                                            Foreground="{StaticResource MutedInkBrush}" />
                                             </StackPanel>
-                                            <Button Command="{Binding RefreshHomeCommand}"
-                                                    Style="{StaticResource IconGhostButton}"
-                                                    ToolTip="Refresh"
-                                                    HorizontalAlignment="Right"
-                                                    VerticalAlignment="Top">
-                                                <Viewbox Width="17" Height="17">
-                                                    <Path Data="{StaticResource IconRefreshGeometry}"
-                                                          Stroke="{StaticResource PrimaryBrush}"
-                                                          Style="{StaticResource LucidePath}" />
-                                                </Viewbox>
-                                            </Button>
                                         </Grid>
 
                                         <Grid Grid.Row="1" Margin="0,0,0,12">
@@ -1184,16 +1219,17 @@
                                         <ScrollViewer Grid.Row="2"
                                                       VerticalScrollBarVisibility="Auto"
                                                       HorizontalScrollBarVisibility="Disabled">
-                                            <ItemsControl ItemsSource="{Binding FilteredHomeDeviceCards}">
+                                            <ItemsControl ItemsSource="{Binding FilteredHomeDeviceCards}"
+                                                          VerticalAlignment="Top">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>
-                                                        <WrapPanel />
+                                                        <UniformGrid Columns="3" />
                                                     </ItemsPanelTemplate>
                                                 </ItemsControl.ItemsPanel>
                                                 <ItemsControl.ItemTemplate>
                                                     <DataTemplate>
-                                                        <Border Width="172"
-                                                            Height="132"
+                                                        <Border Height="132"
+                                                            VerticalAlignment="Top"
                                                             Tag="{Binding}"
                                                             Cursor="Hand"
                                                             MouseLeftButtonUp="HomeDeviceCard_OnMouseLeftButtonUp"
@@ -1205,14 +1241,15 @@
                                                             Background="{Binding CardBackground}">
                                                             <Grid>
                                                                 <Grid.RowDefinitions>
-                                                                    <RowDefinition Height="Auto" />
-                                                                    <RowDefinition Height="*" />
-                                                                    <RowDefinition Height="Auto" />
+                                                                    <RowDefinition Height="32" />
+                                                                    <RowDefinition Height="44" />
+                                                                    <RowDefinition Height="30" />
                                                                 </Grid.RowDefinitions>
                                                             <Grid>
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="32" />
                                                                     <ColumnDefinition Width="*" />
+                                                                    <ColumnDefinition Width="Auto" />
                                                                 </Grid.ColumnDefinitions>
                                                                 <Border Width="28" Height="28" Background="{Binding IconBackground}" CornerRadius="14">
                                                                     <Viewbox Width="15" Height="15" HorizontalAlignment="Center" VerticalAlignment="Center">
@@ -1225,9 +1262,21 @@
                                                                     <TextBlock Text="{Binding CapabilityName}" FontSize="12" FontWeight="SemiBold" Foreground="{Binding PrimaryBrush}" TextTrimming="CharacterEllipsis" />
                                                                     <TextBlock Text="{Binding DeviceName}" Foreground="{Binding MutedBrush}" FontSize="12" TextTrimming="CharacterEllipsis" />
                                                                 </StackPanel>
+                                                                <Border Grid.Column="2"
+                                                                        Background="#FEF3C7"
+                                                                        CornerRadius="6"
+                                                                        Padding="6,2"
+                                                                        Margin="4,0,0,0"
+                                                                        VerticalAlignment="Top"
+                                                                        Visibility="{Binding AutomationBadgeVisibility}">
+                                                                    <TextBlock Text="Auto"
+                                                                               Foreground="#B45309"
+                                                                               FontSize="10"
+                                                                               FontWeight="SemiBold" />
+                                                                </Border>
                                                             </Grid>
 
-                                                            <TextBlock Grid.Row="1" Text="{Binding PrimaryValue}" Foreground="{Binding PrimaryBrush}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Grid.Row="1" Text="{Binding PrimaryValue}" Foreground="{Binding PrimaryValueBrush}" FontSize="20" FontWeight="SemiBold" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
                                                             <Grid Grid.Row="2" Visibility="{Binding ActuatorActionVisibility}">
                                                                 <Grid.ColumnDefinitions>
                                                                     <ColumnDefinition Width="*" />
@@ -1246,7 +1295,7 @@
                                                                     </Border>
                                                                 </Button>
                                                             </Grid>
-                                                            <TextBlock Grid.Row="2" Text="{Binding SensorFooterText}" Foreground="{Binding MutedBrush}" FontSize="12" Visibility="{Binding SensorInfoVisibility}" TextTrimming="CharacterEllipsis" />
+                                                            <TextBlock Grid.Row="2" Text="{Binding SensorFooterText}" Foreground="{Binding MutedBrush}" FontSize="12" Visibility="{Binding SensorInfoVisibility}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" />
                                                         </Grid>
                                                         </Border>
                                                     </DataTemplate>
@@ -1513,87 +1562,117 @@
                     </StackPanel>
 
                     <StackPanel Visibility="{Binding AutomationVisibility}">
-                        <TextBlock Text="Automation" Style="{StaticResource SectionTitle}" />
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="390" />
-                            </Grid.ColumnDefinitions>
-                            <Border Style="{StaticResource CardBorder}">
-                                <DockPanel>
-                                    <Button DockPanel.Dock="Top" Content="Refresh rules" Command="{Binding RefreshAutomationRulesCommand}" HorizontalAlignment="Left" />
-                                    <ScrollViewer Margin="0,8,0,0" VerticalScrollBarVisibility="Auto">
-                                        <ItemsControl ItemsSource="{Binding AutomationRuleCards}">
-                                            <ItemsControl.ItemTemplate>
-                                                <DataTemplate>
-                                                            <Border Background="#F8FAFC"
-                                                                    BorderBrush="{StaticResource BorderBrushSoft}"
-                                                                    BorderThickness="1"
-                                                                    CornerRadius="12"
-                                                                    Padding="14"
-                                                                    Margin="0,0,0,10"
-                                                                    Cursor="Hand">
-                                                        <Border.InputBindings>
-                                                            <MouseBinding Gesture="LeftClick"
-                                                                          Command="{Binding DataContext.SelectAutomationRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-                                                                          CommandParameter="{Binding}" />
-                                                        </Border.InputBindings>
-                                                        <Grid>
-                                                            <Grid.RowDefinitions>
-                                                                <RowDefinition Height="Auto" />
-                                                                <RowDefinition Height="Auto" />
-                                                                <RowDefinition Height="Auto" />
-                                                                <RowDefinition Height="Auto" />
-                                                            </Grid.RowDefinitions>
-                                                            <Grid.ColumnDefinitions>
-                                                                <ColumnDefinition Width="*" />
-                                                                <ColumnDefinition Width="Auto" />
-                                                            </Grid.ColumnDefinitions>
-                                                            <TextBlock Text="{Binding Name}"
-                                                                       FontSize="15"
-                                                                       FontWeight="SemiBold"
-                                                                       TextTrimming="CharacterEllipsis" />
-                                                            <Border Grid.Column="1"
-                                                                    Background="{Binding EnabledBackground}"
-                                                                    CornerRadius="8"
-                                                                    Padding="8,3"
-                                                                    Margin="10,0,0,0">
-                                                                <TextBlock Text="{Binding EnabledText}"
-                                                                           Foreground="{Binding EnabledForeground}"
-                                                                           FontSize="11"
-                                                                           FontWeight="SemiBold" />
-                                                            </Border>
-                                                            <TextBlock Grid.Row="1"
-                                                                       Grid.ColumnSpan="2"
-                                                                       Text="{Binding TriggerSummary}"
-                                                                       Foreground="{StaticResource InkBrush}"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       Margin="0,9,0,0" />
-                                                            <TextBlock Grid.Row="2"
-                                                                       Grid.ColumnSpan="2"
-                                                                       Text="{Binding ActionSummary}"
-                                                                       Foreground="{StaticResource MutedInkBrush}"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       Margin="0,3,0,0" />
-                                                            <TextBlock Grid.Row="3"
-                                                                       Grid.ColumnSpan="2"
-                                                                       Text="{Binding MetaSummary}"
-                                                                       Foreground="{StaticResource MutedInkBrush}"
-                                                                       FontSize="12"
-                                                                       TextTrimming="CharacterEllipsis"
-                                                                       Margin="0,8,0,0" />
-                                                        </Grid>
-                                                    </Border>
-                                                </DataTemplate>
-                                            </ItemsControl.ItemTemplate>
-                                        </ItemsControl>
-                                    </ScrollViewer>
-                                </DockPanel>
+                        <StackPanel Visibility="{Binding AutomationListVisibility}">
+                            <Grid Height="52" Margin="0,0,0,12">
+                                <TextBlock Text="Automation" Style="{StaticResource SectionTitle}" />
+                                <StackPanel Orientation="Horizontal" HorizontalAlignment="Right">
+                                    <Button Command="{Binding RefreshAutomationRulesCommand}"
+                                            Style="{StaticResource IconGhostButton}"
+                                            ToolTip="Refresh automation rules">
+                                        <Viewbox Width="17" Height="17">
+                                            <Path Data="{StaticResource IconRefreshGeometry}"
+                                                  Stroke="{StaticResource PrimaryBrush}"
+                                                  Style="{StaticResource LucidePath}" />
+                                        </Viewbox>
+                                    </Button>
+                                    <Button Command="{Binding OpenNewAutomationCommand}" Margin="8,4,0,8" Height="38" Padding="14,0">
+                                        <StackPanel Orientation="Horizontal">
+                                            <Viewbox Width="17" Height="17" Margin="0,0,7,0">
+                                                <Path Data="{StaticResource IconSquarePlusGeometry}"
+                                                      Stroke="White"
+                                                      Style="{StaticResource LucidePath}" />
+                                            </Viewbox>
+                                            <TextBlock Text="New automation" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+
+                            <Border Style="{StaticResource CardBorder}"
+                                    Visibility="{Binding EmptyAutomationVisibility}"
+                                    Padding="36">
+                                <StackPanel HorizontalAlignment="Center">
+                                    <TextBlock Text="You haven't created any automations yet."
+                                               FontSize="17"
+                                               FontWeight="SemiBold"
+                                               HorizontalAlignment="Center" />
+                                    <TextBlock Text="Create a rule to run devices automatically by condition or schedule."
+                                               Foreground="{StaticResource MutedInkBrush}"
+                                               TextAlignment="Center"
+                                               Margin="0,6,0,0" />
+                                </StackPanel>
                             </Border>
 
-                            <Border Grid.Column="1" Style="{StaticResource CardBorder}">
+                            <ItemsControl ItemsSource="{Binding AutomationRuleCards}"
+                                          Visibility="{Binding HasAutomationVisibility}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate>
+                                        <Border Background="{StaticResource SurfaceBrush}"
+                                                BorderBrush="{StaticResource BorderBrushSoft}"
+                                                BorderThickness="1"
+                                                CornerRadius="8"
+                                                Padding="12"
+                                                Margin="0,0,0,10">
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="Auto" />
+                                                </Grid.ColumnDefinitions>
+                                                <Button Command="{Binding DataContext.SelectAutomationRuleCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                        CommandParameter="{Binding}"
+                                                        Style="{StaticResource AutomationRuleButton}">
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                        </Grid.RowDefinitions>
+                                                        <TextBlock Text="{Binding Name}" FontSize="15" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                                        <TextBlock Grid.Row="1" Text="{Binding TriggerSummary}" Foreground="{StaticResource InkBrush}" TextTrimming="CharacterEllipsis" Margin="0,7,0,0" />
+                                                        <TextBlock Grid.Row="2" Text="{Binding ActionSummary}" Foreground="{StaticResource MutedInkBrush}" TextTrimming="CharacterEllipsis" Margin="0,3,0,0" />
+                                                        <TextBlock Grid.Row="3" Text="{Binding MetaSummary}" Foreground="{StaticResource MutedInkBrush}" FontSize="12" TextTrimming="CharacterEllipsis" Margin="0,7,0,0" />
+                                                    </Grid>
+                                                </Button>
+                                                <StackPanel Grid.Column="1" VerticalAlignment="Center" Margin="18,0,4,0">
+                                                    <TextBlock Text="{Binding EnabledText}"
+                                                               Foreground="{Binding EnabledForeground}"
+                                                               FontSize="11"
+                                                               FontWeight="SemiBold"
+                                                               HorizontalAlignment="Center"
+                                                               Margin="0,0,0,5" />
+                                                    <Button Command="{Binding DataContext.ToggleAutomationRuleEnabledCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding}"
+                                                            Style="{StaticResource ToggleSwitchButton}"
+                                                            ToolTip="{Binding ToggleToolTip}">
+                                                        <Border Width="52" Height="28" Background="{Binding SwitchBackground}" CornerRadius="14" Padding="3">
+                                                            <Border Width="22" Height="22" Background="White" CornerRadius="11" HorizontalAlignment="{Binding SwitchKnobAlignment}" />
+                                                        </Border>
+                                                    </Button>
+                                                </StackPanel>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+
+                        <StackPanel Visibility="{Binding AutomationEditorVisibility}">
+                            <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
+                                <Button Command="{Binding BackToAutomationListCommand}"
+                                        Style="{StaticResource IconGhostButton}"
+                                        ToolTip="Back to Automation"
+                                        Margin="0,0,8,0">
+                                    <TextBlock Text="&#xE72B;" FontFamily="Segoe MDL2 Assets" FontSize="15" />
+                                </Button>
+                                <TextBlock Text="Automation" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="  &gt;  " Foreground="{StaticResource MutedInkBrush}" VerticalAlignment="Center" />
+                                <TextBlock Text="{Binding AutomationEditorTitle}" Foreground="{StaticResource PrimaryBrush}" VerticalAlignment="Center" />
+                            </StackPanel>
+
+                            <Border Style="{StaticResource CardBorder}" MaxWidth="720" HorizontalAlignment="Left">
                                 <StackPanel>
-                                    <TextBlock Text="Rule editor" FontSize="18" FontWeight="SemiBold" />
+                                    <TextBlock Text="{Binding AutomationEditorTitle}" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,6" />
                                     <TextBlock Text="Name" Style="{StaticResource SmallLabel}" />
                                     <TextBox Text="{Binding AutomationName, UpdateSourceTrigger=PropertyChanged}" Style="{StaticResource AutomationTextBox}" />
 
@@ -1705,18 +1784,28 @@
                                             <CheckBox Content="Sun" IsChecked="{Binding AutomationSunday}" Margin="0,0,10,6" />
                                         </WrapPanel>
                                     </StackPanel>
-                                    <WrapPanel>
-                                        <Button Content="Save" Command="{Binding SaveAutomationRuleCommand}" />
+                                    <Button Content="Create"
+                                            Command="{Binding CreateAutomationRuleCommand}"
+                                            Visibility="{Binding AutomationCreateButtonVisibility}"
+                                            HorizontalAlignment="Left"
+                                            Padding="22,0" />
+                                    <WrapPanel Visibility="{Binding AutomationEditButtonsVisibility}">
+                                        <Button Content="Save" Command="{Binding UpdateAutomationRuleCommand}" Padding="22,0" />
                                         <Button Content="Delete" Command="{Binding DeleteAutomationRuleCommand}" Style="{StaticResource SecondaryButton}" />
-                                        <Button Content="Executions" Command="{Binding LoadAutomationExecutionsCommand}" Style="{StaticResource SecondaryButton}" />
                                     </WrapPanel>
                                 </StackPanel>
                             </Border>
-                        </Grid>
+                        </StackPanel>
                     </StackPanel>
 
-                    <StackPanel Visibility="{Binding NotificationsVisibility}">
-                        <Grid Margin="0,0,16,10">
+                    <Grid Visibility="{Binding NotificationsVisibility}"
+                          Height="{Binding ActualHeight, ElementName=MainContentScrollViewer}"
+                          VerticalAlignment="Top">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="*" />
+                        </Grid.RowDefinitions>
+                        <Grid Grid.Row="0" Height="52" Margin="0,0,16,10">
                             <TextBlock Text="Alerts" Style="{StaticResource SectionTitle}" />
                             <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Top">
                                 <Button Command="{Binding RefreshNotificationsCommand}"
@@ -1736,7 +1825,7 @@
                                         Margin="0,4,0,8" />
                             </StackPanel>
                         </Grid>
-                        <Border Style="{StaticResource CardBorder}">
+                        <Border Grid.Row="1" Style="{StaticResource CardBorder}">
                             <Grid>
                                 <Border Visibility="{Binding EmptyNotificationsVisibility}"
                                         Background="{StaticResource SurfaceMutedBrush}"
@@ -1817,7 +1906,7 @@
                                 </ScrollViewer>
                             </Grid>
                         </Border>
-                    </StackPanel>
+                    </Grid>
 
                     <StackPanel Visibility="{Binding SettingsVisibility}">
                         <TextBlock Text="Settings" Style="{StaticResource SectionTitle}" />

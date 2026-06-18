@@ -25,7 +25,24 @@ public partial class MainWindow : Window
                 viewModel.IsNotificationFlyoutOpen = false;
             }
         };
-        DataContext = new MainViewModel();
+        var viewModel = new MainViewModel();
+        viewModel.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName != nameof(MainViewModel.Password) ||
+                AuthPasswordBox.Password == viewModel.Password)
+            {
+                return;
+            }
+
+            _isSyncingPassword = true;
+            AuthPasswordBox.Password = viewModel.Password;
+            AuthPasswordTextBox.Text = viewModel.Password;
+            PasswordPlaceholder.Visibility = string.IsNullOrEmpty(viewModel.Password)
+                ? Visibility.Visible
+                : Visibility.Collapsed;
+            _isSyncingPassword = false;
+        };
+        DataContext = viewModel;
     }
 
     private void AuthPasswordBox_OnPasswordChanged(object sender, RoutedEventArgs e)

@@ -37,7 +37,14 @@ public sealed class IoTPlatformApiClient
     public async Task<AuthResult> RegisterAsync(string email, string password, string displayName)
     {
         var result = await PostAnonymousAsync<AuthResult>("api/v1/auth/register", new { email, password, displayName });
-        await SetTokensAsync(result.Tokens);
+        try
+        {
+            await PostAnonymousAsync("api/v1/auth/logout", new { result.Tokens.RefreshToken });
+        }
+        catch
+        {
+            // Registration succeeded; the returned tokens were never persisted locally.
+        }
         return result;
     }
 
@@ -50,13 +57,18 @@ public sealed class IoTPlatformApiClient
 
     public async Task LogoutAsync()
     {
-        if (_tokens is not null)
+        try
         {
-            await SendAsync(HttpMethod.Post, "api/v1/auth/logout", new { _tokens.RefreshToken }, allowRefresh: false);
+            if (_tokens is not null)
+            {
+                await SendAsync(HttpMethod.Post, "api/v1/auth/logout", new { _tokens.RefreshToken }, allowRefresh: false);
+            }
         }
-
-        _tokens = null;
-        _tokenStore.Clear();
+        finally
+        {
+            _tokens = null;
+            _tokenStore.Clear();
+        }
     }
 
     public Task<IReadOnlyList<DeviceSummary>> GetDevicesAsync() =>
@@ -111,9 +123,6 @@ public sealed class IoTPlatformApiClient
     public Task DeleteAutomationRuleAsync(Guid id) =>
         SendAsync(HttpMethod.Delete, $"api/v1/automation-rules/{id}");
 
-    public Task<IReadOnlyList<AutomationExecutionDto>> GetAutomationExecutionsAsync(Guid id) =>
-        GetAsync<IReadOnlyList<AutomationExecutionDto>>($"api/v1/automation-rules/{id}/executions");
-
     public Task<IReadOnlyList<NotificationDto>> GetNotificationsAsync(bool unreadOnly = false, int take = 50) =>
         GetAsync<IReadOnlyList<NotificationDto>>($"api/v1/notifications?unreadOnly={unreadOnly.ToString().ToLowerInvariant()}&take={take}");
 
@@ -139,10 +148,19 @@ public sealed class IoTPlatformApiClient
         var response = await SendCoreAsync(HttpMethod.Post, path, body, includeBearer: false);
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException(await CreateErrorMessageAsync(response));
+            throw await CreateApiProblemExceptionAsync(response);
         }
 
         return await ReadAsync<T>(response);
+    }
+
+    private async Task PostAnonymousAsync(string path, object body)
+    {
+        using var response = await SendCoreAsync(HttpMethod.Post, path, body, includeBearer: false);
+        if (!response.IsSuccessStatusCode)
+        {
+            throw await CreateApiProblemExceptionAsync(response);
+        }
     }
 
     private async Task<HttpResponseMessage> SendAsync(HttpMethod method, string path, object? body = null, bool allowRefresh = true)
@@ -156,7 +174,7 @@ public sealed class IoTPlatformApiClient
 
         if (!response.IsSuccessStatusCode)
         {
-            throw new InvalidOperationException(await CreateErrorMessageAsync(response));
+            throw await CreateApiProblemExceptionAsync(response);
         }
 
         return response;
@@ -206,13 +224,55 @@ public sealed class IoTPlatformApiClient
             ?? throw new InvalidOperationException("API response was empty.");
     }
 
-    private static async Task<string> CreateErrorMessageAsync(HttpResponseMessage response)
+    private static async Task<ApiProblemException> CreateApiProblemExceptionAsync(HttpResponseMessage response)
     {
         var body = await response.Content.ReadAsStringAsync();
-        return string.IsNullOrWhiteSpace(body)
-            ? $"API request failed: {(int)response.StatusCode} {response.ReasonPhrase}"
-            : $"API request failed: {(int)response.StatusCode} {response.ReasonPhrase}. {body}";
+        if (!string.IsNullOrWhiteSpace(body))
+        {
+            try
+            {
+                using var document = JsonDocument.Parse(body);
+                var root = document.RootElement;
+                var code = root.TryGetProperty("code", out var codeElement) ? codeElement.GetString() : null;
+                if (string.IsNullOrWhiteSpace(code) &&
+                    root.TryGetProperty("extensions", out var extensionsElement) &&
+                    extensionsElement.ValueKind == JsonValueKind.Object &&
+                    extensionsElement.TryGetProperty("code", out var nestedCodeElement))
+                {
+                    code = nestedCodeElement.GetString();
+                }
+
+                if (string.IsNullOrWhiteSpace(code) &&
+                    root.TryGetProperty("type", out var typeElement))
+                {
+                    var type = typeElement.GetString();
+                    if (!string.IsNullOrWhiteSpace(type))
+                    {
+                        code = type.TrimEnd('/').Split('/').LastOrDefault();
+                    }
+                }
+
+                var detail = root.TryGetProperty("detail", out var detailElement) ? detailElement.GetString() : null;
+                return new ApiProblemException(response.StatusCode, code, detail ?? response.ReasonPhrase ?? "API request failed.");
+            }
+            catch (JsonException)
+            {
+                // Fall through to a concise generic message for non-ProblemDetails responses.
+            }
+        }
+
+        return new ApiProblemException(
+            response.StatusCode,
+            null,
+            $"API request failed: {(int)response.StatusCode} {response.ReasonPhrase}");
     }
+}
+
+public sealed class ApiProblemException(HttpStatusCode statusCode, string? code, string detail) : Exception(detail)
+{
+    public HttpStatusCode StatusCode { get; } = statusCode;
+    public string? Code { get; } = code;
+    public string Detail { get; } = detail;
 }
 
 public sealed record AuthResult(AuthenticatedUser User, TokenResponse Tokens);
@@ -337,7 +397,6 @@ public sealed record AutomationRuleDto(Guid Id, string Name, Guid? SourceDeviceI
     };
 }
 
-public sealed record AutomationExecutionDto(long Id, Guid AutomationRuleId, Guid TriggerMessageId, Guid? CommandId, string Outcome, string? Reason, DateTimeOffset EvaluatedAtUtc);
 
 public sealed record NotificationDto(long Id, Guid OwnerUserId, Guid? DeviceId, Guid? CapabilityId, string Type, string Severity, string Title, string Message, bool IsRead, DateTimeOffset CreatedAtUtc)
 {
