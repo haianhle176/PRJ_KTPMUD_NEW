@@ -1745,6 +1745,7 @@ public sealed class MainViewModel : ObservableObject
         try
         {
             await RefreshDevicesAsync();
+            await BuildHomeDeviceCardsAsync();
             await RefreshAvailableDevicesSafelyAsync();
             if (SelectedDevice is not null)
             {

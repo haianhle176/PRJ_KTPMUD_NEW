@@ -113,6 +113,49 @@ public sealed class SqlCommandDispatchRepository(ISqlTransactionScopeFactory tra
             new { acknowledgement.CommandId, acknowledgement.ErrorCode, acknowledgement.ErrorMessage },
             scope.Transaction,
             cancellationToken: cancellationToken));
+
+        if (acknowledgement.Status == "completed" && acknowledgement.ReportedValue is not null)
+        {
+            var reportedValue = CommandAckValue.FromJson(acknowledgement.ReportedValue.Value);
+            await scope.Connection.ExecuteAsync(new CommandDefinition(
+                """
+                MERGE dbo.DeviceLatestValues WITH (HOLDLOCK) AS target
+                USING (
+                    SELECT dc.CapabilityId, dc.DeviceId
+                    FROM dbo.DeviceCommands dc
+                    INNER JOIN dbo.Devices d ON d.Id = dc.DeviceId AND d.Serial = @Serial
+                    WHERE dc.Id = @CommandId
+                ) AS source
+                ON target.CapabilityId = source.CapabilityId
+                WHEN MATCHED AND @RecordedAtUtc >= target.RecordedAtUtc THEN
+                    UPDATE SET
+                        DeviceId = source.DeviceId,
+                        MessageId = @MessageId,
+                        ValueType = @ValueType,
+                        NumberValue = @NumberValue,
+                        BooleanValue = @BooleanValue,
+                        StringValue = @StringValue,
+                        RecordedAtUtc = @RecordedAtUtc,
+                        UpdatedAtUtc = SYSUTCDATETIME()
+                WHEN NOT MATCHED THEN
+                    INSERT (CapabilityId, DeviceId, MessageId, ValueType, NumberValue, BooleanValue, StringValue, RecordedAtUtc)
+                    VALUES (source.CapabilityId, source.DeviceId, @MessageId, @ValueType, @NumberValue, @BooleanValue, @StringValue, @RecordedAtUtc);
+                """,
+                new
+                {
+                    acknowledgement.CommandId,
+                    acknowledgement.Serial,
+                    acknowledgement.MessageId,
+                    RecordedAtUtc = acknowledgement.TimestampUtc,
+                    ValueType = reportedValue.ValueType,
+                    NumberValue = reportedValue.NumberValue,
+                    BooleanValue = reportedValue.BooleanValue,
+                    StringValue = reportedValue.StringValue
+                },
+                scope.Transaction,
+                cancellationToken: cancellationToken));
+        }
+
         await scope.CommitAsync(cancellationToken);
         return new CommandAckResult(acknowledgement.CommandId, acknowledgement.Status, WasDuplicate: false);
     }

@@ -158,11 +158,37 @@ public sealed class SqlAutomationRuleRepository(IDbConnectionFactory connectionF
     public async Task<bool> DeleteAsync(Guid userId, Guid ruleId, CancellationToken cancellationToken = default)
     {
         await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
-        var affected = await connection.ExecuteAsync(new CommandDefinition(
-            "DELETE dbo.AutomationRules WHERE Id = @RuleId AND OwnerUserId = @UserId;",
-            new { RuleId = ruleId, UserId = userId },
-            cancellationToken: cancellationToken));
-        return affected == 1;
+        await using var transaction = await connection.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            var deleted = await connection.QuerySingleAsync<bool>(new CommandDefinition(
+                """
+                IF NOT EXISTS (
+                    SELECT 1
+                    FROM dbo.AutomationRules WITH (UPDLOCK, HOLDLOCK)
+                    WHERE Id = @RuleId AND OwnerUserId = @UserId
+                )
+                BEGIN
+                    SELECT CAST(0 AS bit);
+                    RETURN;
+                END;
+
+                DELETE dbo.AutomationExecutions WHERE AutomationRuleId = @RuleId;
+                UPDATE dbo.DeviceCommands SET AutomationRuleId = NULL WHERE AutomationRuleId = @RuleId;
+                DELETE dbo.AutomationRules WHERE Id = @RuleId AND OwnerUserId = @UserId;
+                SELECT CAST(1 AS bit);
+                """,
+                new { RuleId = ruleId, UserId = userId },
+                transaction,
+                cancellationToken: cancellationToken));
+            await transaction.CommitAsync(cancellationToken);
+            return deleted;
+        }
+        catch
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            throw;
+        }
     }
 
     public async Task<IReadOnlyList<AutomationExecutionDto>> ListExecutionsAsync(Guid userId, Guid ruleId, int take, CancellationToken cancellationToken = default)

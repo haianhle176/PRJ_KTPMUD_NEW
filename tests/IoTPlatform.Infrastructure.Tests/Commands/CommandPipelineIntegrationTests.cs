@@ -72,6 +72,15 @@ public sealed class CommandPipelineIntegrationTests
             await using var connection = new SqlConnection(connectionString);
             var ackCount = await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.CommandAcknowledgements WHERE CommandId = @CommandId;", new { CommandId = command.Id });
             Assert.Equal(1, ackCount);
+            var latestActuatorValue = await connection.QuerySingleAsync<bool>(
+                """
+                SELECT lv.BooleanValue
+                FROM dbo.DeviceLatestValues lv
+                INNER JOIN dbo.Capabilities capability ON capability.Id = lv.CapabilityId
+                WHERE lv.DeviceId = @DeviceId AND capability.[Key] = 'pump_power';
+                """,
+                new { DeviceId = device.Id });
+            Assert.True(latestActuatorValue);
         }
         finally
         {

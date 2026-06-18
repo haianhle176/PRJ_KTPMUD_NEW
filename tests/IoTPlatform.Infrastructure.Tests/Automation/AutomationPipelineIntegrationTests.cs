@@ -90,6 +90,12 @@ public sealed class AutomationPipelineIntegrationTests
             await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 20m), MqttTopics.Telemetry(serial));
             await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 40m), MqttTopics.Telemetry(serial));
             Assert.Equal(1, await CountCommandsAsync(connectionString));
+
+            await context.AutomationService.DeleteAsync(owner.User.Id, rule.Id);
+            Assert.Empty(await context.AutomationService.ListAsync(owner.User.Id));
+            await using var connection = new SqlConnection(connectionString);
+            Assert.Equal(0, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.AutomationExecutions WHERE AutomationRuleId = @RuleId;", new { RuleId = rule.Id }));
+            Assert.Equal(1, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.DeviceCommands WHERE Id = @CommandId AND AutomationRuleId IS NULL;", new { CommandId = generatedCommand.Id }));
         }
         finally
         {
@@ -288,6 +294,7 @@ public sealed class AutomationPipelineIntegrationTests
         return await connection.QuerySingleAsync<AutomationCommandRow>(
             """
             SELECT TOP (1)
+                dc.Id,
                 dc.DeviceId,
                 capability.[Key] AS CapabilityKey,
                 dc.CommandName,
@@ -344,6 +351,7 @@ public sealed class AutomationPipelineIntegrationTests
         IAutomationRuleService AutomationService);
 
     private sealed record AutomationCommandRow(
+        Guid Id,
         Guid DeviceId,
         string CapabilityKey,
         string CommandName,
