@@ -1784,6 +1784,17 @@
                                             <CheckBox Content="Sun" IsChecked="{Binding AutomationSunday}" Margin="0,0,10,6" />
                                         </WrapPanel>
                                     </StackPanel>
+                                    <Border Visibility="{Binding AutomationValidationVisibility}"
+                                            Background="#FEF2F2"
+                                            BorderBrush="#FCA5A5"
+                                            BorderThickness="1"
+                                            CornerRadius="8"
+                                            Padding="10,8"
+                                            Margin="0,0,0,12">
+                                        <TextBlock Text="{Binding AutomationValidationMessage}"
+                                                   Foreground="#B91C1C"
+                                                   TextWrapping="Wrap" />
+                                    </Border>
                                     <Button Content="Create"
                                             Command="{Binding CreateAutomationRuleCommand}"
                                             Visibility="{Binding AutomationCreateButtonVisibility}"

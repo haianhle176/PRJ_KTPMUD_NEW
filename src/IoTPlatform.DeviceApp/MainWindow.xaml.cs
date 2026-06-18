@@ -4,6 +4,7 @@ using System.Runtime.CompilerServices;
 using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Media;
 using IoTPlatform.DeviceApp.Configuration;
 using IoTPlatform.DeviceApp.Mqtt;
 using IoTPlatform.DeviceApp.Profiles;
@@ -429,9 +430,25 @@ public sealed class SimulatedDeviceItem(DeviceProfile profile, DeviceTypePreset 
             {
                 _status = value;
                 OnPropertyChanged();
+                OnPropertyChanged(nameof(StatusBackground));
+                OnPropertyChanged(nameof(StatusForeground));
             }
         }
     }
+
+    public Brush StatusBackground => Status switch
+    {
+        "Online" => new SolidColorBrush(Color.FromRgb(220, 252, 231)),
+        "Connecting" or "Stopping" => new SolidColorBrush(Color.FromRgb(254, 249, 195)),
+        _ => new SolidColorBrush(Color.FromRgb(241, 245, 249))
+    };
+
+    public Brush StatusForeground => Status switch
+    {
+        "Online" => new SolidColorBrush(Color.FromRgb(21, 128, 61)),
+        "Connecting" or "Stopping" => new SolidColorBrush(Color.FromRgb(161, 98, 7)),
+        _ => new SolidColorBrush(Color.FromRgb(100, 116, 139))
+    };
 
     public string PairingCode
     {

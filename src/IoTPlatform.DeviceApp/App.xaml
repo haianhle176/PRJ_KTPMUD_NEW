@@ -8,6 +8,7 @@
         <SolidColorBrush x:Key="PrimaryBrush" Color="#2563EB" />
         <SolidColorBrush x:Key="MutedInkBrush" Color="#64748B" />
         <SolidColorBrush x:Key="BorderBrushSoft" Color="#D8E0EA" />
+        <SolidColorBrush x:Key="InkBrush" Color="#0F172A" />
         <Geometry x:Key="IconThermometerGeometry">M14,4 L14,14.54 A4,4 0 1 1 10,14.54 L10,4 A2,2 0 0 1 14,4 Z</Geometry>
         <Geometry x:Key="IconDropletGeometry">M12,22 A7,7 0 0 0 19,15 C19,13 18,11.1 16,9.5 C14,7.9 12.5,5.5 12,3 C11.5,5.5 10,7.9 8,9.5 C6,11.1 5,13 5,15 A7,7 0 0 0 12,22 Z</Geometry>
         <Geometry x:Key="IconSunGeometry">M12,8 A4,4 0 1 1 11.99,8 M12,4 L12.01,4 M20,12 L20.01,12 M12,20 L12.01,20 M4,12 L4.01,12 M17.657,6.343 L17.667,6.343 M17.657,17.657 L17.667,17.657 M6.343,17.657 L6.353,17.657 M6.343,6.343 L6.353,6.343</Geometry>
@@ -39,6 +40,89 @@
             <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border x:Name="ButtonBorder"
+                                Background="{TemplateBinding Background}"
+                                BorderBrush="{TemplateBinding BorderBrush}"
+                                BorderThickness="{TemplateBinding BorderThickness}"
+                                CornerRadius="8"
+                                Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center" />
+                        </Border>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.88" />
+                            </Trigger>
+                            <Trigger Property="IsPressed" Value="True">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.72" />
+                            </Trigger>
+                            <Trigger Property="IsEnabled" Value="False">
+                                <Setter TargetName="ButtonBorder" Property="Opacity" Value="0.45" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+
+        <Style TargetType="TextBox">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="AppPasswordBox" TargetType="PasswordBox">
+            <Setter Property="Height" Value="40" />
+            <Setter Property="Padding" Value="10,7" />
+            <Setter Property="Background" Value="White" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="VerticalContentAlignment" Value="Center" />
+        </Style>
+
+        <Style x:Key="FieldLabel" TargetType="TextBlock">
+            <Setter Property="Foreground" Value="#475569" />
+            <Setter Property="FontSize" Value="12" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,6" />
+        </Style>
+
+        <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="#475569" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+        </Style>
+
+        <Style x:Key="SecondaryButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="Foreground" Value="#334155" />
+            <Setter Property="BorderBrush" Value="#CBD5E1" />
+        </Style>
+
+        <Style x:Key="DangerButton" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="#FFF1F2" />
+            <Setter Property="Foreground" Value="#BE123C" />
+            <Setter Property="BorderBrush" Value="#FECDD3" />
+        </Style>
+
+        <Style x:Key="MiniButton" TargetType="Button" BasedOn="{StaticResource SecondaryButton}">
+            <Setter Property="Padding" Value="9,5" />
+            <Setter Property="FontSize" Value="11" />
+        </Style>
+
+        <Style x:Key="SettingPanel" TargetType="Border">
+            <Setter Property="Background" Value="#F8FAFC" />
+            <Setter Property="BorderBrush" Value="#E2E8F0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="12" />
+            <Setter Property="Padding" Value="11" />
+            <Setter Property="Margin" Value="0,0,0,12" />
         </Style>
     </Application.Resources>
 </Application>

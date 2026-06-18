@@ -39,13 +39,18 @@ public sealed class RelayCommand(Func<Task> execute, Func<bool>? canExecute = nu
     public void RaiseCanExecuteChanged() => CanExecuteChanged?.Invoke(this, EventArgs.Empty);
 }
 
-public sealed class RelayCommand<T>(Func<T?, Task> execute, Func<T?, bool>? canExecute = null) : ICommand
+public sealed class RelayCommand<T>(
+    Func<T?, Task> execute,
+    Func<T?, bool>? canExecute = null,
+    bool allowConcurrentExecutions = false) : ICommand
 {
-    private bool _isRunning;
+    private int _runningCount;
 
     public event EventHandler? CanExecuteChanged;
 
-    public bool CanExecute(object? parameter) => !_isRunning && (canExecute?.Invoke((T?)parameter) ?? true);
+    public bool CanExecute(object? parameter) =>
+        (allowConcurrentExecutions || _runningCount == 0) &&
+        (canExecute?.Invoke((T?)parameter) ?? true);
 
     public async void Execute(object? parameter)
     {
@@ -56,7 +61,7 @@ public sealed class RelayCommand<T>(Func<T?, Task> execute, Func<T?, bool>? canE
 
         try
         {
-            _isRunning = true;
+            _runningCount++;
             RaiseCanExecuteChanged();
             await execute((T?)parameter);
         }
@@ -67,7 +72,7 @@ public sealed class RelayCommand<T>(Func<T?, Task> execute, Func<T?, bool>? canE
         }
         finally
         {
-            _isRunning = false;
+            _runningCount--;
             RaiseCanExecuteChanged();
         }
     }

@@ -63,6 +63,7 @@ public sealed class MainViewModel : ObservableObject
     private AvailableDevice? _selectedAvailableDevice;
     private AutomationRuleDto? _selectedAutomationRule;
     private string _realtimeConnectionState = "Disconnected";
+    private string _automationValidationMessage = "";
 
     public MainViewModel()
     {
@@ -77,7 +78,9 @@ public sealed class MainViewModel : ObservableObject
         DismissAuthMessageCommand = new RelayCommand(DismissAuthMessageAsync);
         ToggleSidebarCommand = new RelayCommand(ToggleSidebarAsync, () => IsAuthenticated);
         LogoutCommand = new RelayCommand(LogoutAsync, () => IsAuthenticated);
-        NavigateCommand = new RelayCommand<string>(NavigateAsync);
+        // Navigation updates the visible section immediately, then refreshes that section.
+        // Keep the shared menu command enabled so a slow API call cannot disable every nav item.
+        NavigateCommand = new RelayCommand<string>(NavigateAsync, allowConcurrentExecutions: true);
         RefreshHomeCommand = new RelayCommand(RefreshHomeAsync, () => IsAuthenticated);
         SetHomeDeviceFilterCommand = new RelayCommand<string>(SetHomeDeviceFilterAsync, _ => IsAuthenticated);
         OpenHomeDeviceCommand = new RelayCommand<HomeDeviceCard>(OpenHomeDeviceAsync, card => IsAuthenticated && card is not null);
@@ -449,6 +452,22 @@ public sealed class MainViewModel : ObservableObject
     public string CommandDesiredValue { get; set; } = "true";
 
     public string AutomationName { get; set; } = "";
+    public string AutomationValidationMessage
+    {
+        get => _automationValidationMessage;
+        private set
+        {
+            if (SetProperty(ref _automationValidationMessage, value))
+            {
+                OnPropertyChanged(nameof(AutomationValidationVisibility));
+            }
+        }
+    }
+
+    public Visibility AutomationValidationVisibility => string.IsNullOrWhiteSpace(AutomationValidationMessage)
+        ? Visibility.Collapsed
+        : Visibility.Visible;
+
     public string AutomationSourceDeviceId { get; set; } = "";
     public string AutomationSourceCapabilityKey { get; set; } = "";
     public string AutomationOperator
@@ -1192,6 +1211,7 @@ public sealed class MainViewModel : ObservableObject
     {
         if (card is not null)
         {
+            AutomationValidationMessage = "";
             SelectedAutomationRule = card.Rule;
             AutomationMode = "Edit";
         }
@@ -1490,6 +1510,7 @@ public sealed class MainViewModel : ObservableObject
 
     private Task BackToAutomationListAsync()
     {
+        AutomationValidationMessage = "";
         AutomationMode = "List";
         SelectedAutomationRule = null;
         return Task.CompletedTask;
@@ -1703,14 +1724,26 @@ public sealed class MainViewModel : ObservableObject
 
     private async Task CreateAutomationRuleAsync()
     {
-        await RunAsync(async () =>
+        if (!TryValidateAutomationEditor(out var validationMessage))
+        {
+            AutomationValidationMessage = validationMessage;
+            return;
+        }
+
+        AutomationValidationMessage = "";
+        try
         {
             await _api.CreateAutomationRuleAsync(CreateAutomationRulePayloadFromEditor());
             AutomationMode = "List";
             SelectedAutomationRule = null;
             await RefreshAutomationRulesAsync();
             StatusMessage = "Automation rule created.";
-        });
+        }
+        catch (Exception exception)
+        {
+            AutomationValidationMessage = exception.Message;
+            StatusMessage = exception.Message;
+        }
     }
 
     private async Task UpdateAutomationRuleAsync()
@@ -1720,14 +1753,26 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        await RunAsync(async () =>
+        if (!TryValidateAutomationEditor(out var validationMessage))
+        {
+            AutomationValidationMessage = validationMessage;
+            return;
+        }
+
+        AutomationValidationMessage = "";
+        try
         {
             await _api.UpdateAutomationRuleAsync(SelectedAutomationRule.Id, CreateUpdateAutomationRulePayloadFromEditor());
             AutomationMode = "List";
             SelectedAutomationRule = null;
             await RefreshAutomationRulesAsync();
             StatusMessage = "Automation rule updated.";
-        });
+        }
+        catch (Exception exception)
+        {
+            AutomationValidationMessage = exception.Message;
+            StatusMessage = exception.Message;
+        }
     }
 
     private async Task ToggleAutomationRuleEnabledAsync(AutomationRuleCard? card)
@@ -2335,6 +2380,70 @@ public sealed class MainViewModel : ObservableObject
         return new AutomationSchedulePayload(utcFrom, utcTo, utcDays == 0 ? null : utcDays);
     }
 
+    private bool TryValidateAutomationEditor(out string message)
+    {
+        if (string.IsNullOrWhiteSpace(AutomationName))
+        {
+            message = "Enter a name for this automation rule.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(AutomationTargetSelectionKey) ||
+            !Guid.TryParse(AutomationTargetDeviceId, out _) ||
+            string.IsNullOrWhiteSpace(AutomationTargetCapabilityKey))
+        {
+            message = "Select a target device and action.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(AutomationCommandName))
+        {
+            message = "Select an action command.";
+            return false;
+        }
+
+        if (string.IsNullOrWhiteSpace(AutomationDesiredValue))
+        {
+            message = "Enter the desired action value.";
+            return false;
+        }
+
+        if (!int.TryParse(AutomationCooldownSeconds, out var cooldownSeconds) || cooldownSeconds < 0)
+        {
+            message = "Cooldown must be a whole number of 0 seconds or more.";
+            return false;
+        }
+
+        if (!string.IsNullOrWhiteSpace(AutomationSourceSelectionKey))
+        {
+            if (!Guid.TryParse(AutomationSourceDeviceId, out _) || string.IsNullOrWhiteSpace(AutomationSourceCapabilityKey))
+            {
+                message = "Select a valid trigger source.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(AutomationOperator))
+            {
+                message = "Select a comparison operator for the trigger.";
+                return false;
+            }
+
+            if (string.IsNullOrWhiteSpace(AutomationThresholdValue))
+            {
+                message = "Enter a threshold value for the trigger.";
+                return false;
+            }
+        }
+        else if (!IsAutomationScheduleEnabled)
+        {
+            message = "Select a trigger source or enable a schedule.";
+            return false;
+        }
+
+        message = "";
+        return true;
+    }
+
     private CreateAutomationRulePayload CreateAutomationRulePayloadFromEditor()
     {
         var hasSource = !string.IsNullOrWhiteSpace(AutomationSourceSelectionKey);
@@ -2392,6 +2501,7 @@ public sealed class MainViewModel : ObservableObject
 
     private void ResetAutomationEditor()
     {
+        AutomationValidationMessage = "";
         SelectedAutomationRule = null;
         AutomationName = "";
         AutomationSourceSelectionKey = "";
