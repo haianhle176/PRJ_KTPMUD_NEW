@@ -1219,7 +1219,7 @@
                                         <ScrollViewer Grid.Row="2"
                                                       VerticalScrollBarVisibility="Auto"
                                                       HorizontalScrollBarVisibility="Disabled">
-                                            <ItemsControl ItemsSource="{Binding FilteredHomeDeviceCards}"
+                                            <ItemsControl ItemsSource="{Binding FilteredHomeDeviceCardsView}"
                                                           VerticalAlignment="Top">
                                                 <ItemsControl.ItemsPanel>
                                                     <ItemsPanelTemplate>

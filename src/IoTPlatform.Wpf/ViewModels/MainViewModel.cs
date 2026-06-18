@@ -1,10 +1,12 @@
 using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Diagnostics;
 using System.IO;
 using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Windows;
+using System.Windows.Data;
 using System.Windows.Threading;
 using IoTPlatform.Application.Realtime;
 using IoTPlatform.Wpf.Services;
@@ -20,6 +22,7 @@ public sealed class MainViewModel : ObservableObject
     private readonly DispatcherTimer _realtimeDebounceTimer;
     private readonly HashSet<string> _pendingRealtimeKinds = new(StringComparer.Ordinal);
     private readonly HashSet<Guid> _pendingRealtimeDeviceIds = [];
+    private readonly ListCollectionView _filteredHomeDeviceCardsView;
     private bool _isProcessingRealtimeChanges;
 
     private string _currentSection = "Auth";
@@ -121,12 +124,14 @@ public sealed class MainViewModel : ObservableObject
             _authMessageTimer.Stop();
             AuthMessage = "";
         };
+        _filteredHomeDeviceCardsView = new ListCollectionView(HomeDeviceCards) { Filter = FilterHomeDeviceCard };
         _ = RestoreSessionAsync();
     }
 
     public ObservableCollection<DeviceSummary> Devices { get; } = [];
     public ObservableCollection<AvailableDevice> AvailableDevices { get; } = [];
     public ObservableCollection<HomeDeviceCard> HomeDeviceCards { get; } = [];
+    public ICollectionView FilteredHomeDeviceCardsView => _filteredHomeDeviceCardsView;
     public ObservableCollection<DeviceCapability> Capabilities { get; } = [];
     public ObservableCollection<SensorCard> Sensors { get; } = [];
     public ObservableCollection<ActuatorControl> Actuators { get; } = [];
@@ -636,8 +641,7 @@ public sealed class MainViewModel : ObservableObject
         {
             if (SetProperty(ref _homeDeviceFilter, value))
             {
-                OnPropertyChanged(nameof(FilteredHomeDeviceCards));
-                OnPropertyChanged(nameof(HomeViewAllDevicesVisibility));
+                RefreshFilteredHomeDeviceCardsView();
                 OnPropertyChanged(nameof(AllFilterBackground));
                 OnPropertyChanged(nameof(OnlineFilterBackground));
                 OnPropertyChanged(nameof(OfflineFilterBackground));
@@ -694,15 +698,7 @@ public sealed class MainViewModel : ObservableObject
         }
     }
 
-    public IEnumerable<HomeDeviceCard> FilteredHomeDeviceCards => HomeDeviceFilter switch
-    {
-        "Online" => HomeDeviceCards.Where(card => card.IsOnline),
-        "Offline" => HomeDeviceCards.Where(card => !card.IsOnline),
-        "Actuators" => HomeDeviceCards.Where(card => card.IsActuator),
-        "Sensors" => HomeDeviceCards.Where(card => card.IsSensor),
-        _ => HomeDeviceCards
-    };
-    public Visibility HomeViewAllDevicesVisibility => FilteredHomeDeviceCards.Count() > 6 ? Visibility.Visible : Visibility.Collapsed;
+    public Visibility HomeViewAllDevicesVisibility => CountFilteredHomeDeviceCards() > 6 ? Visibility.Visible : Visibility.Collapsed;
     public string AllFilterBackground => FilterBackground("All");
     public string OnlineFilterBackground => FilterBackground("Online");
     public string OfflineFilterBackground => FilterBackground("Offline");
@@ -1306,6 +1302,7 @@ public sealed class MainViewModel : ObservableObject
 
         RebuildAutomationRuleCards();
         UpdateHomeDeviceAutomationBadges();
+        RefreshFilteredHomeDeviceCardsView();
         NotifyDashboardCounts();
     }
 
@@ -2041,6 +2038,35 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(HomeDeviceDetailVisibility));
     }
 
+    private bool FilterHomeDeviceCard(object item) =>
+        item is HomeDeviceCard card && MatchesHomeDeviceFilter(card);
+
+    private bool MatchesHomeDeviceFilter(HomeDeviceCard card) => HomeDeviceFilter switch
+    {
+        "Online" => card.IsOnline,
+        "Offline" => !card.IsOnline,
+        "Actuators" => card.IsActuator,
+        "Sensors" => card.IsSensor,
+        _ => true
+    };
+
+    private int CountFilteredHomeDeviceCards()
+    {
+        var count = 0;
+        foreach (HomeDeviceCard card in _filteredHomeDeviceCardsView)
+        {
+            count++;
+        }
+
+        return count;
+    }
+
+    private void RefreshFilteredHomeDeviceCardsView()
+    {
+        _filteredHomeDeviceCardsView.Refresh();
+        OnPropertyChanged(nameof(HomeViewAllDevicesVisibility));
+    }
+
     private void NotifyDashboardCounts()
     {
         OnPropertyChanged(nameof(OnlineDeviceCount));
@@ -2050,7 +2076,6 @@ public sealed class MainViewModel : ObservableObject
         OnPropertyChanged(nameof(SelectedActuatorCount));
         OnPropertyChanged(nameof(HomeSensorCount));
         OnPropertyChanged(nameof(HomeActuatorCount));
-        OnPropertyChanged(nameof(FilteredHomeDeviceCards));
         OnPropertyChanged(nameof(HomeViewAllDevicesVisibility));
         OnPropertyChanged(nameof(AutomationSourceOptions));
         OnPropertyChanged(nameof(AutomationTargetOptions));
