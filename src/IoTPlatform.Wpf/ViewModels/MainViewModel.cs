@@ -36,7 +36,8 @@ public sealed class MainViewModel : ObservableObject
     private bool _isRegisterMode;
     private bool _isSidebarExpanded = true;
     private bool _isNotificationFlyoutOpen;
-    private bool _isRefreshingDeviceDetail;
+    private long _deviceDetailLoadVersion;
+    private Guid? _deviceBeingRemovedId;
     private string _lastHomeRefreshText = "Not refreshed yet";
     private string _availableDeviceMessage = "Waiting for DeviceApp...";
     private string _availablePairingCode = "";
@@ -116,7 +117,14 @@ public sealed class MainViewModel : ObservableObject
         _realtimeDebounceTimer.Tick += async (_, _) =>
         {
             _realtimeDebounceTimer.Stop();
-            await ProcessRealtimeChangesAsync();
+            try
+            {
+                await ProcessRealtimeChangesAsync();
+            }
+            catch (Exception exception)
+            {
+                StatusMessage = $"Realtime refresh failed: {exception.Message}";
+            }
         };
         _authMessageTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
         _authMessageTimer.Tick += (_, _) =>
@@ -381,7 +389,6 @@ public sealed class MainViewModel : ObservableObject
                     OnPropertyChanged(nameof(RenameCategory));
                     OnPropertyChanged(nameof(AutomationSourceDeviceId));
                     OnPropertyChanged(nameof(AutomationTargetDeviceId));
-                    _ = LoadDeviceDetailAsync();
                 }
                 else
                 {
@@ -1161,14 +1168,13 @@ public sealed class MainViewModel : ObservableObject
         });
     }
 
-    private Task SelectDeviceAsync(DeviceSummary? device)
+    private async Task SelectDeviceAsync(DeviceSummary? device)
     {
         if (device is not null)
         {
             SelectedDevice = device;
+            await LoadDeviceDetailAsync();
         }
-
-        return Task.CompletedTask;
     }
 
     private Task SelectAvailableDeviceAsync(AvailableDevice? device)
@@ -1306,6 +1312,74 @@ public sealed class MainViewModel : ObservableObject
         NotifyDashboardCounts();
     }
 
+    private async Task RefreshHomeDeviceCardsAsync(IReadOnlySet<Guid> deviceIds)
+    {
+        var devices = deviceIds.Count == 0
+            ? Devices.ToArray()
+            : Devices.Where(device => deviceIds.Contains(device.Id)).ToArray();
+
+        foreach (var device in devices)
+        {
+            var capabilitiesTask = _api.GetDeviceCapabilitiesAsync(device.Id);
+            var latestValuesTask = _api.GetLatestValuesAsync(device.Id);
+            try
+            {
+                await Task.WhenAll(capabilitiesTask, latestValuesTask);
+            }
+            catch (ApiProblemException exception) when (exception.StatusCode == HttpStatusCode.NotFound)
+            {
+                for (var index = HomeDeviceCards.Count - 1; index >= 0; index--)
+                {
+                    if (HomeDeviceCards[index].DeviceId == device.Id)
+                    {
+                        HomeDeviceCards.RemoveAt(index);
+                    }
+                }
+                continue;
+            }
+
+            var capabilities = await capabilitiesTask;
+            var latestValues = await latestValuesTask;
+            var latestByCapability = latestValues.ToDictionary(value => value.CapabilityKey, StringComparer.OrdinalIgnoreCase);
+            var incomingCards = capabilities
+                .Where(capability => capability.Kind is "sensor" or "actuator")
+                .Select(capability =>
+                {
+                    latestByCapability.TryGetValue(capability.Key, out var latest);
+                    return HomeDeviceCard.From(device, capability, latest);
+                })
+                .ToDictionary(card => card.CapabilityKey, StringComparer.OrdinalIgnoreCase);
+
+            for (var index = HomeDeviceCards.Count - 1; index >= 0; index--)
+            {
+                var existing = HomeDeviceCards[index];
+                if (existing.DeviceId == device.Id && !incomingCards.ContainsKey(existing.CapabilityKey))
+                {
+                    HomeDeviceCards.RemoveAt(index);
+                }
+            }
+
+            foreach (var incoming in incomingCards.Values)
+            {
+                var existing = HomeDeviceCards.FirstOrDefault(card =>
+                    card.DeviceId == incoming.DeviceId &&
+                    card.CapabilityKey.Equals(incoming.CapabilityKey, StringComparison.OrdinalIgnoreCase));
+                if (existing is null)
+                {
+                    HomeDeviceCards.Add(incoming);
+                }
+                else
+                {
+                    existing.UpdateFrom(incoming);
+                }
+            }
+        }
+
+        RefreshFilteredHomeDeviceCardsView();
+        UpdateHomeDeviceAutomationBadges();
+        NotifyDashboardCounts();
+    }
+
     private Task SetHomeDeviceFilterAsync(string? filter)
     {
         if (!string.IsNullOrWhiteSpace(filter))
@@ -1431,6 +1505,7 @@ public sealed class MainViewModel : ObservableObject
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == device.Id);
             CurrentSection = "Home";
             HomeMode = "DeviceDetail";
+            await LoadDeviceDetailAsync();
             StatusMessage = $"Claimed {device.NameOrSerial}.";
         });
     }
@@ -1459,6 +1534,7 @@ public sealed class MainViewModel : ObservableObject
             await RefreshAvailableDevicesSafelyAsync();
             SelectedDevice = Devices.FirstOrDefault(item => item.Id == device.Id);
             CurrentSection = "Home";
+            await LoadDeviceDetailAsync();
             IsOnboardingClaimSuccess = true;
             StatusMessage = $"Claimed {device.NameOrSerial}.";
             await Task.Delay(TimeSpan.FromMilliseconds(1400));
@@ -1506,43 +1582,57 @@ public sealed class MainViewModel : ObservableObject
             return;
         }
 
-        await RunAsync(async () =>
-        {
-            await _api.UnclaimDeviceAsync(device.Id);
-            SelectedDevice = null;
-            await RefreshHomeAsync();
-            await RefreshAutomationRulesAsync();
-            HomeMode = Devices.Count == 0 ? "AddDevice" : "Dashboard";
-            StatusMessage = $"Removed {device.NameOrSerial} from your account.";
-        });
-    }
-
-    private async Task LoadDeviceDetailAsync()
-    {
-        if (SelectedDevice is null || !IsAuthenticated || _isRefreshingDeviceDetail)
-        {
-            return;
-        }
-
-        _isRefreshingDeviceDetail = true;
+        _deviceBeingRemovedId = device.Id;
+        Interlocked.Increment(ref _deviceDetailLoadVersion);
         try
         {
             await RunAsync(async () =>
             {
-                var capabilities = await _api.GetDeviceCapabilitiesAsync(SelectedDevice.Id);
-                SyncByKey(Capabilities, capabilities, capability => capability.Key);
-                SyncByKey(LatestValues, await _api.GetLatestValuesAsync(SelectedDevice.Id), value => value.CapabilityKey);
-                var history = await _api.GetTelemetryHistoryAsync(SelectedDevice.Id, EmptyToNull(HistoryCapabilityKey), pageSize: 100);
-                SyncByKey(TelemetryHistory, history.Items, item => item.Id);
-                BuildControlModels();
-                BuildHomeDeviceTelemetryLog();
-                StatusMessage = $"Loaded {SelectedDevice.NameOrSerial}.";
+                await _api.UnclaimDeviceAsync(device.Id);
+                _realtimeDebounceTimer.Stop();
+                _pendingRealtimeKinds.Clear();
+                _pendingRealtimeDeviceIds.Clear();
+                SelectedDevice = null;
+                await RefreshHomeAsync();
+                await RefreshAutomationRulesAsync();
+                HomeMode = Devices.Count == 0 ? "AddDevice" : "Dashboard";
+                StatusMessage = $"Removed {device.NameOrSerial} from your account.";
             });
         }
         finally
         {
-            _isRefreshingDeviceDetail = false;
+            _deviceBeingRemovedId = null;
         }
+    }
+
+    private async Task LoadDeviceDetailAsync()
+    {
+        var selectedDevice = SelectedDevice;
+        if (selectedDevice is null || !IsAuthenticated)
+        {
+            return;
+        }
+
+        var loadVersion = Interlocked.Increment(ref _deviceDetailLoadVersion);
+        await RunAsync(async () =>
+        {
+            var capabilitiesTask = _api.GetDeviceCapabilitiesAsync(selectedDevice.Id);
+            var latestValuesTask = _api.GetLatestValuesAsync(selectedDevice.Id);
+            var historyTask = _api.GetTelemetryHistoryAsync(selectedDevice.Id, EmptyToNull(HistoryCapabilityKey), pageSize: 100);
+            await Task.WhenAll(capabilitiesTask, latestValuesTask, historyTask);
+
+            if (loadVersion != Volatile.Read(ref _deviceDetailLoadVersion) || SelectedDevice?.Id != selectedDevice.Id)
+            {
+                return;
+            }
+
+            SyncByKey(Capabilities, await capabilitiesTask, capability => capability.Key);
+            SyncByKey(LatestValues, await latestValuesTask, value => value.CapabilityKey);
+            SyncByKey(TelemetryHistory, (await historyTask).Items, item => item.Id);
+            BuildControlModels();
+            BuildHomeDeviceTelemetryLog();
+            StatusMessage = $"Loaded {selectedDevice.NameOrSerial}.";
+        });
     }
 
     private async Task SendCommandAsync()
@@ -1787,6 +1877,11 @@ public sealed class MainViewModel : ObservableObject
     private Task QueueRealtimeChangeAsync(DashboardChangedEvent changed) =>
         System.Windows.Application.Current.Dispatcher.InvokeAsync(() =>
         {
+            if (changed.DeviceId is Guid changedDeviceId && changedDeviceId == _deviceBeingRemovedId)
+            {
+                return;
+            }
+
             _pendingRealtimeKinds.Add(changed.Kind);
             if (changed.DeviceId is Guid deviceId)
             {
@@ -1811,15 +1906,21 @@ public sealed class MainViewModel : ObservableObject
             _pendingRealtimeKinds.Clear();
             _pendingRealtimeDeviceIds.Clear();
 
-            var deviceDataChanged = kinds.Overlaps([
+            var deviceListChanged = kinds.Overlaps([
+                DashboardEventKinds.Presence,
+                DashboardEventKinds.Device]);
+            var deviceValuesChanged = kinds.Overlaps([
                 DashboardEventKinds.Telemetry,
                 DashboardEventKinds.Presence,
                 DashboardEventKinds.Command,
                 DashboardEventKinds.Device]);
-            if (deviceDataChanged)
+            if (deviceListChanged)
             {
                 await RefreshDevicesAsync();
-                await BuildHomeDeviceCardsAsync();
+            }
+            if (deviceValuesChanged)
+            {
+                await RefreshHomeDeviceCardsAsync(deviceIds);
                 if (SelectedDevice is not null && (deviceIds.Count == 0 || deviceIds.Contains(SelectedDevice.Id)))
                 {
                     await LoadDeviceDetailAsync();
