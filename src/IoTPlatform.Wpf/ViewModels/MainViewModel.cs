@@ -1489,6 +1489,7 @@ public sealed class MainViewModel : ObservableObject
             await _api.UnclaimDeviceAsync(device.Id);
             SelectedDevice = null;
             await RefreshHomeAsync();
+            await RefreshAutomationRulesAsync();
             HomeMode = Devices.Count == 0 ? "AddDevice" : "Dashboard";
             StatusMessage = $"Removed {device.NameOrSerial} from your account.";
         });

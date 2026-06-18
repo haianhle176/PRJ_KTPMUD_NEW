@@ -60,6 +60,12 @@ public sealed class AutomationPipelineIntegrationTests
             await context.TelemetryRepository.IngestAsync(trigger, MqttTopics.Telemetry(serial));
             await context.TelemetryRepository.IngestAsync(trigger, MqttTopics.Telemetry(serial));
             Assert.Equal(1, await CountCommandsAsync(connectionString));
+            var generatedCommand = await GetLatestAutomationCommandAsync(connectionString);
+            Assert.Equal(device.Id, generatedCommand.DeviceId);
+            Assert.Equal("pump_power", generatedCommand.CapabilityKey);
+            Assert.Equal("ON", generatedCommand.CommandName);
+            Assert.True(generatedCommand.DesiredBooleanValue);
+            Assert.Equal("pending", generatedCommand.Status);
             Assert.Equal("triggered", await LastExecutionOutcomeAsync(connectionString, rule.Id));
 
             await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 36m), MqttTopics.Telemetry(serial));
@@ -84,6 +90,43 @@ public sealed class AutomationPipelineIntegrationTests
             await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 20m), MqttTopics.Telemetry(serial));
             await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 40m), MqttTopics.Telemetry(serial));
             Assert.Equal(1, await CountCommandsAsync(connectionString));
+        }
+        finally
+        {
+            SqlConnection.ClearAllPools();
+            await ExecuteMasterAsync($"ALTER DATABASE [{databaseName}] SET SINGLE_USER WITH ROLLBACK IMMEDIATE; DROP DATABASE [{databaseName}];");
+        }
+    }
+
+    [Fact]
+    public async Task UnclaimDevice_RemovesRelatedRulesAndExecutionsButPreservesCommandHistory()
+    {
+        var databaseName = $"IoTPlatform_AutomationUnclaim_{Guid.NewGuid():N}";
+        var connectionString = new SqlConnectionStringBuilder(MasterConnectionString) { InitialCatalog = databaseName }.ConnectionString;
+        await ExecuteMasterAsync($"CREATE DATABASE [{databaseName}];");
+
+        try
+        {
+            var context = await CreateContextAsync(connectionString);
+            var owner = await context.AuthService.RegisterAsync(new RegisterRequestDto("automation-unclaim@example.test", "Password123!", "Owner"));
+            const string serial = "DEV-P5REMOVE01";
+            const string pairingCode = "RMVE2345";
+            await context.DeviceRegistry.RegisterManifestAsync(CreateManifest(serial, pairingCode));
+            var device = await context.ClaimService.ClaimAsync(owner.User.Id, new ClaimDeviceRequestDto(pairingCode, "Removable Device", null));
+            var rule = await context.AutomationService.CreateAsync(owner.User.Id, ValidRequest(device.Id));
+
+            await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 20m), MqttTopics.Telemetry(serial));
+            await context.TelemetryRepository.IngestAsync(CreateTelemetry(serial, Guid.NewGuid(), 40m), MqttTopics.Telemetry(serial));
+            Assert.Equal("triggered", await LastExecutionOutcomeAsync(connectionString, rule.Id));
+
+            await context.ManagementService.UnclaimAsync(owner.User.Id, device.Id);
+
+            Assert.Empty(await context.AutomationService.ListAsync(owner.User.Id));
+            await using var connection = new SqlConnection(connectionString);
+            Assert.Equal(0, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.AutomationRules;"));
+            Assert.Equal(0, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.AutomationExecutions;"));
+            Assert.Equal(1, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.DeviceCommands;"));
+            Assert.Equal(0, await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.DeviceCommands WHERE AutomationRuleId IS NOT NULL;"));
         }
         finally
         {
@@ -228,6 +271,7 @@ public sealed class AutomationPipelineIntegrationTests
             new AuthService(new SqlAuthRepository(transactionFactory, connectionFactory), new PasswordService(), new JwtTokenService(jwtOptions)),
             new DeviceRegistry(transactionFactory),
             new DeviceClaimService(new SqlDeviceClaimRepository(transactionFactory)),
+            new DeviceManagementService(new SqlDeviceManagementRepository(connectionFactory, transactionFactory)),
             new SqlTelemetryIngestionRepository(transactionFactory),
             new AutomationRuleService(new SqlAutomationRuleRepository(connectionFactory)));
     }
@@ -236,6 +280,24 @@ public sealed class AutomationPipelineIntegrationTests
     {
         await using var connection = new SqlConnection(connectionString);
         return await connection.ExecuteScalarAsync<int>("SELECT COUNT(*) FROM dbo.DeviceCommands WHERE Source = 'automation';");
+    }
+
+    private static async Task<AutomationCommandRow> GetLatestAutomationCommandAsync(string connectionString)
+    {
+        await using var connection = new SqlConnection(connectionString);
+        return await connection.QuerySingleAsync<AutomationCommandRow>(
+            """
+            SELECT TOP (1)
+                dc.DeviceId,
+                capability.[Key] AS CapabilityKey,
+                dc.CommandName,
+                dc.DesiredBooleanValue,
+                dc.Status
+            FROM dbo.DeviceCommands dc
+            INNER JOIN dbo.Capabilities capability ON capability.Id = dc.CapabilityId
+            WHERE dc.Source = 'automation'
+            ORDER BY dc.CreatedAtUtc DESC;
+            """);
     }
 
     private static async Task<string> LastExecutionOutcomeAsync(string connectionString, Guid ruleId)
@@ -277,6 +339,14 @@ public sealed class AutomationPipelineIntegrationTests
         IAuthService AuthService,
         DeviceRegistry DeviceRegistry,
         IDeviceClaimService ClaimService,
+        IDeviceManagementService ManagementService,
         SqlTelemetryIngestionRepository TelemetryRepository,
         IAutomationRuleService AutomationService);
+
+    private sealed record AutomationCommandRow(
+        Guid DeviceId,
+        string CapabilityKey,
+        string CommandName,
+        bool DesiredBooleanValue,
+        string Status);
 }

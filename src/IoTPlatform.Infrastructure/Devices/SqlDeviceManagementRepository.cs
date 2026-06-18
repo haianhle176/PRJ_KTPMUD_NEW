@@ -237,9 +237,42 @@ public sealed class SqlDeviceManagementRepository(
 
     public async Task<bool> UnclaimAsync(Guid userId, Guid deviceId, CancellationToken cancellationToken = default)
     {
-        await using var connection = await connectionFactory.OpenConnectionAsync(cancellationToken);
-        var affected = await connection.ExecuteAsync(new CommandDefinition(
+        await using var scope = await transactionScopeFactory.BeginAsync(cancellationToken);
+        var unclaimed = await scope.Connection.QuerySingleAsync<bool>(new CommandDefinition(
             """
+            IF NOT EXISTS (
+                SELECT 1
+                FROM dbo.Devices WITH (UPDLOCK, HOLDLOCK)
+                WHERE Id = @DeviceId AND OwnerUserId = @UserId
+            )
+            BEGIN
+                SELECT CAST(0 AS bit);
+                RETURN;
+            END;
+
+            DECLARE @RelatedRules TABLE (Id uniqueidentifier NOT NULL PRIMARY KEY);
+
+            INSERT @RelatedRules (Id)
+            SELECT DISTINCT ar.Id
+            FROM dbo.AutomationRules ar
+            LEFT JOIN dbo.Capabilities sourceCapability ON sourceCapability.Id = ar.SourceCapabilityId
+            INNER JOIN dbo.Capabilities targetCapability ON targetCapability.Id = ar.TargetCapabilityId
+            WHERE ar.OwnerUserId = @UserId
+              AND (sourceCapability.DeviceId = @DeviceId OR targetCapability.DeviceId = @DeviceId);
+
+            DELETE ae
+            FROM dbo.AutomationExecutions ae
+            INNER JOIN @RelatedRules relatedRule ON relatedRule.Id = ae.AutomationRuleId;
+
+            UPDATE dc
+            SET AutomationRuleId = NULL
+            FROM dbo.DeviceCommands dc
+            INNER JOIN @RelatedRules relatedRule ON relatedRule.Id = dc.AutomationRuleId;
+
+            DELETE ar
+            FROM dbo.AutomationRules ar
+            INNER JOIN @RelatedRules relatedRule ON relatedRule.Id = ar.Id;
+
             UPDATE dbo.Devices
             SET OwnerUserId = NULL,
                 AvailableToUserId = NULL,
@@ -248,10 +281,14 @@ public sealed class SqlDeviceManagementRepository(
                 ClaimedAtUtc = NULL,
                 UpdatedAtUtc = SYSUTCDATETIME()
             WHERE Id = @DeviceId AND OwnerUserId = @UserId;
+
+            SELECT CAST(1 AS bit);
             """,
             new { DeviceId = deviceId, UserId = userId },
+            scope.Transaction,
             cancellationToken: cancellationToken));
-        return affected == 1;
+        await scope.CommitAsync(cancellationToken);
+        return unclaimed;
     }
 
     public async Task<IReadOnlyList<DeviceCapabilityDto>?> ListCapabilitiesAsync(Guid userId, Guid deviceId, CancellationToken cancellationToken = default)
