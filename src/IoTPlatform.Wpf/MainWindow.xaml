@@ -1259,8 +1259,8 @@
                                                                     </Viewbox>
                                                                 </Border>
                                                                 <StackPanel Grid.Column="1">
-                                                                    <TextBlock Text="{Binding CapabilityName}" FontSize="12" FontWeight="SemiBold" Foreground="{Binding PrimaryBrush}" TextTrimming="CharacterEllipsis" />
-                                                                    <TextBlock Text="{Binding DeviceName}" Foreground="{Binding MutedBrush}" FontSize="12" TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Text="{Binding DisplayTitle}" FontSize="12" FontWeight="SemiBold" Foreground="{Binding PrimaryBrush}" TextTrimming="CharacterEllipsis" />
+                                                                    <TextBlock Text="{Binding DisplaySubtitle}" Foreground="{Binding MutedBrush}" FontSize="12" TextTrimming="CharacterEllipsis" />
                                                                 </StackPanel>
                                                                 <Border Grid.Column="2"
                                                                         Background="#FEF3C7"

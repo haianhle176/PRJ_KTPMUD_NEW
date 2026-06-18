@@ -3205,7 +3205,16 @@ public sealed class HomeDeviceCard(
     public string DeviceName
     {
         get => _deviceName;
-        private set => SetProperty(ref _deviceName, value);
+        private set
+        {
+            if (SetProperty(ref _deviceName, value))
+            {
+                OnPropertyChanged(nameof(DisplayTitle));
+                OnPropertyChanged(nameof(DisplaySubtitle));
+                OnPropertyChanged(nameof(KindIcon));
+                OnPropertyChanged(nameof(KindIconData));
+            }
+        }
     }
 
     public string DeviceStatus
@@ -3266,6 +3275,8 @@ public sealed class HomeDeviceCard(
     }
     public bool IsSensor => Kind.Equals("sensor", StringComparison.OrdinalIgnoreCase);
     public bool IsActuator => Kind.Equals("actuator", StringComparison.OrdinalIgnoreCase);
+    public string DisplayTitle => IsActuator ? DeviceName : CapabilityName;
+    public string DisplaySubtitle => IsActuator ? CapabilityName : DeviceName;
     public Visibility ActuatorActionVisibility => IsActuator ? Visibility.Visible : Visibility.Collapsed;
     public Visibility SensorInfoVisibility => IsSensor ? Visibility.Visible : Visibility.Collapsed;
     public bool IsOnline => DeviceStatus.Equals("online", StringComparison.OrdinalIgnoreCase);
@@ -3383,7 +3394,7 @@ public sealed class HomeDeviceCard(
 
     private string ResolveKindIcon()
     {
-        var key = $"{CapabilityKey} {CapabilityName} {Unit}".ToLowerInvariant();
+        var key = $"{DeviceName} {CapabilityKey} {CapabilityName} {Unit}".ToLowerInvariant();
         if (key.Contains("temp"))
         {
             return "\uE7A3";
@@ -3419,20 +3430,20 @@ public sealed class HomeDeviceCard(
 
     private string ResolveKindIconData()
     {
-        var key = $"{CapabilityKey} {CapabilityName} {Unit}".ToLowerInvariant();
+        var key = $"{DeviceName} {CapabilityKey} {CapabilityName} {Unit}".ToLowerInvariant();
         if (key.Contains("temp"))
         {
             return "M14,4 L14,14.54 A4,4 0 1 1 10,14.54 L10,4 A2,2 0 0 1 14,4 Z";
         }
 
-        if (key.Contains("humid") || key.Contains("water") || key.Contains("moisture"))
-        {
-            return "M12,22 A7,7 0 0 0 19,15 C19,13 18,11.1 16,9.5 C14,7.9 12.5,5.5 12,3 C11.5,5.5 10,7.9 8,9.5 C6,11.1 5,13 5,15 A7,7 0 0 0 12,22 Z";
-        }
-
         if (key.Contains("pump"))
         {
             return "M2,7 A2,2 0 0 1 4,5 L13,5 A2,2 0 0 1 15,7 L15,17 A2,2 0 0 1 13,19 L4,19 A2,2 0 0 1 2,17 Z M2,8 A4,4 0 0 0 2,16 M5,8 L12,8 M5,11 L12,11 M5,14 L12,14 M5,16 L12,16 M15,8 L18,9 L18,15 L15,16 M18,10 L20,10 L20,14 L18,14 M20,12 L23,12";
+        }
+
+        if (key.Contains("humid") || key.Contains("water") || key.Contains("moisture"))
+        {
+            return "M12,22 A7,7 0 0 0 19,15 C19,13 18,11.1 16,9.5 C14,7.9 12.5,5.5 12,3 C11.5,5.5 10,7.9 8,9.5 C6,11.1 5,13 5,15 A7,7 0 0 0 12,22 Z";
         }
 
         if (key.Contains("light") || key.Contains("lux"))

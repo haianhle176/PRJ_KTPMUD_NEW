@@ -356,7 +356,7 @@ public partial class MainWindow : Window, INotifyPropertyChanged
     {
         var configuration = new ConfigurationBuilder()
             .SetBasePath(AppContext.BaseDirectory)
-            .AddJsonFile("appsettings.json", optional: false, reloadOnChange: false)
+            .AddJsonFile("appsettings.json", optional: true, reloadOnChange: false)
             .AddUserSecrets(typeof(MainWindow).Assembly, optional: true)
             .AddEnvironmentVariables()
             .Build();
