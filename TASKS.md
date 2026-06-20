@@ -18,8 +18,8 @@ Ky hieu:
 - [x] `P0-03` Tao payload mau hop le va khong hop le cho tung MQTT message.
 - [x] `P0-04` Chot REST request/response DTO, status code va error envelope.
 - [x] `P0-05` Chot pagination, sorting, filtering va UTC timestamp convention.
-- [ ] `P0-06` Ve Architecture Diagram va bon Sequence Diagram ban dau.
-- [ ] `P0-07` Ve ERD, Class Diagram, Use Case Diagram va hai State Diagram.
+- [x] `P0-06` Ve Architecture Diagram va bon Sequence Diagram ban dau.
+- [x] `P0-07` Ve ERD, Class Diagram, Use Case Diagram va hai State Diagram.
 
 ### P0.2 Solution va coding foundation
 
@@ -174,6 +174,6 @@ Bat dau theo thu tu:
 2. Mo WPF de visual QA P9 va test login/claim/device detail.
 3. Chay smoke test theo `docs/operations/SMOKE_TEST_CHECKLIST.md`.
 4. Neu dung P8 tren Azure SQL hien tai, publish lai API va chay Worker de apply migration V004.
-5. Hoan thien diagram va test report cho bao cao.
+5. Hoan thien test report va dong bo diagram vao bao cao.
 
-`P0-06` va `P0-07` duoc hoan theo yeu cau, khong chan phan trien khai ky thuat P1.
+`P0-06` va `P0-07` da hoan thanh tai `docs/diagrams` bang Mermaid va da dong bo voi implementation hien tai.

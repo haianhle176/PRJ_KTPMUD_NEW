@@ -1,6 +1,6 @@
 # Project Status
 
-**Cap nhat lan cuoi:** 2026-06-16  
+**Cap nhat lan cuoi:** 2026-06-18  
 **Trang thai tong the:** P6 functional MVP complete; P7 cloud/test/report hardening va P9 UI polish in progress  
 **Phase hien tai:** P9 UI polish in progress, P7 hardening van dang mo  
 **Muc tieu tiep theo:** Publish lai API de co health/capability endpoints, mo WPF de visual QA va chay smoke test checklist
@@ -9,7 +9,7 @@
 
 | Phase | Noi dung | Trang thai | Tien do |
 | --- | --- | --- | --- |
-| P0 | Dac ta va nen mong | Technical work complete; diagrams deferred | 90% |
+| P0 | Dac ta va nen mong | Complete | 100% |
 | P1 | Device identity va capability discovery | Complete | 100% |
 | P2 | Tai khoan va claim thiet bi | Complete | 100% |
 | P3 | Telemetry pipeline | Complete | 100% |
@@ -20,7 +20,7 @@
 | P8 | Mo rong sau MVP | P8-03/P8-04/P8-08 backend MVP complete; remaining items deferred | 30% |
 | P9 | UI polish | Impeccable direction implemented in WPF code; visual QA pending | 65% |
 
-Toan bo phan ky thuat P0 da hoan thanh. Phan con lai chi la `P0-06` va `P0-07` ve Architecture/Sequence/ERD/Class/Use Case/State diagrams, duoc hoan theo yeu cau hien tai.
+P0 da hoan thanh day du. Architecture, bon sequence, ERD, class, use case va hai state diagrams duoc luu tai `docs/diagrams` bang Mermaid va phan anh implementation hien tai.
 
 P1 da hoan thanh: persistent profile/serial, runtime manifest, TLS MQTT, Last Will, reconnect, Worker routing, database upsert, pairing hash va verification tren Azure SQL.
 
@@ -120,7 +120,7 @@ P9 da bat dau theo Impeccable: dung palette xanh control, shell sidebar, dashboa
 - [ ] API/Worker can chay migration V004 tren Azure SQL truoc khi test notification/aggregation.
 - [ ] Test coverage hien bao phu P0-P5 cot loi; P6/P9 moi duoc verify bang build, chua co UI automation test.
 - [ ] Chua xac minh ket noi runtime tu source hien tai toi HiveMQ Cloud, Azure SQL va App Service F1.
-- [ ] Chua co diagram artifact hoan chinh.
+- [x] Da co bo diagram artifact hoan chinh tai `docs/diagrams`.
 - [ ] Chua mo WPF de visual QA layout P9 tren man hinh that.
 - [ ] P7 smoke test checklist can duoc chay lai day du truoc demo/bao cao.
 
